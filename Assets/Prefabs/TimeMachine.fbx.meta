@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 62f8e40779037394ab8f03998c4b4b24
+guid: 459444af419894f429be5d806bc41136
 ModelImporter:
   serializedVersion: 24300
   internalIDToNameTable: []
@@ -8,8 +8,8 @@ ModelImporter:
     materialImportMode: 2
     materialName: 0
     materialSearch: 1
-    materialLocation: 1
-    searchTexturesGlobally: 1
+    materialLocation: 0
+    searchTexturesGlobally: 0
   animations:
     legacyGenerateAnimations: 4
     bakeSimulation: 0
@@ -36,7 +36,7 @@ ModelImporter:
     lODScreenPercentages: []
     globalScale: 1
     meshCompression: 0
-    addColliders: 0
+    addColliders: 1
     useSRGBMaterialColor: 1
     sortHierarchyByName: 1
     importPhysicalCameras: 1

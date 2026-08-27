@@ -1,18 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Cinemachine;
-
+using Unity.Cinemachine; // Cinemachine 3.x namespace (was "Cinemachine" in 2.x)
 public class cameraswap1 : MonoBehaviour
 {
-    public List<CinemachineVirtualCamera> aLLCameras = new List<CinemachineVirtualCamera>();
+    public List<CinemachineCamera> aLLCameras = new List<CinemachineCamera>(); // was CinemachineVirtualCamera in 2.x
     public int camnumber = 0;
     // Start is called before the first frame update
     void Start()
     {
         ChangeCamera();
     }
-
     // Update is called once per frame
     void Update()
     {
@@ -26,7 +24,7 @@ public class cameraswap1 : MonoBehaviour
     {
         for (int i = 0; i < aLLCameras.Count; i++)
         {
-            if (aLLCameras.Count -1 < camnumber)
+            if (aLLCameras.Count - 1 < camnumber)
             {
                 camnumber = 0;
             }
@@ -39,5 +37,13 @@ public class cameraswap1 : MonoBehaviour
                 aLLCameras[i].gameObject.SetActive(false);
             }
         }
+    }
+
+    // lets other scripts (like PlayerCarInteraction) jump straight to a
+    // specific camera by index, instead of only being able to cycle with V.
+    public void SwitchTo(int index)
+    {
+        camnumber = index;
+        ChangeCamera();
     }
 }
