@@ -11,11 +11,17 @@ public class PlayerScript : MonoBehaviour
     private float playerEnergy = 100f;
     public float presentEnergy;
     public EnergyBar energybar;
+    [Tooltip("How much stamina drains per second while sprinting")]
+    public float staminaDrainPerSecond = 15f;
+    [Tooltip("How much stamina regenerates per second while not sprinting")]
+    public float staminaRegenPerSecond = 10f;
     public GameObject DamageIndicator;
 
 
     [Header("Player Movement")]
-    public float movementSpeed = 5f;
+    public float walkSpeed = 3f;
+    public float sprintSpeed = 6f;
+    public float movementSpeed = 5f; 
     public float rotSpeed = 450f;
     public MainCameraController MCC;
     public EnvironmentChecker environmentChecker;
@@ -31,7 +37,7 @@ public class PlayerScript : MonoBehaviour
     public Vector3 surfaceCheckOffset;
     public LayerMask surfaceLayer;
     bool onSurface;
-    public bool playerOnLedge{ get; set; }
+    public bool playerOnLedge { get; set; }
     public LedgeInfo LedgeInfo { get; set; }
     [SerializeField] float fallingSpeed;
     [SerializeField] Vector3 moveDir;
@@ -48,42 +54,19 @@ public class PlayerScript : MonoBehaviour
 
     private void Update()
     {
-        if(presentEnergy <= 0)
-        {
-            movementSpeed = 2f;
+        UpdateSprintAndStamina();
 
-            if(!Input.GetButton("Horizontal") || !Input.GetButton("Vertical"))
-            {
-                animator.SetFloat("movementValue", 0f);
-            }
-
-            if(Input.GetButton("Horizontal") || Input.GetButton("Vertical"))
-            {
-                animator.SetFloat("movementValue", 0.5f);
-                StartCoroutine(setEnergy());
-            }
-        }
-
-        if(presentEnergy >= 1)
-        {
-            movementSpeed = 5f;
-        }
-
-        if (animator.GetFloat("movementValue") >= 0.9999)
-        {
-            playerEnergyDecrease(0.02f);
-        }
-        if(!playerControl)
+        if (!playerControl)
             return;
 
         velocity = Vector3.zero;
-        if(onSurface)
+        if (onSurface)
         {
             fallingSpeed = -0.5f;
             velocity = moveDir * movementSpeed;
-            
+
             playerOnLedge = environmentChecker.CheckLedge(moveDir, out LedgeInfo ledgeInfo);
-            if(playerOnLedge)
+            if (playerOnLedge)
             {
                 LedgeInfo = ledgeInfo;
                 playerLedgeMovement();
@@ -101,13 +84,32 @@ public class PlayerScript : MonoBehaviour
             velocity = transform.forward * movementSpeed / 2;
         }
 
-        
+
         velocity.y = fallingSpeed;
 
         PlayerMovement();
         SurfaceCheck();
         animator.SetBool("onSurface", onSurface);
         Debug.Log("Player on Surface" + onSurface);
+    }
+
+    void UpdateSprintAndStamina()
+    {
+        bool isMoving = Input.GetButton("Horizontal") || Input.GetButton("Vertical");
+        bool sprintHeld = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        bool isSprinting = isMoving && sprintHeld && presentEnergy > 0f;
+
+        movementSpeed = isSprinting ? sprintSpeed : walkSpeed;
+
+        if (isSprinting)
+        {
+            playerEnergyDecrease(staminaDrainPerSecond * Time.deltaTime);
+        }
+        else if (presentEnergy < playerEnergy)
+        {
+            presentEnergy = Mathf.Min(playerEnergy, presentEnergy + staminaRegenPerSecond * Time.deltaTime);
+            energybar.SetEnergy(presentEnergy);
+        }
     }
 
     void PlayerMovement()
@@ -144,7 +146,7 @@ public class PlayerScript : MonoBehaviour
     {
         float angle = Vector3.Angle(LedgeInfo.surfaceHit.normal, requiredMoveDir);
 
-        if(angle < 90)
+        if (angle < 90)
         {
             velocity = Vector3.zero;
             moveDir = Vector3.zero;
@@ -162,7 +164,7 @@ public class PlayerScript : MonoBehaviour
         this.playerControl = hasControl;
         CC.enabled = hasControl;
 
-        if(!hasControl)
+        if (!hasControl)
         {
             animator.SetFloat("movementValue", 0f);
             requiredRotation = transform.rotation;
@@ -181,7 +183,7 @@ public class PlayerScript : MonoBehaviour
         healthbar.SetHealth(presentHealth);
         StartCoroutine(showDamage());
 
-        if(presentHealth <= 0)
+        if (presentHealth <= 0)
         {
             PlayerDie();
         }
@@ -195,16 +197,8 @@ public class PlayerScript : MonoBehaviour
 
     public void playerEnergyDecrease(float energyDecrease)
     {
-        presentEnergy -= energyDecrease;
+        presentEnergy = Mathf.Max(0f, presentEnergy - energyDecrease);
         energybar.SetEnergy(presentEnergy);
-    }
-
-    IEnumerator setEnergy()
-    {
-        presentEnergy = 0f;
-        yield return new WaitForSeconds(5f);
-        energybar.GiveFUllEnergy(presentEnergy);
-        presentEnergy = 100f;
     }
 
     IEnumerator showDamage()
