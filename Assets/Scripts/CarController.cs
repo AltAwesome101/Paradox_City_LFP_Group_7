@@ -1,4 +1,5 @@
 using UnityEngine;
+using StarterAssets;
 
 [RequireComponent(typeof(Rigidbody))]
 public class CarController : MonoBehaviour
@@ -110,6 +111,49 @@ public class CarController : MonoBehaviour
 
 
     // =========================================================
+    // HYPER REVERSE TURN
+    // =========================================================
+
+    [Header("===== HYPER REVERSE TURN =====")]
+
+    [Tooltip("How many seconds the player must hold S while actually rolling backward before the hyper turn triggers.")]
+    public float reverseHoldTimeForFlip = 2f;
+
+    [Tooltip("How long the 180-degree snap-turn takes to visually play out.")]
+    public float flipSpinDuration = 0.35f;
+
+    [Tooltip("Minimum reverse speed required to count as 'actively reversing' for the timer.")]
+    public float minReverseSpeedForFlip = 0.5f;
+
+    [Tooltip("Color of the code-generated burst particle effect played when the flip triggers.")]
+    public Color hyperTurnParticleColor = new Color(0.3f, 0.75f, 1f, 1f);
+
+    [Tooltip("How many particles spawn in the burst.")]
+    public int hyperTurnParticleCount = 40;
+
+
+    // =========================================================
+    // ENTER / EXIT (INTERACT PROMPT)
+    // =========================================================
+
+    [Header("===== ENTER / EXIT CAR =====")]
+
+    [Tooltip("Leave empty to auto-find the GameObject tagged 'Player' at Awake.")]
+    public Transform player;
+
+    [Tooltip("How close the player needs to be to see the prompt and press F to get in.")]
+    public float driveInteractRange = 3.5f;
+
+    [Tooltip("Assign a UI element (world-space canvas Text, or screen overlay) that says 'Press F to Drive'. Shown automatically when the player is nearby and not already driving.")]
+    public GameObject interactPromptUI;
+
+    public KeyCode enterExitKey = KeyCode.F;
+
+    [Tooltip("Optional - drag the player's ThirdPersonController here to automatically lock/unlock their movement while they're driving.")]
+    public ThirdPersonController thirdPersonController;
+
+
+    // =========================================================
     // PUBLIC
     // =========================================================
 
@@ -148,6 +192,14 @@ public class CarController : MonoBehaviour
     private Vector3[] probePoints;
     private bool[] probeHits;
     private float[] probeHeights;
+
+    // Hyper reverse turn state
+    private float reverseHoldTimer;
+    private bool isFlipping;
+    private float flipTimer;
+    private Quaternion flipStartRotation;
+    private Quaternion flipTargetRotation;
+    private float flipCarrySpeed;
 
 
     // =========================================================
@@ -237,6 +289,21 @@ public class CarController : MonoBehaviour
         Debug.Log(
             "[CAR DEBUG] ================================="
         );
+
+        if (player == null)
+        {
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+
+            if (p != null)
+                player = p.transform;
+            else if (enableDebugLogs)
+                Debug.LogWarning("[CAR DEBUG] No GameObject tagged 'Player' found - " +
+                                  "the 'Press F to Drive' prompt won't be able to show. " +
+                                  "Tag your player, or drag it into the 'player' field.");
+        }
+
+        if (interactPromptUI != null)
+            interactPromptUI.SetActive(false);
     }
 
 
@@ -254,6 +321,24 @@ public class CarController : MonoBehaviour
         DetectPavement();
 
         ReadInput();
+
+        HandleHyperReverseTurn();
+
+        /*
+         * While the snap-turn animation is playing, skip normal
+         * driving entirely - the flip owns rotation and velocity
+         * for its short duration.
+         */
+        if (isFlipping)
+        {
+            UpdateHyperFlip();
+
+            MoveCarHeight();
+
+            PrintDebugInfo();
+
+            return;
+        }
 
         HandleSpeed();
 
@@ -787,6 +872,130 @@ public class CarController : MonoBehaviour
 
 
     // =========================================================
+    // HYPER REVERSE TURN
+    // =========================================================
+
+    
+    private void HandleHyperReverseTurn()
+    {
+        if (isFlipping)
+            return;
+
+        bool activelyReversing =
+            isBeingDriven &&
+            grounded &&
+            Input.GetKey(KeyCode.S) &&
+            currentSpeed < -minReverseSpeedForFlip;
+
+        if (activelyReversing)
+        {
+            reverseHoldTimer += Time.fixedDeltaTime;
+
+            if (reverseHoldTimer >= reverseHoldTimeForFlip)
+            {
+                StartHyperFlip();
+                reverseHoldTimer = 0f;
+            }
+        }
+        else
+        {
+            reverseHoldTimer = 0f;
+        }
+    }
+
+    private void StartHyperFlip()
+    {
+        isFlipping = true;
+        flipTimer = 0f;
+
+        flipStartRotation = rb.rotation;
+        flipTargetRotation = rb.rotation * Quaternion.Euler(0f, 180f, 0f);
+
+        
+        flipCarrySpeed = Mathf.Abs(currentSpeed);
+
+        SpawnHyperTurnParticles();
+
+        if (enableDebugLogs)
+        {
+            Debug.Log(
+                "[CAR DEBUG] HYPER REVERSE TURN triggered | " +
+                "carrySpeed=" +
+                flipCarrySpeed.ToString("F2")
+            );
+        }
+    }
+
+    private void UpdateHyperFlip()
+    {
+        flipTimer += Time.fixedDeltaTime;
+
+        float t = Mathf.Clamp01(flipTimer / Mathf.Max(0.01f, flipSpinDuration));
+
+        
+        float eased = 1f - Mathf.Pow(1f - t, 3f);
+
+        Quaternion rotationNow = Quaternion.Slerp(flipStartRotation, flipTargetRotation, eased);
+        rb.MoveRotation(rotationNow);
+
+        
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+
+        if (t >= 1f)
+        {
+            isFlipping = false;
+            currentSpeed = flipCarrySpeed;
+        }
+    }
+
+    
+    private void SpawnHyperTurnParticles()
+    {
+        GameObject fx = new GameObject("HyperTurnFX");
+        fx.transform.position = transform.position + Vector3.up * 0.5f;
+
+        ParticleSystem ps = fx.AddComponent<ParticleSystem>();
+        ps.Stop();
+
+        var main = ps.main;
+        main.duration = 0.6f;
+        main.loop = false;
+        main.startLifetime = 0.5f;
+        main.startSpeed = 6f;
+        main.startSize = 2f;
+        main.startColor = hyperTurnParticleColor;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = 0f;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 0f;
+        emission.SetBursts(new ParticleSystem.Burst[]
+        {
+            new ParticleSystem.Burst(0f, (short)hyperTurnParticleCount)
+        });
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 1.5f;
+
+        
+        ParticleSystemRenderer psRenderer = fx.GetComponent<ParticleSystemRenderer>();
+        Shader fxShader =
+            Shader.Find("Particles/Standard Unlit") ??
+            Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+            Shader.Find("Sprites/Default");
+
+        if (fxShader != null)
+            psRenderer.material = new Material(fxShader);
+
+        ps.Play();
+
+        Destroy(fx, main.duration + main.startLifetime.constantMax + 0.5f);
+    }
+
+
+    // =========================================================
     // MOVEMENT
     // =========================================================
 
@@ -1111,6 +1320,79 @@ public class CarController : MonoBehaviour
 
             "\n================================"
         );
+    }
+
+
+    // =========================================================
+    // INTERACT PROMPT / ENTER-EXIT
+    // =========================================================
+
+    /*
+     * Runs in Update (not FixedUpdate) so GetKeyDown can't miss a
+     * press between physics steps.
+     */
+    private void Update()
+    {
+        UpdateInteractPrompt();
+        HandleEnterExitInput();
+    }
+
+    private void UpdateInteractPrompt()
+    {
+        if (interactPromptUI == null || player == null)
+            return;
+
+        bool nearby = Vector3.Distance(player.position, transform.position) <= driveInteractRange;
+        bool shouldShow = nearby && !isBeingDriven;
+
+        if (interactPromptUI.activeSelf != shouldShow)
+            interactPromptUI.SetActive(shouldShow);
+    }
+
+    private void HandleEnterExitInput()
+    {
+        if (player == null)
+            return;
+
+        if (!Input.GetKeyDown(enterExitKey))
+            return;
+
+        if (!isBeingDriven)
+        {
+            float dist = Vector3.Distance(player.position, transform.position);
+
+            if (dist <= driveInteractRange)
+                EnterCar();
+        }
+        else
+        {
+            ExitCar();
+        }
+    }
+
+    private void EnterCar()
+    {
+        isBeingDriven = true;
+
+        if (interactPromptUI != null)
+            interactPromptUI.SetActive(false);
+
+        if (thirdPersonController != null)
+            thirdPersonController.enabled = false;
+
+        if (enableDebugLogs)
+            Debug.Log("[CAR DEBUG] Player entered the car.");
+    }
+
+    private void ExitCar()
+    {
+        isBeingDriven = false;
+
+        if (thirdPersonController != null)
+            thirdPersonController.enabled = true;
+
+        if (enableDebugLogs)
+            Debug.Log("[CAR DEBUG] Player exited the car.");
     }
 
 
