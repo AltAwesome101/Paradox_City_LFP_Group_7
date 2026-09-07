@@ -4,9 +4,20 @@ using System.Collections.Generic;
 using UnityEngine;
 using StarterAssets;
 
-
 public class PaintingCanvas : MonoBehaviour
 {
+    public enum PaintingType { Landscape, Architecture, FigureStudy }
+
+    [Header("Painting")]
+    [Tooltip("Which procedural painting this canvas generates.")]
+    public PaintingType paintingType = PaintingType.Landscape;
+    [Tooltip("Resolution of the generated texture (square). 256 is fast; 512 looks sharper but generates slower at Start.")]
+    public int textureResolution = 256;
+    [Tooltip("Random seed for this painting's generated look. Same seed = same painting every time.")]
+    public int paintingSeed = 0;
+    [Tooltip("The Renderer showing the canvas - its material's texture gets replaced with the generated painting. Leave empty to use the Renderer on this GameObject.")]
+    public Renderer canvasRenderer;
+
     [Header("Player")]
     [Tooltip("How close the player needs to be to press F and start interacting")]
     public float interactRange = 2.5f;
@@ -15,45 +26,46 @@ public class PaintingCanvas : MonoBehaviour
     private CharacterController characterController;
 
     [Header("Interaction Key")]
-    [Tooltip("Key used to enter/exit the painting edit mode")]
     public KeyCode interactKey = KeyCode.F;
 
     [Header("Hitler's Vision")]
     [Tooltip("Hitler's NPCVision component - if he can see the player while they're interacting, they get kicked out")]
     public NPCVision hitlerVision;
 
+    [Serializable]
+    public class PaintingFlaw
+    {
+        [Tooltip("Empty child Transform positioned in 3D space over the flaw, on the canvas surface - used for click detection and the marker sprite.")]
+        public Transform marker;
+        [Tooltip("Normalized position of this flaw on the canvas TEXTURE. (0,0) = bottom-left corner, (1,1) = top-right. Line this up with where 'marker' visually sits on the canvas.")]
+        public Vector2 textureUV = new Vector2(0.5f, 0.5f);
+    }
+
     [Header("Correction Points")]
-    [Tooltip("Small empty child objects placed over the flaws on the canvas. The player clicks these one at a time, in any order.")]
-    public List<Transform> correctionPoints = new List<Transform>();
-    [Tooltip("How close a click needs to land to a correction point (world units) to count as a hit")]
+    [Tooltip("Each flaw needs a 3D marker (for clicking) AND a texture UV (for repainting). Add 2-4 per painting.")]
+    public List<PaintingFlaw> flaws = new List<PaintingFlaw>();
+    [Tooltip("How close a click needs to land to a marker (world units) to count as a hit")]
     public float clickRadius = 0.15f;
-    private readonly HashSet<Transform> corrected = new HashSet<Transform>();
+    [Tooltip("Radius of each flaw's scribble/repaint patch, in normalized UV units (fraction of canvas width)")]
+    public float flawUVRadius = 0.08f;
+    private readonly HashSet<int> corrected = new HashSet<int>();
 
     [Header("Correction Point Visuals")]
-    [Tooltip("Color of the pulsing marker shown over each flaw while editing")]
     public Color markerColor = new Color(1f, 0.85f, 0.2f, 0.9f);
-    [Tooltip("Color flashed on a marker the instant its flaw is corrected")]
     public Color correctedFlashColor = Color.white;
-    [Tooltip("World-space diameter of each marker")]
     public float markerSize = 0.2f;
-    [Tooltip("How fast the markers pulse while waiting to be clicked")]
     public float pulseSpeed = 3f;
-    [Tooltip("How much the markers grow/shrink while pulsing (fraction of markerSize)")]
     public float pulseAmount = 0.15f;
-    [Tooltip("How long the little burst effect plays when a flaw is corrected")]
-    public float correctionEffectDuration = 0.4f;
+    [Tooltip("How long the repaint-reveal animation takes when a flaw is corrected")]
+    public float correctionEffectDuration = 0.6f;
 
-    private readonly Dictionary<Transform, SpriteRenderer> markers = new Dictionary<Transform, SpriteRenderer>();
+    private readonly Dictionary<int, SpriteRenderer> markers = new Dictionary<int, SpriteRenderer>();
     private static Sprite cachedMarkerSprite;
 
     [Header("Camera (MainCameraController-based)")]
-    [Tooltip("Drag your Main Camera (the one with MainCameraController on it) here")]
     public MainCameraController mainCamera;
-    [Tooltip("Empty Transform positioned to nicely frame the canvas - the camera orbits this while interacting")]
     public Transform paintingFocusPoint;
-    [Tooltip("How close the camera sits from the painting while interacting (temporarily overrides the normal follow distance)")]
     public float paintingCameraGap = 1.5f;
-    [Tooltip("Leave empty to just use Camera.main for raycasting clicks - correct as long as MainCameraController is on your Main Camera")]
     public Camera paintingCamera;
 
     private Transform previousCameraTarget;
@@ -65,18 +77,27 @@ public class PaintingCanvas : MonoBehaviour
     public bool IsInteracting { get; private set; }
     public bool IsComplete { get; private set; }
     public int CorrectionsCompleted => corrected.Count;
-    public int CorrectionsRequired => correctionPoints.Count;
+    public int CorrectionsRequired => flaws.Count;
 
-    
     public bool CanInteract =>
         !IsComplete && !IsInteracting && PlayerInRange() &&
         (hitlerVision == null || !hitlerVision.CanSeeTargetRightNow);
 
     public event Action OnPaintingComplete;
-    public event Action OnForcedExit; 
+    public event Action OnForcedExit;
+
+    
+    private Texture2D cleanTexture;
+    
+    private Texture2D displayTexture;
+    private Material canvasMaterialInstance;
+    private System.Random rng;
 
     private void Start()
     {
+        if (canvasRenderer == null)
+            canvasRenderer = GetComponent<Renderer>();
+
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null)
         {
@@ -98,21 +119,226 @@ public class PaintingCanvas : MonoBehaviour
             Debug.LogWarning("[PaintingCanvas] 'Hitler Vision' isn't assigned - the forced-exit-when-spotted behaviour won't run.");
         }
 
+        GeneratePainting();
         CreateCorrectionMarkers();
     }
 
+    // ==================================================================
+    // PAINTING GENERATION
+    // ==================================================================
+
+    private void GeneratePainting()
+    {
+        rng = new System.Random(paintingSeed);
+
+        cleanTexture = new Texture2D(textureResolution, textureResolution, TextureFormat.RGBA32, false);
+        cleanTexture.wrapMode = TextureWrapMode.Clamp;
+        cleanTexture.filterMode = FilterMode.Bilinear;
+
+        switch (paintingType)
+        {
+            case PaintingType.Landscape: PaintLandscape(cleanTexture); break;
+            case PaintingType.Architecture: PaintArchitecture(cleanTexture); break;
+            case PaintingType.FigureStudy: PaintFigureStudy(cleanTexture); break;
+        }
+        cleanTexture.Apply();
+
+        displayTexture = new Texture2D(textureResolution, textureResolution, TextureFormat.RGBA32, false);
+        displayTexture.wrapMode = TextureWrapMode.Clamp;
+        displayTexture.filterMode = FilterMode.Bilinear;
+        displayTexture.SetPixels32(cleanTexture.GetPixels32());
+
+        foreach (PaintingFlaw flaw in flaws)
+        {
+            PaintFlaw(displayTexture, flaw.textureUV);
+        }
+        displayTexture.Apply();
+
+        if (canvasRenderer != null)
+        {
+            canvasMaterialInstance = canvasRenderer.material; 
+            canvasMaterialInstance.mainTexture = displayTexture;
+        }
+        else if (debugLogging)
+        {
+            Debug.LogWarning("[PaintingCanvas] No Renderer found to display the generated painting on.");
+        }
+    }
+
+    private void PaintLandscape(Texture2D tex)
+    {
+        int res = tex.width;
+        Color skyTop = new Color(0.55f, 0.75f, 0.92f);
+        Color skyBottom = new Color(0.85f, 0.9f, 0.8f);
+        Color groundNear = new Color(0.25f, 0.45f, 0.2f);
+        Color groundFar = new Color(0.45f, 0.55f, 0.3f);
+        Color mountain = new Color(0.4f, 0.42f, 0.5f);
+
+        int horizon = (int)(res * 0.55f);
+
+        for (int y = 0; y < res; y++)
+        {
+            for (int x = 0; x < res; x++)
+            {
+                Color c = y > horizon
+                    ? Color.Lerp(skyBottom, skyTop, (float)(y - horizon) / (res - horizon))
+                    : Color.Lerp(groundNear, groundFar, (float)y / horizon);
+                tex.SetPixel(x, y, c);
+            }
+        }
+
+        float seedOffset = (float)rng.NextDouble() * 100f;
+        for (int x = 0; x < res; x++)
+        {
+            float n = Mathf.PerlinNoise(x * 0.01f + seedOffset, 0f);
+            int peakHeight = horizon + (int)(n * res * 0.18f);
+            for (int y = horizon; y < peakHeight; y++)
+            {
+                float shade = Mathf.InverseLerp(horizon, peakHeight, y);
+                tex.SetPixel(x, y, Color.Lerp(mountain, groundFar, shade * 0.3f));
+            }
+        }
+
+        DrawSoftEllipse(tex, new Vector2(res * 0.75f, res * 0.8f), res * 0.06f, res * 0.06f, new Color(1f, 0.95f, 0.7f));
+    }
+
+    private void PaintArchitecture(Texture2D tex)
+    {
+        int res = tex.width;
+        Color sky = new Color(0.7f, 0.78f, 0.85f);
+        Color wall = new Color(0.7f, 0.6f, 0.5f);
+        Color wallShadow = new Color(0.5f, 0.42f, 0.36f);
+        Color roof = new Color(0.4f, 0.22f, 0.2f);
+        Color ground = new Color(0.5f, 0.48f, 0.42f);
+
+        int horizon = (int)(res * 0.35f);
+
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+                tex.SetPixel(x, y, y < horizon ? ground : sky);
+
+        int buildingCount = 5;
+        int buildingWidth = res / buildingCount;
+
+        for (int b = 0; b < buildingCount; b++)
+        {
+            int bx = b * buildingWidth;
+            int height = horizon + (int)(res * (0.15f + (float)rng.NextDouble() * 0.35f));
+
+            for (int x = bx + 4; x < bx + buildingWidth - 4 && x < res; x++)
+            {
+                for (int y = horizon; y < height; y++)
+                {
+                    bool isEdge = x < bx + 8 || x > bx + buildingWidth - 8;
+                    tex.SetPixel(x, y, isEdge ? wallShadow : wall);
+                }
+
+                int roofPeak = height + buildingWidth / 6;
+                for (int y = height; y < roofPeak; y++)
+                {
+                    float halfWidth = Mathf.Lerp(buildingWidth / 2f - 4f, 0f, (float)(y - height) / (roofPeak - height));
+                    float centerX = bx + buildingWidth / 2f;
+                    if (Mathf.Abs(x - centerX) <= halfWidth)
+                        tex.SetPixel(x, y, roof);
+                }
+            }
+        }
+    }
+
+    private void PaintFigureStudy(Texture2D tex)
+    {
+        int res = tex.width;
+        Color background = new Color(0.82f, 0.78f, 0.7f);
+        Color figure = new Color(0.75f, 0.6f, 0.5f);
+        Color shade = new Color(0.55f, 0.42f, 0.35f);
+
+        for (int y = 0; y < res; y++)
+            for (int x = 0; x < res; x++)
+                tex.SetPixel(x, y, background);
+
+        DrawSoftEllipse(tex, new Vector2(res * 0.5f, res * 0.78f), res * 0.08f, res * 0.1f, figure);
+        DrawSoftEllipse(tex, new Vector2(res * 0.5f, res * 0.52f), res * 0.16f, res * 0.22f, figure);
+        DrawSoftEllipse(tex, new Vector2(res * 0.5f, res * 0.22f), res * 0.12f, res * 0.2f, shade);
+    }
+
+    private void DrawSoftEllipse(Texture2D tex, Vector2 center, float radiusX, float radiusY, Color color)
+    {
+        int minX = Mathf.Max(0, (int)(center.x - radiusX));
+        int maxX = Mathf.Min(tex.width - 1, (int)(center.x + radiusX));
+        int minY = Mathf.Max(0, (int)(center.y - radiusY));
+        int maxY = Mathf.Min(tex.height - 1, (int)(center.y + radiusY));
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                float nx = (x - center.x) / radiusX;
+                float ny = (y - center.y) / radiusY;
+                float d = nx * nx + ny * ny;
+
+                if (d <= 1f)
+                {
+                    float edgeSoftness = Mathf.SmoothStep(1f, 0.7f, d);
+                    Color existing = tex.GetPixel(x, y);
+                    tex.SetPixel(x, y, Color.Lerp(existing, color, edgeSoftness));
+                }
+            }
+        }
+    }
+
     
+    private void PaintFlaw(Texture2D tex, Vector2 uv)
+    {
+        int res = tex.width;
+        Vector2 center = new Vector2(uv.x * res, uv.y * res);
+        float radius = flawUVRadius * res;
+        Color flawColor = new Color(0.15f, 0.1f, 0.1f, 1f);
+
+        int minX = Mathf.Max(0, (int)(center.x - radius));
+        int maxX = Mathf.Min(res - 1, (int)(center.x + radius));
+        int minY = Mathf.Max(0, (int)(center.y - radius));
+        int maxY = Mathf.Min(res - 1, (int)(center.y + radius));
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), center);
+                if (dist > radius) continue;
+
+                float noise = Mathf.PerlinNoise(x * 0.15f, y * 0.15f);
+                float falloff = 1f - dist / radius;
+
+                if (noise * falloff > 0.35f)
+                {
+                    Color existing = tex.GetPixel(x, y);
+                    float strength = Mathf.Clamp01(falloff * 1.3f);
+                    tex.SetPixel(x, y, Color.Lerp(existing, flawColor, strength));
+                }
+            }
+        }
+    }
+
+    // ==================================================================
+    // CORRECTION MARKERS
+    // ==================================================================
 
     private void CreateCorrectionMarkers()
     {
         Sprite sprite = GetOrCreateMarkerSprite();
 
-        foreach (Transform point in correctionPoints)
+        for (int i = 0; i < flaws.Count; i++)
         {
-            if (point == null) continue;
+            Transform marker = flaws[i].marker;
+            if (marker == null)
+            {
+                if (debugLogging)
+                    Debug.LogWarning($"[PaintingCanvas] Flaw index {i} has no marker Transform assigned - it won't be clickable.");
+                continue;
+            }
 
-            GameObject markerObj = new GameObject($"Marker_{point.name}");
-            markerObj.transform.SetParent(point, false);
+            GameObject markerObj = new GameObject($"Marker_{marker.name}");
+            markerObj.transform.SetParent(marker, false);
             markerObj.transform.localPosition = Vector3.zero;
             markerObj.transform.localScale = Vector3.one * markerSize;
 
@@ -121,8 +347,8 @@ public class PaintingCanvas : MonoBehaviour
             sr.color = markerColor;
             sr.sortingOrder = 10;
 
-            markerObj.SetActive(false); 
-            markers[point] = sr;
+            markerObj.SetActive(false);
+            markers[i] = sr;
         }
     }
 
@@ -143,7 +369,7 @@ public class PaintingCanvas : MonoBehaviour
             {
                 float dist = Vector2.Distance(new Vector2(x, y), center);
                 float alpha = Mathf.Clamp01(1f - dist / radius);
-                alpha = Mathf.SmoothStep(0f, 1f, alpha * 1.8f); 
+                alpha = Mathf.SmoothStep(0f, 1f, alpha * 1.8f);
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
             }
         }
@@ -165,9 +391,7 @@ public class PaintingCanvas : MonoBehaviour
     private void HideMarkers()
     {
         foreach (var kvp in markers)
-        {
             if (kvp.Value != null) kvp.Value.gameObject.SetActive(false);
-        }
     }
 
     private void UpdateMarkerVisuals()
@@ -177,40 +401,79 @@ public class PaintingCanvas : MonoBehaviour
 
         foreach (var kvp in markers)
         {
-            Transform point = kvp.Key;
+            if (corrected.Contains(kvp.Key)) continue;
             SpriteRenderer sr = kvp.Value;
             if (sr == null || !sr.gameObject.activeSelf) continue;
-            if (corrected.Contains(point)) continue; 
 
             sr.transform.localScale = Vector3.one * markerSize * pulse;
 
             if (cam != null)
-            {
                 sr.transform.rotation = Quaternion.LookRotation(sr.transform.position - cam.transform.position);
-            }
         }
     }
 
-    private IEnumerator PlayCorrectionEffect(Transform point)
+    // ==================================================================
+    // FIXING A FLAW - reveal the clean texture underneath
+    // ==================================================================
+
+    private IEnumerator PlayCorrectionEffect(int index)
     {
-        if (!markers.TryGetValue(point, out SpriteRenderer sr) || sr == null) yield break;
+        markers.TryGetValue(index, out SpriteRenderer sr);
+        if (sr != null) sr.gameObject.SetActive(true);
 
-        sr.gameObject.SetActive(true); 
+        Vector2 uv = flaws[index].textureUV;
+        int res = displayTexture.width;
+        Vector2 center = new Vector2(uv.x * res, uv.y * res);
+        float maxRadius = flawUVRadius * res * 1.4f; 
+
+        int minX = Mathf.Max(0, (int)(center.x - maxRadius));
+        int maxX = Mathf.Min(res - 1, (int)(center.x + maxRadius));
+        int minY = Mathf.Max(0, (int)(center.y - maxRadius));
+        int maxY = Mathf.Min(res - 1, (int)(center.y + maxRadius));
+
         float t = 0f;
-
         while (t < correctionEffectDuration)
         {
             t += Time.deltaTime;
-            float p = t / correctionEffectDuration;
+            float progress = Mathf.Clamp01(t / correctionEffectDuration);
+            float revealRadius = maxRadius * progress;
 
-            sr.color = Color.Lerp(correctedFlashColor, Color.clear, p);
-            sr.transform.localScale = Vector3.one * markerSize * (1f + p * 1.5f); 
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    float dist = Vector2.Distance(new Vector2(x, y), center);
+                    if (dist > revealRadius + 2f) continue;
+
+                    float blend = Mathf.Clamp01(Mathf.SmoothStep(1f, 0f, (dist - revealRadius) / 3f + 0.5f));
+                    Color clean = cleanTexture.GetPixel(x, y);
+                    Color current = displayTexture.GetPixel(x, y);
+                    displayTexture.SetPixel(x, y, Color.Lerp(current, clean, blend));
+                }
+            }
+            displayTexture.Apply(false);
+
+            if (sr != null)
+            {
+                sr.color = Color.Lerp(correctedFlashColor, Color.clear, progress);
+                sr.transform.localScale = Vector3.one * markerSize * (1f + progress * 1.5f);
+            }
 
             yield return null;
         }
 
-        sr.gameObject.SetActive(false);
+        
+        for (int y = minY; y <= maxY; y++)
+            for (int x = minX; x <= maxX; x++)
+                displayTexture.SetPixel(x, y, cleanTexture.GetPixel(x, y));
+        displayTexture.Apply(false);
+
+        if (sr != null) sr.gameObject.SetActive(false);
     }
+
+    // ==================================================================
+    // INTERACTION
+    // ==================================================================
 
     private void Update()
     {
@@ -226,7 +489,6 @@ public class PaintingCanvas : MonoBehaviour
                 }
                 else if (debugLogging)
                 {
-                    
                     if (player == null)
                         Debug.LogWarning("[PaintingCanvas] Pressed interact key but no Player was found - check the Player GameObject is tagged 'Player'.");
                     else if (!PlayerInRange())
@@ -245,9 +507,7 @@ public class PaintingCanvas : MonoBehaviour
             }
 
             if (Input.GetMouseButtonDown(0))
-            {
                 TryClickCorrectionPoint();
-            }
 
             UpdateMarkerVisuals();
         }
@@ -273,7 +533,7 @@ public class PaintingCanvas : MonoBehaviour
         {
             previousCameraTarget = mainCamera.target;
             previousCameraGap = mainCamera.gap;
-            mainCamera.inputEnabled = false; 
+            mainCamera.inputEnabled = false;
             if (paintingFocusPoint != null) mainCamera.target = paintingFocusPoint;
             mainCamera.gap = paintingCameraGap;
         }
@@ -307,7 +567,7 @@ public class PaintingCanvas : MonoBehaviour
 
     private void HandleHitlerSpottedPlayer()
     {
-        if (!IsInteracting) return; 
+        if (!IsInteracting) return;
 
         if (debugLogging) Debug.Log("[PaintingCanvas] Hitler spotted the player mid-interaction - forcing exit!");
         ExitInteraction();
@@ -325,37 +585,36 @@ public class PaintingCanvas : MonoBehaviour
 
         Ray ray = cam.ScreenPointToRay(Input.mousePosition);
 
-        Transform closestHit = null;
+        int closestHit = -1;
         float closestDist = clickRadius;
 
-        foreach (Transform point in correctionPoints)
+        for (int i = 0; i < flaws.Count; i++)
         {
-            if (point == null || corrected.Contains(point)) continue;
+            Transform point = flaws[i].marker;
+            if (point == null || corrected.Contains(i)) continue;
 
-            
             Vector3 toPoint = point.position - ray.origin;
             float alongRay = Vector3.Dot(toPoint, ray.direction);
             if (alongRay < 0) continue;
+
             Vector3 closestOnRay = ray.origin + ray.direction * alongRay;
             float dist = Vector3.Distance(closestOnRay, point.position);
 
             if (dist < closestDist)
             {
                 closestDist = dist;
-                closestHit = point;
+                closestHit = i;
             }
         }
 
-        if (closestHit != null)
+        if (closestHit >= 0)
         {
             corrected.Add(closestHit);
             StartCoroutine(PlayCorrectionEffect(closestHit));
-            if (debugLogging) Debug.Log($"[PaintingCanvas] Corrected {closestHit.name} ({CorrectionsCompleted}/{CorrectionsRequired})");
+            if (debugLogging) Debug.Log($"[PaintingCanvas] Corrected flaw {closestHit} ({CorrectionsCompleted}/{CorrectionsRequired})");
 
             if (CorrectionsCompleted >= CorrectionsRequired)
-            {
                 CompletePainting();
-            }
         }
     }
 

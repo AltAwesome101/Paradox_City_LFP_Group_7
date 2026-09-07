@@ -1,13 +1,14 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-
 
 public class Level1ObjectiveTracker : MonoBehaviour
 {
     [Header("References")]
     public HitlerNPC hitler;
-    public PaintingCanvas painting;
+    [Tooltip("All 3 paintings the player must fix to complete the level.")]
+    public List<PaintingCanvas> paintings = new List<PaintingCanvas>();
 
     [Header("Completion")]
     [Tooltip("Seconds to let Hitler's happy reaction play before leaving the level")]
@@ -15,24 +16,51 @@ public class Level1ObjectiveTracker : MonoBehaviour
     [Tooltip("Exact name of your Future hub scene, as it appears in File > Build Settings")]
     public string futureSceneName = "FutureScene";
 
+    [Header("Debug")]
+    public bool debugLogging = true;
+
+    private int completedCount;
+
     private void Start()
     {
-        if (hitler == null || painting == null)
+        if (hitler == null || paintings == null || paintings.Count == 0)
         {
-            Debug.LogError("[Level1ObjectiveTracker] Missing a reference - assign both Hitler and Painting in the Inspector.");
+            Debug.LogError("[Level1ObjectiveTracker] Missing references - assign Hitler and at least one painting.");
             return;
         }
 
-        painting.OnPaintingComplete += HandlePaintingComplete;
+        foreach (PaintingCanvas painting in paintings)
+        {
+            if (painting == null) continue;
+            painting.OnPaintingComplete += HandleOnePaintingComplete;
+        }
 
-        
         hitler.BeginWalkingToEasel();
     }
 
-    private void HandlePaintingComplete()
+    private void OnDestroy()
     {
-        hitler.Celebrate();
-        StartCoroutine(FinishLevelAfterDelay());
+        if (paintings == null) return;
+
+        foreach (PaintingCanvas painting in paintings)
+        {
+            if (painting == null) continue;
+            painting.OnPaintingComplete -= HandleOnePaintingComplete;
+        }
+    }
+
+    private void HandleOnePaintingComplete()
+    {
+        completedCount++;
+
+        if (debugLogging)
+            Debug.Log($"[Level1ObjectiveTracker] Painting corrected ({completedCount}/{paintings.Count}).");
+
+        if (completedCount >= paintings.Count)
+        {
+            hitler.Celebrate();
+            StartCoroutine(FinishLevelAfterDelay());
+        }
     }
 
     private IEnumerator FinishLevelAfterDelay()
