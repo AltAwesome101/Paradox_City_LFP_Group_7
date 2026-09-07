@@ -21,7 +21,7 @@ public class PlayerScript : MonoBehaviour
     [Header("Player Movement")]
     public float walkSpeed = 3f;
     public float sprintSpeed = 6f;
-    public float movementSpeed = 5f; 
+    public float movementSpeed = 5f;
     public float rotSpeed = 450f;
     public MainCameraController MCC;
     public EnvironmentChecker environmentChecker;

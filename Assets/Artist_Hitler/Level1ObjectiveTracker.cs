@@ -2,17 +2,24 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TMPro;
 
 public class Level1ObjectiveTracker : MonoBehaviour
 {
     [Header("References")]
     public HitlerNPC hitler;
+
     [Tooltip("All 3 paintings the player must fix to complete the level.")]
     public List<PaintingCanvas> paintings = new List<PaintingCanvas>();
+
+    [Header("UI")]
+    [Tooltip("TextMeshPro UI text that displays painting progress.")]
+    public TMP_Text paintingProgressText;
 
     [Header("Completion")]
     [Tooltip("Seconds to let Hitler's happy reaction play before leaving the level")]
     public float celebrationDuration = 3f;
+
     [Tooltip("Exact name of your Future hub scene, as it appears in File > Build Settings")]
     public string futureSceneName = "FutureScene";
 
@@ -25,26 +32,39 @@ public class Level1ObjectiveTracker : MonoBehaviour
     {
         if (hitler == null || paintings == null || paintings.Count == 0)
         {
-            Debug.LogError("[Level1ObjectiveTracker] Missing references - assign Hitler and at least one painting.");
+            Debug.LogError(
+                "[Level1ObjectiveTracker] Missing references - assign Hitler and at least one painting."
+            );
+
             return;
         }
 
+        
+        UpdateProgressUI();
+
+        
         foreach (PaintingCanvas painting in paintings)
         {
-            if (painting == null) continue;
+            if (painting == null)
+                continue;
+
             painting.OnPaintingComplete += HandleOnePaintingComplete;
         }
 
+        
         hitler.BeginWalkingToEasel();
     }
 
     private void OnDestroy()
     {
-        if (paintings == null) return;
+        if (paintings == null)
+            return;
 
         foreach (PaintingCanvas painting in paintings)
         {
-            if (painting == null) continue;
+            if (painting == null)
+                continue;
+
             painting.OnPaintingComplete -= HandleOnePaintingComplete;
         }
     }
@@ -53,14 +73,33 @@ public class Level1ObjectiveTracker : MonoBehaviour
     {
         completedCount++;
 
-        if (debugLogging)
-            Debug.Log($"[Level1ObjectiveTracker] Painting corrected ({completedCount}/{paintings.Count}).");
+        
+        UpdateProgressUI();
 
+        if (debugLogging)
+        {
+            Debug.Log(
+                $"[Level1ObjectiveTracker] Painting corrected " +
+                $"({completedCount}/{paintings.Count})."
+            );
+        }
+
+        // All paintings have been corrected.
         if (completedCount >= paintings.Count)
         {
             hitler.Celebrate();
+
             StartCoroutine(FinishLevelAfterDelay());
         }
+    }
+
+    private void UpdateProgressUI()
+    {
+        if (paintingProgressText == null)
+            return;
+
+        paintingProgressText.text =
+            $"Paintings Corrected: {completedCount} / {paintings.Count}";
     }
 
     private IEnumerator FinishLevelAfterDelay()
@@ -73,8 +112,12 @@ public class Level1ObjectiveTracker : MonoBehaviour
         }
         else
         {
-            Debug.LogError($"[Level1ObjectiveTracker] Can't find a scene called \"{futureSceneName}\". " +
-                            "Check the spelling matches exactly, and that it's added under File > Build Settings > Scenes In Build.");
+            Debug.LogError(
+                $"[Level1ObjectiveTracker] Can't find a scene called " +
+                $"\"{futureSceneName}\". " +
+                "Check the spelling matches exactly, and that it's added " +
+                "under File > Build Settings > Scenes In Build."
+            );
         }
     }
 }
