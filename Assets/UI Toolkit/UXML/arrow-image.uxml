@@ -1,0 +1,3 @@
+<ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
+    <ui:Image name="arrow-image" style="width: 100px; height: 50px; background-image: url(&quot;project://database/Assets/UnitySimpleMiniMap/Demo/Arrow.png?fileID=21300000&amp;guid=a3ba662f2f233994eb7725a1ba57db08&amp;type=3#Arrow&quot;); position: absolute; top: 0; left: 0; -unity-background-image-tint-color: rgb(255, 0, 0);"/>
+</ui:UXML>
