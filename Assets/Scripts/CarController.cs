@@ -1,6 +1,37 @@
 using UnityEngine;
 using StarterAssets;
 
+
+public enum WheelCorner
+{
+    FrontLeft,
+    FrontRight,
+    RearLeft,
+    RearRight
+}
+
+
+[System.Serializable]
+public class WheelVisual
+{
+    [Tooltip("The wheel mesh/model transform (drag it in from the hierarchy).")]
+    public Transform wheelTransform;
+
+    [Tooltip("Which corner of the car this wheel is mounted at.")]
+    public WheelCorner corner = WheelCorner.FrontLeft;
+
+    [Tooltip("Wheel radius in metres. Used to convert car speed into a spin rate, and to rest the wheel mesh on the ground surface.")]
+    public float wheelRadius = 0.35f;
+
+    [Tooltip("Local axis the wheel spins around when rolling. Most wheel models roll around their local X (right) axis - flip to -X if it spins the wrong way.")]
+    public Vector3 spinAxis = Vector3.right;
+
+    [HideInInspector] public float currentSpinAngle;
+    [HideInInspector] public Vector3 restLocalPosition;
+    [HideInInspector] public float currentLocalY;
+    [HideInInspector] public bool isSetup;
+}
+
 [RequireComponent(typeof(Rigidbody))]
 public class CarController : MonoBehaviour
 {
@@ -76,6 +107,68 @@ public class CarController : MonoBehaviour
 
     [Tooltip("Height above the car used to start the probes.")]
     public float probeStartHeight = 1.5f;
+
+
+    // =========================================================
+    // BODY TILT (NATURAL GROUNDING)
+    // =========================================================
+
+    [Header("===== BODY TILT =====")]
+
+    [Tooltip("Maximum pitch/roll the body is allowed to lean when the wheels sit at different heights, e.g. climbing a curb. Keeps the car feeling grounded instead of perfectly rigid.")]
+    [Range(0f, 45f)]
+    public float maxBodyTiltAngle = 18f;
+
+    [Tooltip("How quickly the body's rotation catches up to the tilt implied by the wheel probes.")]
+    public float bodyOrientSpeed = 12f;
+
+    [Tooltip("Extra tilt responsiveness while actively climbing a step or pavement edge.")]
+    public float climbTiltSpeedMultiplier = 1.6f;
+
+
+    // =========================================================
+    // WHEEL VISUALS
+    // =========================================================
+
+    [Header("===== WHEEL VISUALS =====")]
+
+    [Tooltip("Drag in the 4 wheel meshes and assign each one's corner.")]
+    public WheelVisual[] wheels;
+
+    [Tooltip("How far the front wheels visually turn left/right at full steering lock.")]
+    public float maxSteerVisualAngle = 25f;
+
+    [Tooltip("How far a wheel is allowed to travel up/down from its rest position to stay glued to uneven ground/pavement.")]
+    public float maxWheelSuspensionTravel = 0.25f;
+
+    [Tooltip("How quickly a wheel's visual height catches up to the ground beneath it.")]
+    public float wheelSuspensionSpeed = 18f;
+
+
+    // =========================================================
+    // TIRE SMOKE
+    // =========================================================
+
+    [Header("===== TIRE SMOKE =====")]
+
+    [Tooltip("Optional explicit smoke spawn points for the rear wheels. Leave empty to automatically use the rear-left/rear-right entries from the Wheels list above.")]
+    public Transform rearLeftSmokePoint;
+    public Transform rearRightSmokePoint;
+
+    public Color tireSmokeColor = new Color(0.75f, 0.75f, 0.75f, 0.6f);
+
+    [Tooltip("Particles emitted per second at full smoke intensity.")]
+    public float maxSmokeEmissionRate = 45f;
+
+    [Tooltip("Below this fraction of max speed, holding the throttle kicks up wheelspin smoke.")]
+    [Range(0f, 1f)]
+    public float accelSmokeSpeedThreshold = 0.35f;
+
+    [Tooltip("Minimum forward speed needed while braking for skid smoke to appear.")]
+    public float brakeSmokeMinSpeed = 4f;
+
+    [Tooltip("How quickly smoke fades in/out (higher = snappier).")]
+    public float smokeResponseSpeed = 6f;
 
 
     // =========================================================
@@ -193,6 +286,9 @@ public class CarController : MonoBehaviour
     private bool[] probeHits;
     private float[] probeHeights;
 
+    [Tooltip("Raw ground height (no groundOffset applied) per probe - used to rest wheel visuals exactly on the ground surface.")]
+    private float[] rawGroundHeights;
+
     // Hyper reverse turn state
     private float reverseHoldTimer;
     private bool isFlipping;
@@ -200,6 +296,15 @@ public class CarController : MonoBehaviour
     private Quaternion flipStartRotation;
     private Quaternion flipTargetRotation;
     private float flipCarrySpeed;
+
+    // Latest input state, cached so other systems (tire smoke) can read it
+    private bool throttleInput;
+    private bool brakeInput;
+
+    // Tire smoke state
+    private ParticleSystem rearLeftSmoke;
+    private ParticleSystem rearRightSmoke;
+    private float currentSmokeRate;
 
 
     // =========================================================
@@ -219,12 +324,7 @@ public class CarController : MonoBehaviour
             return;
         }
 
-        /*
-         * Arcade-style vehicle.
-         *
-         * The car is not allowed to physically rotate
-         * around X or Z.
-         */
+        
         rb.constraints =
             RigidbodyConstraints.FreezeRotationX |
             RigidbodyConstraints.FreezeRotationZ;
@@ -235,10 +335,7 @@ public class CarController : MonoBehaviour
         rb.collisionDetectionMode =
             CollisionDetectionMode.ContinuousDynamic;
 
-        /*
-         * Gravity is disabled because vertical movement
-         * is controlled manually by the ground probes.
-         */
+        
         rb.useGravity = false;
 
         rb.angularDamping = 20f;
@@ -246,10 +343,7 @@ public class CarController : MonoBehaviour
         rb.angularVelocity =
             Vector3.zero;
 
-        /*
-         * Lower centre of mass helps prevent physical
-         * instability.
-         */
+        
         rb.centerOfMass =
             new Vector3(
                 0f,
@@ -265,6 +359,13 @@ public class CarController : MonoBehaviour
 
         probeHeights =
             new float[5];
+
+        rawGroundHeights =
+            new float[5];
+
+        SetupWheelVisuals();
+
+        SetupTireSmoke();
 
         Debug.Log(
             "[CAR DEBUG] ================================="
@@ -324,11 +425,7 @@ public class CarController : MonoBehaviour
 
         HandleHyperReverseTurn();
 
-        /*
-         * While the snap-turn animation is playing, skip normal
-         * driving entirely - the flip owns rotation and velocity
-         * for its short duration.
-         */
+       
         if (isFlipping)
         {
             UpdateHyperFlip();
@@ -348,9 +445,11 @@ public class CarController : MonoBehaviour
 
         MoveCarHeight();
 
-        KeepCarFlat();
+        OrientCarBody();
 
         PreventPhysicsRotation();
+
+        HandleTireSmoke();
 
         PrintDebugInfo();
     }
@@ -362,15 +461,7 @@ public class CarController : MonoBehaviour
 
     private void DetectGround()
     {
-        /*
-         * Probe layout:
-         *
-         * 0 = Front Left
-         * 1 = Front Centre
-         * 2 = Front Right
-         * 3 = Rear Left
-         * 4 = Rear Right
-         */
+        
 
         Vector3[] localPositions =
         {
@@ -450,6 +541,9 @@ public class CarController : MonoBehaviour
                 probeHeights[i] =
                     height;
 
+                rawGroundHeights[i] =
+                    hit.point.y;
+
                 heightSum +=
                     height;
 
@@ -482,6 +576,9 @@ public class CarController : MonoBehaviour
             else
             {
                 probeHeights[i] =
+                    float.NaN;
+
+                rawGroundHeights[i] =
                     float.NaN;
 
                 Debug.DrawLine(
@@ -539,10 +636,7 @@ public class CarController : MonoBehaviour
             groundDistance = -1f;
         }
 
-        /*
-         * Detect whether the front of the vehicle is
-         * sitting higher than the rear.
-         */
+        
         if (hits >= 3)
         {
             float frontAverage =
@@ -647,10 +741,7 @@ public class CarController : MonoBehaviour
             Color.cyan
         );
 
-        /*
-         * SphereCast gives the pavement detector
-         * some tolerance around the edge.
-         */
+        
         if (Physics.SphereCast(
             origin,
             pavementProbeRadius,
@@ -731,11 +822,11 @@ public class CarController : MonoBehaviour
 
     private void HandleSpeed()
     {
-        bool throttle =
+        throttleInput =
             isBeingDriven &&
             Input.GetKey(KeyCode.W);
 
-        bool brake =
+        brakeInput =
             isBeingDriven &&
             Input.GetKey(KeyCode.S);
 
@@ -752,7 +843,7 @@ public class CarController : MonoBehaviour
             return;
         }
 
-        if (throttle)
+        if (throttleInput)
         {
             currentSpeed =
                 Mathf.MoveTowards(
@@ -762,7 +853,7 @@ public class CarController : MonoBehaviour
                     Time.fixedDeltaTime
                 );
         }
-        else if (brake)
+        else if (brakeInput)
         {
             if (currentSpeed > 0.05f)
             {
@@ -875,7 +966,7 @@ public class CarController : MonoBehaviour
     // HYPER REVERSE TURN
     // =========================================================
 
-    
+
     private void HandleHyperReverseTurn()
     {
         if (isFlipping)
@@ -911,7 +1002,7 @@ public class CarController : MonoBehaviour
         flipStartRotation = rb.rotation;
         flipTargetRotation = rb.rotation * Quaternion.Euler(0f, 180f, 0f);
 
-        
+
         flipCarrySpeed = Mathf.Abs(currentSpeed);
 
         SpawnHyperTurnParticles();
@@ -932,13 +1023,13 @@ public class CarController : MonoBehaviour
 
         float t = Mathf.Clamp01(flipTimer / Mathf.Max(0.01f, flipSpinDuration));
 
-        
+
         float eased = 1f - Mathf.Pow(1f - t, 3f);
 
         Quaternion rotationNow = Quaternion.Slerp(flipStartRotation, flipTargetRotation, eased);
         rb.MoveRotation(rotationNow);
 
-        
+
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
 
@@ -949,7 +1040,7 @@ public class CarController : MonoBehaviour
         }
     }
 
-    
+
     private void SpawnHyperTurnParticles()
     {
         GameObject fx = new GameObject("HyperTurnFX");
@@ -979,7 +1070,7 @@ public class CarController : MonoBehaviour
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 1.5f;
 
-        
+
         ParticleSystemRenderer psRenderer = fx.GetComponent<ParticleSystemRenderer>();
         Shader fxShader =
             Shader.Find("Particles/Standard Unlit") ??
@@ -1085,26 +1176,30 @@ public class CarController : MonoBehaviour
             return;
         }
 
+        float frontHeight =
+            GetFrontHeight();
+
+        float rearHeight =
+            GetRearHeight();
+
+       
+        float wheelbase =
+            Mathf.Max(
+                0.01f,
+                frontProbeDistance +
+                rearProbeDistance
+            );
+
+        float pivotRatio =
+            rearProbeDistance /
+            wheelbase;
+
         float targetHeight =
-            groundHeight;
-
-        /*
-         * If pavement is detected, allow the car to
-         * begin moving toward the higher front section.
-         */
-        if (pavementDetected)
-        {
-            float frontHeight =
-                GetFrontHeight();
-
-            if (
-                frontHeight >
-                targetHeight)
-            {
-                targetHeight =
-                    frontHeight;
-            }
-        }
+            Mathf.Lerp(
+                rearHeight,
+                frontHeight,
+                pivotRatio
+            );
 
         Vector3 position =
             rb.position;
@@ -1113,20 +1208,22 @@ public class CarController : MonoBehaviour
             targetHeight -
             position.y;
 
+        
+        bool anticipatingStep =
+            pavementDetected &&
+            frontHeight >
+            targetHeight;
+
         float heightSpeed =
             groundSnapSpeed;
 
-        if (climbingPavement)
+        if (climbingPavement || anticipatingStep)
         {
             heightSpeed =
                 stepClimbSpeed;
         }
 
-        /*
-         * Move vertically in a controlled way.
-         *
-         * This avoids suspension-style bouncing.
-         */
+        
         float newY =
             Mathf.MoveTowards(
                 position.y,
@@ -1156,20 +1253,12 @@ public class CarController : MonoBehaviour
 
 
     // =========================================================
-    // KEEP FLAT
+    // ORIENT BODY (NATURAL GROUNDING)
     // =========================================================
 
-    private void KeepCarFlat()
+    private void OrientCarBody()
     {
-        /*
-         * ALWAYS use world UP.
-         *
-         * The car therefore remains completely flat:
-         *
-         * Flat road  -> flat
-         * Ramp       -> flat
-         * Side slope -> flat
-         */
+       
         Vector3 forward =
             transform.forward;
 
@@ -1185,20 +1274,338 @@ public class CarController : MonoBehaviour
 
         forward.Normalize();
 
+        Vector3 targetUp =
+            Vector3.up;
+
+        if (grounded)
+        {
+            float flHeight = probeHeights[0];
+            float frHeight = probeHeights[2];
+            float rlHeight = probeHeights[3];
+            float rrHeight = probeHeights[4];
+
+            bool cornersValid =
+                !float.IsNaN(flHeight) &&
+                !float.IsNaN(frHeight) &&
+                !float.IsNaN(rlHeight) &&
+                !float.IsNaN(rrHeight);
+
+            if (cornersValid)
+            {
+                float frontHeight = (flHeight + frHeight) * 0.5f;
+                float rearHeight = (rlHeight + rrHeight) * 0.5f;
+                float leftHeight = (flHeight + rlHeight) * 0.5f;
+                float rightHeight = (frHeight + rrHeight) * 0.5f;
+
+                Vector3 right = transform.right;
+                right.y = 0f;
+                right.Normalize();
+
+                
+                Vector3 forwardAxis =
+                    forward * (frontProbeDistance + rearProbeDistance) +
+                    Vector3.up * (frontHeight - rearHeight);
+
+                Vector3 rightAxis =
+                    right * (2f * sideProbeDistance) +
+                    Vector3.up * (rightHeight - leftHeight);
+
+                Vector3 computedNormal =
+                    Vector3.Cross(forwardAxis, rightAxis).normalized;
+
+                if (computedNormal.y < 0f)
+                    computedNormal = -computedNormal;
+
+                float tiltAngle =
+                    Vector3.Angle(Vector3.up, computedNormal);
+
+                targetUp =
+                    tiltAngle > maxBodyTiltAngle
+                        ? Vector3.Slerp(Vector3.up, computedNormal, maxBodyTiltAngle / Mathf.Max(0.001f, tiltAngle))
+                        : computedNormal;
+            }
+        }
+
         Quaternion targetRotation =
             Quaternion.LookRotation(
                 forward,
-                Vector3.up
+                targetUp
             );
+
+        float tiltSpeed =
+            bodyOrientSpeed *
+            (climbingPavement ? climbTiltSpeedMultiplier : 1f);
 
         rb.MoveRotation(
             Quaternion.Slerp(
                 rb.rotation,
                 targetRotation,
-                25f *
+                tiltSpeed *
                 Time.fixedDeltaTime
             )
         );
+    }
+
+
+    // =========================================================
+    // WHEEL VISUALS
+    // =========================================================
+
+    private void SetupWheelVisuals()
+    {
+        if (wheels == null)
+            return;
+
+        foreach (WheelVisual wheel in wheels)
+        {
+            if (wheel == null || wheel.wheelTransform == null)
+                continue;
+
+            wheel.restLocalPosition = wheel.wheelTransform.localPosition;
+            wheel.currentLocalY = wheel.restLocalPosition.y;
+            wheel.isSetup = true;
+        }
+    }
+
+    private Transform FindWheelTransform(WheelCorner corner)
+    {
+        if (wheels == null)
+            return null;
+
+        foreach (WheelVisual wheel in wheels)
+        {
+            if (wheel != null && wheel.corner == corner && wheel.wheelTransform != null)
+                return wheel.wheelTransform;
+        }
+
+        return null;
+    }
+
+    private int GetProbeIndexForCorner(WheelCorner corner)
+    {
+        switch (corner)
+        {
+            case WheelCorner.FrontLeft: return 0;
+            case WheelCorner.FrontRight: return 2;
+            case WheelCorner.RearLeft: return 3;
+            case WheelCorner.RearRight: return 4;
+            default: return -1;
+        }
+    }
+
+   
+    private void UpdateWheelVisuals()
+    {
+        if (wheels == null || wheels.Length == 0)
+            return;
+
+        float dt = Time.deltaTime;
+
+        float targetSteerAngle =
+            currentSteerInput *
+            maxSteerVisualAngle;
+
+        foreach (WheelVisual wheel in wheels)
+        {
+            if (wheel == null || wheel.wheelTransform == null)
+                continue;
+
+            if (!wheel.isSetup)
+            {
+                wheel.restLocalPosition = wheel.wheelTransform.localPosition;
+                wheel.currentLocalY = wheel.restLocalPosition.y;
+                wheel.isSetup = true;
+            }
+
+            
+            float circumference =
+                2f * Mathf.PI * Mathf.Max(0.01f, wheel.wheelRadius);
+
+            float spinDegreesPerSecond =
+                (currentSpeed / circumference) * 360f;
+
+            wheel.currentSpinAngle =
+                Mathf.Repeat(wheel.currentSpinAngle + spinDegreesPerSecond * dt, 360f);
+
+            bool isFrontWheel =
+                wheel.corner == WheelCorner.FrontLeft ||
+                wheel.corner == WheelCorner.FrontRight;
+
+            float steerAngle =
+                isFrontWheel ? targetSteerAngle : 0f;
+
+            wheel.wheelTransform.localRotation =
+                Quaternion.AngleAxis(steerAngle, Vector3.up) *
+                Quaternion.AngleAxis(wheel.currentSpinAngle, wheel.spinAxis);
+
+            
+            int probeIndex = GetProbeIndexForCorner(wheel.corner);
+            float targetLocalY = wheel.restLocalPosition.y;
+
+            if (probeIndex >= 0 && rawGroundHeights != null && !float.IsNaN(rawGroundHeights[probeIndex]))
+            {
+                float desiredWorldY =
+                    rawGroundHeights[probeIndex] +
+                    wheel.wheelRadius;
+
+                float desiredLocalY =
+                    desiredWorldY -
+                    transform.position.y;
+
+                targetLocalY =
+                    Mathf.Clamp(
+                        desiredLocalY,
+                        wheel.restLocalPosition.y - maxWheelSuspensionTravel,
+                        wheel.restLocalPosition.y + maxWheelSuspensionTravel
+                    );
+            }
+
+            wheel.currentLocalY =
+                Mathf.MoveTowards(
+                    wheel.currentLocalY,
+                    targetLocalY,
+                    wheelSuspensionSpeed * dt
+                );
+
+            Vector3 localPos = wheel.wheelTransform.localPosition;
+            localPos.x = wheel.restLocalPosition.x;
+            localPos.y = wheel.currentLocalY;
+            localPos.z = wheel.restLocalPosition.z;
+            wheel.wheelTransform.localPosition = localPos;
+        }
+    }
+
+
+    // =========================================================
+    // TIRE SMOKE
+    // =========================================================
+
+    private void SetupTireSmoke()
+    {
+        Transform rl = rearLeftSmokePoint != null ? rearLeftSmokePoint : FindWheelTransform(WheelCorner.RearLeft);
+        Transform rr = rearRightSmokePoint != null ? rearRightSmokePoint : FindWheelTransform(WheelCorner.RearRight);
+
+        if ((rl == null || rr == null) && enableDebugLogs)
+        {
+            Debug.LogWarning(
+                "[CAR DEBUG] Tire smoke needs rear wheel references - " +
+                "assign Rear Left/Right Smoke Point, or add rear wheels to the Wheels list."
+            );
+        }
+
+        rearLeftSmoke = CreateSmokeSystem("RearLeftTireSmoke", rl);
+        rearRightSmoke = CreateSmokeSystem("RearRightTireSmoke", rr);
+    }
+
+    private ParticleSystem CreateSmokeSystem(string name, Transform attachPoint)
+    {
+        if (attachPoint == null)
+            return null;
+
+        GameObject smokeObj = new GameObject(name);
+        smokeObj.transform.SetParent(attachPoint, false);
+        smokeObj.transform.localPosition = Vector3.zero;
+
+        ParticleSystem ps = smokeObj.AddComponent<ParticleSystem>();
+        ps.Stop();
+
+        var main = ps.main;
+        main.loop = true;
+        main.duration = 1f;
+        main.startLifetime = 0.8f;
+        main.startSpeed = 0.6f;
+        main.startSize = 0.25f;
+        main.startColor = tireSmokeColor;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.gravityModifier = 0f;
+        main.maxParticles = 200;
+
+        var emission = ps.emission;
+        emission.rateOverTime = 0f;
+
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Cone;
+        shape.angle = 15f;
+        shape.radius = 0.08f;
+        shape.rotation = new Vector3(90f, 0f, 0f);
+
+        var sizeOverLifetime = ps.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.6f, 1f, 1.6f));
+
+        var colorOverLifetime = ps.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(tireSmokeColor, 0f),
+                new GradientColorKey(tireSmokeColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(tireSmokeColor.a, 0f),
+                new GradientAlphaKey(0f, 1f)
+            }
+        );
+        colorOverLifetime.color = gradient;
+
+        ParticleSystemRenderer psRenderer = smokeObj.GetComponent<ParticleSystemRenderer>();
+        Shader fxShader =
+            Shader.Find("Particles/Standard Unlit") ??
+            Shader.Find("Universal Render Pipeline/Particles/Unlit") ??
+            Shader.Find("Sprites/Default");
+
+        if (fxShader != null)
+            psRenderer.material = new Material(fxShader);
+
+        ps.Play();
+
+        return ps;
+    }
+
+    private void HandleTireSmoke()
+    {
+        if (rearLeftSmoke == null && rearRightSmoke == null)
+            return;
+
+        float targetRate = 0f;
+
+        if (isBeingDriven && grounded)
+        {
+            
+            bool wheelSpinSmoke =
+                throttleInput &&
+                Mathf.Abs(currentSpeed) < maxSpeed * accelSmokeSpeedThreshold;
+
+           
+            bool skidSmoke =
+                brakeInput &&
+                currentSpeed > brakeSmokeMinSpeed;
+
+            if (wheelSpinSmoke || skidSmoke)
+                targetRate = maxSmokeEmissionRate;
+        }
+
+        currentSmokeRate =
+            Mathf.Lerp(
+                currentSmokeRate,
+                targetRate,
+                1f - Mathf.Exp(-smokeResponseSpeed * Time.fixedDeltaTime)
+            );
+
+        if (rearLeftSmoke != null)
+        {
+            var emission = rearLeftSmoke.emission;
+            emission.rateOverTime = currentSmokeRate;
+        }
+
+        if (rearRightSmoke != null)
+        {
+            var emission = rearRightSmoke.emission;
+            emission.rateOverTime = currentSmokeRate;
+        }
     }
 
 
@@ -1219,28 +1626,9 @@ public class CarController : MonoBehaviour
         rb.linearVelocity =
             velocity;
 
-        /*
-         * No physical angular velocity.
-         */
+        
         rb.angularVelocity =
             Vector3.zero;
-
-        /*
-         * Force X and Z rotation back to zero.
-         */
-        Vector3 euler =
-            rb.rotation.eulerAngles;
-
-        Quaternion flat =
-            Quaternion.Euler(
-                0f,
-                euler.y,
-                0f
-            );
-
-        rb.MoveRotation(
-            flat
-        );
     }
 
 
@@ -1327,14 +1715,12 @@ public class CarController : MonoBehaviour
     // INTERACT PROMPT / ENTER-EXIT
     // =========================================================
 
-    /*
-     * Runs in Update (not FixedUpdate) so GetKeyDown can't miss a
-     * press between physics steps.
-     */
+    
     private void Update()
     {
         UpdateInteractPrompt();
         HandleEnterExitInput();
+        UpdateWheelVisuals();
     }
 
     private void UpdateInteractPrompt()
