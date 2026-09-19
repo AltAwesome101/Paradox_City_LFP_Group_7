@@ -24,7 +24,7 @@ public class ApplePacer
         deployer = null;
         timeSinceLastSpawn += deltaTime;
 
-        if (timeSinceLastSpawn < minSpawnInterval) return false; // expected, ignore for now
+        if (timeSinceLastSpawn < minSpawnInterval) return false;
 
         if (registry.BusyCount >= maxConcurrent)
         {
@@ -32,21 +32,22 @@ public class ApplePacer
             return false;
         }
 
-        bool anyCandidates = false;
+        var eligible = new List<AppleDeployer>();
         foreach (var candidate in registry.GetAllFree())
         {
-            anyCandidates = true;
-            if (HasBusyConflict(candidate)) continue;
-
-            deployer = candidate;
-            timeSinceLastSpawn = 0f;
-            return true;
+            if (!HasBusyConflict(candidate))
+                eligible.Add(candidate);
         }
 
-        if (!anyCandidates)
-            Debug.Log($"Pacer blocked: registry.GetAllFree() returned nothing,  Busy Deploy Count:{registry.BusyCount}/{registry.DeployCount} — no deployers registered?");
+        if (eligible.Count == 0)
+        {
+            Debug.Log($"Pacer blocked: no eligible candidates — Busy Deploy Count:{registry.BusyCount}/{registry.DeployCount}");
+            return false;
+        }
 
-        return false;
+        deployer = eligible[Random.Range(0, eligible.Count)];
+        timeSinceLastSpawn = 0f;
+        return true;
     }
 
     bool HasBusyConflict(AppleDeployer candidate)
