@@ -2,6 +2,7 @@
 // state of its own; it's purely a consumer of PlayerMovement.IsLocked)
 using UnityEngine;
 using BetterEventBus;
+using Unity.Cinemachine;
 
 namespace Forestlevel
 {
@@ -16,14 +17,6 @@ namespace Forestlevel
         void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);
         void OnDisable() => GameEventBus.Unregister<CameraChangeEvent>(this);
 
-
-        // void Update()
-        // {
-        //     bool locked = playerMovement.IsLocked;
-
-        //     freeLookCam.Priority = locked ? 0 : 10;
-        //     lockedFollowCam.Priority = locked ? 10 : 0;
-        // }
     }
 
     public enum CameraType

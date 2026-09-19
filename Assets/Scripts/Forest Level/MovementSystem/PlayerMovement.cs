@@ -59,7 +59,7 @@ namespace Forestlevel
 
         void Start()
         {
-            SetStrategy(new TraversalMovement());
+            SetStrategy(new InGameMovement());
             
         }
 

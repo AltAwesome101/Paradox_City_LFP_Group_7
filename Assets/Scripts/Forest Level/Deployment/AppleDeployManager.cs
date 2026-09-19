@@ -116,13 +116,15 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
             }
         }
 
-        if (soonest == null) { 
-            warningCounterUI.Hide(); 
-            return; 
+        if (soonest == null)
+        {
+            warningCounterUI.Hide();
+            AppleIndicatorManager.Instance.Hide();
+            return;
         }
 
-
         warningCounterUI.UpdateDisplay(soonestTimer.CurrentTime);
+        AppleIndicatorManager.Instance.PointAt(soonest);
     }
 
 
