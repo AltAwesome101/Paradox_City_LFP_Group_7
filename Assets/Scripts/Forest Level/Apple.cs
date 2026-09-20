@@ -24,11 +24,11 @@ public class Apple : MonoBehaviour
     void OnEnable() => registry.Register(this);
     void OnDisable() => registry.Deregister(this);
 
-    void OnCollisionEnter(Collision collision)
+    void OnTriggerEnter(Collider other)
     {
         if (resolved) return;
 
-        int layer = collision.gameObject.layer;
+        int layer = other.gameObject.layer;
 
         if (((1 << layer) & playerMask) != 0) { Resolve(caught: true); return; }
         if (((1 << layer) & groundMask) != 0) { Resolve(caught: false); }

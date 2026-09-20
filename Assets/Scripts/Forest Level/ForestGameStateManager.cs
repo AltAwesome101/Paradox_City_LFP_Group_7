@@ -27,12 +27,16 @@ public class ForestGameStateManager : Singleton<ForestGameStateManager>,
     public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
     {
         collected++;
-        if (collected >= applesToWin) GameEventBus.Raise(new LevelWonEvent());
+        if (collected >= applesToWin)
+        {
+            GameEventBus.Raise(new LevelWonEvent());
+        }
     }
 
     public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
     {
         // win UI / next-level trigger goes here
+            Debug.Log("Game won!");
     }
 
     public void OnGamePlayEvent(LevelLostEvent gameplayEvent)
