@@ -40,7 +40,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         base.Awake();
         applePool = new SingleObjectPool<Apple>(prefab: ApplePrefab, defaultCapacity: defaultCapacity, maxSize: maxSize);
         pacer = new ApplePacer(deployerRegistry, conflictPairs, maxConcurrent, minSpawnInterval);
-        var warningCounterLabel = document.rootVisualElement.Q<Label>("approachingApple-counter-label");
+        var warningCounterLabel = document.rootVisualElement.Q<VisualElement>("approachingApple-counter-element");
         warningCounterUI = new AppleWarningCounterUI(warningCounterLabel,Data);
     }
 
@@ -128,6 +128,15 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     }
 
 
-    public void OnGamePlayEvent(LevelWonEvent gameplayEvent) => deploymentHalted = true;
-    public void OnGamePlayEvent(LevelLostEvent gameplayEvent) => deploymentHalted = true;
+    public void OnGamePlayEvent(LevelWonEvent gameplayEvent){
+        deploymentHalted = true;
+        AppleIndicatorManager.Instance.Hide();
+        warningCounterUI.Hide();
+
+    }
+    public void OnGamePlayEvent(LevelLostEvent gameplayEvent){
+        deploymentHalted = true;
+        AppleIndicatorManager.Instance.Hide();
+        warningCounterUI.Hide();
+    }
 }

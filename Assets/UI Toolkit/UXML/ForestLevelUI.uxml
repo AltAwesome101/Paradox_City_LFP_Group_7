@@ -8,4 +8,9 @@
         <ui:Label text="Apple approaching in:" name="approachingApple-title-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left;"/>
         <ui:Label text="10" name="approachingApple-counter-label" style="-unity-font-style: bold; font-size: 40px; color: rgb(255, 255, 255); -unity-text-align: middle-right;"/>
     </ui:VisualElement>
+    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 0; position: absolute; height: 612px; width: 1057px; top: 260px; left: 382px; background-color: rgba(0, 0, 0, 0.863);">
+        <ui:Label text="Label" name="tutorial-title-label" style="color: rgb(255, 255, 255); font-size: 30px; -unity-text-align: upper-center; position: relative; top: 12px; left: -1px;"/>
+        <ui:Image name="tutorial-image" style="height: 289px; flex-shrink: 1; position: absolute; width: 552px; top: 108px; left: 259px; background-color: rgb(195, 191, 191);"/>
+        <ui:Label text="Label" name="tutorial-description-label" style="font-size: 25px; -unity-font-style: bold; color: rgb(255, 255, 255); bottom: -386px;"/>
+    </ui:VisualElement>
 </ui:UXML>
