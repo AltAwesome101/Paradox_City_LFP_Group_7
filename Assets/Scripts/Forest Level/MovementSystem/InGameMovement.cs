@@ -36,6 +36,5 @@ namespace Forestlevel
             return dir.magnitude > 1f ? dir.normalized : dir;
         }
     }
-
 }
 

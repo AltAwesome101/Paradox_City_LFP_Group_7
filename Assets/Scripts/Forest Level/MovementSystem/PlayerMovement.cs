@@ -1,10 +1,13 @@
+using BetterEventBus;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Forestlevel
 {
     [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
-    public class PlayerMovement : MonoBehaviour
+    public class PlayerMovement : MonoBehaviour,
+    IGamePlayEventListener<IMovementStrategy>,
+    IGamePlayEventListener<PlayerLocationEvent>
     {
         [Header("References")]
         [SerializeField] Transform cameraTransform; // read by strategies for camera-relative direction
@@ -70,6 +73,8 @@ namespace Forestlevel
             controls.Player.Move.canceled += OnMove;
             controls.Player.Sprint.performed += OnSprint;
             controls.Player.Sprint.canceled += OnSprint;
+
+            GameEventBus.Register<IMovementStrategy>(this);
         }
 
         void OnDisable()
@@ -79,6 +84,8 @@ namespace Forestlevel
             controls.Player.Sprint.performed -= OnSprint;
             controls.Player.Sprint.canceled -= OnSprint;
             controls.Player.Disable();
+
+            GameEventBus.Unregister<IMovementStrategy>(this);
         }
 
         void OnMove(InputAction.CallbackContext ctx) => moveInput = ctx.ReadValue<Vector2>();
@@ -160,5 +167,24 @@ namespace Forestlevel
 
             momentum = horizontal + vertical;
         }
+
+        public void OnGamePlayEvent(IMovementStrategy gameplayEvent)
+        {
+            if (gameplayEvent == null) return;
+            currentStrategy?.OnExit();
+            currentStrategy = gameplayEvent;
+            currentStrategy.OnEnter(this);
+        }
+
+        public void OnGamePlayEvent(PlayerLocationEvent gameplayEvent)
+        {
+            // player location change
+            transform.position = gameplayEvent.Destination;
+        }
+    }
+
+    public struct PlayerLocationEvent : IGameplayEvent
+    {
+        public Vector3 Destination{get;set;}
     }
 }

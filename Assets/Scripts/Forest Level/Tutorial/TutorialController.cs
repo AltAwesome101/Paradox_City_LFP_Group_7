@@ -2,67 +2,80 @@ using BetterSingletons;
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.Collections.Generic;
+using BetterEventBus;
 
-public class TutorialController : Singleton<TutorialController>
+namespace Forestlevel
 {
-    [SerializeField] List<TutorialDataSO> startingData;
-    [SerializeField] UIDocument document;
-
-    TutorialView _view;
-
-    List<TutorialDataSO> _tutorials;
-    int _currentIndex;
-
-    protected override void Awake()
+    public class TutorialController : Singleton<TutorialController>,
+    IGamePlayEventListener<TutorialGameStateEvent>
     {
-        base.Awake();
+        [SerializeField] List<TutorialDataSO> startingData;
+        [SerializeField] UIDocument document;
 
-        var root = document.rootVisualElement;
+        TutorialView _view;
 
-        _tutorials = new List<TutorialDataSO>(startingData);
+        List<TutorialDataSO> _tutorials;
+        int _currentIndex;
 
-        _view = new TutorialView(container: root.Q<VisualElement>("TutorialPanel-container"));
+        protected override void Awake()
+        {
+            base.Awake();
 
-        RegisterViewCallbacks();
+            var root = document.rootVisualElement;
+
+            _tutorials = new List<TutorialDataSO>(startingData);
+
+            _view = new TutorialView(container: root.Q<VisualElement>("TutorialPanel-container"));
+
+            RegisterViewCallbacks();
+        }
+
+
+        void RegisterViewCallbacks()
+        {
+            _view.CloseRequested += CloseTutorial;
+            _view.PreviousRequested += ShowPreviousTutorial;
+            _view.NextRequested += ShowNextTutorial;
+        }
+
+        public void OpenTutorials()
+        {
+            _currentIndex = 0;
+            DisplayCurrentTutorial();
+        }
+
+        void DisplayCurrentTutorial()
+        {
+            TutorialDataSO data = _tutorials[_currentIndex];
+            _view.ChangeTutorialInfo(data);
+        }
+
+        void ShowNextTutorial()
+        {
+            if (_currentIndex >= _tutorials.Count - 1)
+                return;
+
+            _currentIndex++;
+            DisplayCurrentTutorial();
+        }
+
+        void ShowPreviousTutorial()
+        {
+            if (_currentIndex <= 0) return;
+
+            _currentIndex--;
+            DisplayCurrentTutorial();
+        }
+
+        void CloseTutorial(){
+            _view.HideTutorialPanel();
+            GameEventBus.Raise<TutorialClosedEvent>(new TutorialClosedEvent()); //raise tutorial closed event
+        }
+
+        public void OnGamePlayEvent(TutorialGameStateEvent gameplayEvent) => OpenTutorials();
     }
+    
 
-    void Start()=> OpenTutorials();
-
-    void RegisterViewCallbacks()
-    {
-        _view.CloseRequested += CloseTutorial;
-        _view.PreviousRequested += ShowPreviousTutorial;
-        _view.NextRequested += ShowNextTutorial;
-    }
-
-    public void OpenTutorials()
-    {
-        _currentIndex = 0;
-        DisplayCurrentTutorial();
-    }
-
-    void DisplayCurrentTutorial()
-    {
-        TutorialDataSO data = _tutorials[_currentIndex];
-        _view.ChangeTutorialInfo(data);
-    }
-
-    void ShowNextTutorial()
-    {
-        if (_currentIndex >= _tutorials.Count - 1)
-            return;
-
-        _currentIndex++;
-        DisplayCurrentTutorial();
-    }
-
-    void ShowPreviousTutorial()
-    {
-        if (_currentIndex <= 0) return;
-
-        _currentIndex--;
-        DisplayCurrentTutorial();
-    }
-
-    void CloseTutorial() => _view.HideTutorialPanel();
+    public struct TutorialClosedEvent : IGameplayEvent{}
 }
+
