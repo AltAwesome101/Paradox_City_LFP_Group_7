@@ -15,11 +15,12 @@ public class WakemeterUI
     public WakemeterUI(ProgressBar progress, int disturb, int maxLimit, float lerpSpeed = 8f)
     {
         this.progress = progress;
-        this.progress.lowValue = 0;
+        this.progress.lowValue = 0f;
+        this.progress.value = 0f;
         this.progress.highValue = maxLimit;
         disturbAmount = disturb;
         this.lerpSpeed = lerpSpeed;
-        targetValue = progress.value;
+        targetValue = 0f;
     }
 
     public void ShowProgress() => progress.style.display = DisplayStyle.Flex;
@@ -38,6 +39,11 @@ public class WakemeterUI
 
         if (targetValue >= progress.highValue)
             OnMeterFull?.Invoke();
+    }
+
+    public void ResetMeter(){
+        targetValue = 0f;
+        progress.value = 0f;
     }
 
     void AnimateStep()

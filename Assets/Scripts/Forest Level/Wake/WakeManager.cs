@@ -8,8 +8,8 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
 ,IGamePlayEventListener<InGameGameStateEvent>
 {
     [SerializeField] UIDocument document;
-    [SerializeField] int WakeUpLimit;
-    [SerializeField] int disturbAmount;
+    [SerializeField] int WakeUpLimit = 50;
+    [SerializeField] int disturbAmount = 10;
     [SerializeField] float lerpSpeed = 8;
 
     WakemeterUI wakemeter;
@@ -46,5 +46,9 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
         GameEventBus.Raise(new LevelLostEvent());
     }
 
-    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent) => wakemeter.ShowProgress();
+    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent){
+        hasWoken = false;
+        wakemeter.ResetMeter();
+        wakemeter.ShowProgress();
+    }
 }
