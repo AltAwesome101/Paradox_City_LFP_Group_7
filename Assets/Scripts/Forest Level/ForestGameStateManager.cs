@@ -14,7 +14,7 @@ namespace Forestlevel
 
         void Start(){
             GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-            Invoke(nameof(changeToPlayArea), 15f);
+            Invoke(nameof(changeToPlayArea), 30f);
         }
 
         void changeToPlayArea(){
