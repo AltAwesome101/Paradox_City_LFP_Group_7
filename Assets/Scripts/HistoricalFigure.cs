@@ -9,13 +9,21 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Meeting")]
     public MeetingTimer meetingTimer;
 
+    [Header("Drinking")]
+    public NPCDrinking npcDrinking;
+
     [Header("Order UI")]
     public TextMeshProUGUI orderText;
+
+    [Header("Meeting Result UI")]
+    public TextMeshProUGUI meetingResultText;
 
     private bool hasOrdered = false;
     private bool hasBeenServed = false;
     private bool receivedWrongBeer = false;
     private bool meetingMissed = false;
+    private bool meetingAttended = false;
+    private bool resultShown = false;
 
     public bool HasOrdered()
     {
@@ -53,6 +61,12 @@ public class HistoricalFigure : MonoBehaviour
 
             orderText.gameObject.SetActive(true);
         }
+
+        if (meetingResultText != null)
+        {
+            meetingResultText.text = "";
+            meetingResultText.gameObject.SetActive(false);
+        }
     }
 
     public bool HasBeenServed()
@@ -70,6 +84,11 @@ public class HistoricalFigure : MonoBehaviour
         return meetingMissed;
     }
 
+    public bool MeetingWasAttended()
+    {
+        return meetingAttended;
+    }
+
     public void ServeBeer(Beer beer)
     {
         if (!hasOrdered)
@@ -84,7 +103,15 @@ public class HistoricalFigure : MonoBehaviour
 
         hasBeenServed = true;
 
-        receivedWrongBeer = beer.IsWrongBeer();
+        receivedWrongBeer =
+            beer.IsWrongBeer();
+
+        if (npcDrinking != null)
+        {
+            npcDrinking.StartDrinking(
+                receivedWrongBeer
+            );
+        }
 
         if (receivedWrongBeer)
         {
@@ -113,6 +140,83 @@ public class HistoricalFigure : MonoBehaviour
                 orderText.text =
                     "Customer: Thanks.";
             }
+        }
+    }
+
+    private void Update()
+    {
+        if (meetingTimer == null)
+        {
+            return;
+        }
+
+        // -----------------------------
+        // MEETING MISSED
+        // -----------------------------
+
+        if (meetingTimer.IsMeetingMissed() &&
+            !meetingMissed)
+        {
+            meetingMissed = true;
+
+            ShowMeetingMissed();
+        }
+
+        // -----------------------------
+        // CORRECT BEER
+        // -----------------------------
+
+        if (!receivedWrongBeer &&
+            npcDrinking != null &&
+            npcDrinking.HasFinishedDrinking() &&
+            !meetingMissed &&
+            !meetingAttended)
+        {
+            AttendMeeting();
+        }
+    }
+
+    private void AttendMeeting()
+    {
+        if (meetingAttended)
+        {
+            return;
+        }
+
+        meetingAttended = true;
+
+        Debug.Log(
+            "HISTORICAL FIGURE ATTENDED THE MEETING!"
+        );
+
+        if (meetingResultText != null)
+        {
+            meetingResultText.text =
+                "MEETING ATTENDED";
+
+            meetingResultText.gameObject.SetActive(true);
+        }
+    }
+
+    private void ShowMeetingMissed()
+    {
+        if (resultShown)
+        {
+            return;
+        }
+
+        resultShown = true;
+
+        Debug.Log(
+            "HISTORICAL FIGURE MISSED THE MEETING!"
+        );
+
+        if (meetingResultText != null)
+        {
+            meetingResultText.text =
+                "MEETING MISSED";
+
+            meetingResultText.gameObject.SetActive(true);
         }
     }
 

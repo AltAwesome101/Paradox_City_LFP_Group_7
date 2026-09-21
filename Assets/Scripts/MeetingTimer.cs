@@ -6,16 +6,22 @@ public class MeetingTimer : MonoBehaviour
     [Header("Timer")]
     public float meetingTime = 120f;
 
+    [Header("Time Manipulation")]
+    public float normalTimeSpeed = 1f;
+    public float drunkTimeSpeed = 3f;
+
     [Header("UI")]
     public TextMeshProUGUI timerText;
 
     private float currentTime;
     private bool timerRunning = false;
     private bool meetingMissed = false;
+    private float currentTimeSpeed = 1f;
 
     private void Start()
     {
         currentTime = meetingTime;
+        currentTimeSpeed = normalTimeSpeed;
 
         UpdateTimerUI();
     }
@@ -27,7 +33,9 @@ public class MeetingTimer : MonoBehaviour
             return;
         }
 
-        currentTime -= Time.deltaTime;
+        currentTime -=
+            Time.deltaTime *
+            currentTimeSpeed;
 
         if (currentTime <= 0f)
         {
@@ -35,6 +43,8 @@ public class MeetingTimer : MonoBehaviour
 
             meetingMissed = true;
             timerRunning = false;
+
+            currentTimeSpeed = normalTimeSpeed;
 
             UpdateTimerUI();
 
@@ -68,6 +78,27 @@ public class MeetingTimer : MonoBehaviour
         );
     }
 
+    public void SpeedUpTime()
+    {
+        currentTimeSpeed = drunkTimeSpeed;
+
+        Debug.Log(
+            "TIME MANIPULATION ACTIVE! " +
+            "Timer speed: " +
+            currentTimeSpeed +
+            "x"
+        );
+    }
+
+    public void ReturnToNormalTime()
+    {
+        currentTimeSpeed = normalTimeSpeed;
+
+        Debug.Log(
+            "Time returned to normal."
+        );
+    }
+
     public bool IsMeetingMissed()
     {
         return meetingMissed;
@@ -76,6 +107,11 @@ public class MeetingTimer : MonoBehaviour
     public float GetRemainingTime()
     {
         return currentTime;
+    }
+
+    public float GetCurrentTimeSpeed()
+    {
+        return currentTimeSpeed;
     }
 
     private void UpdateTimerUI()
