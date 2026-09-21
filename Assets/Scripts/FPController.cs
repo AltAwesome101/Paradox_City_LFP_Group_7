@@ -60,7 +60,14 @@ public class FPController : MonoBehaviour
     {
         if (context.started)
         {
-            TryPickUpBeer();
+            if (carriedBeer != null)
+            {
+                TryServeBeer();
+            }
+            else
+            {
+                TryPickUpBeer();
+            }
         }
     }
 
@@ -239,6 +246,53 @@ public class FPController : MonoBehaviour
             "Picked up: " +
             beer.beerName
         );
+    }
+
+    // =========================
+    // SERVE BEER
+    // =========================
+
+    private void TryServeBeer()
+    {
+        if (carriedBeer == null)
+        {
+            return;
+        }
+
+        Camera cam =
+            cameraTransform.GetComponent<Camera>();
+
+        if (cam == null)
+        {
+            return;
+        }
+
+        Ray ray =
+            cam.ViewportPointToRay(
+                new Vector3(0.5f, 0.5f, 0f)
+            );
+
+        RaycastHit hit;
+
+        if (Physics.Raycast(
+            ray,
+            out hit,
+            interactionRange
+        ))
+        {
+            HistoricalFigure npc =
+                hit.collider.GetComponent<HistoricalFigure>();
+
+            if (npc != null &&
+                npc.HasOrdered())
+            {
+                npc.ServeBeer(carriedBeer);
+
+                carriedBeer.gameObject.SetActive(false);
+
+                carriedBeer = null;
+            }
+        }
     }
 
     // =========================

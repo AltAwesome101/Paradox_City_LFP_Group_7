@@ -10,6 +10,9 @@ public class HistoricalFigure : MonoBehaviour
     public TextMeshProUGUI orderText;
 
     private bool hasOrdered = false;
+    private bool hasBeenServed = false;
+    private bool receivedWrongBeer = false;
+    private bool meetingMissed = false;
 
     public bool HasOrdered()
     {
@@ -44,9 +47,74 @@ public class HistoricalFigure : MonoBehaviour
         }
     }
 
+    public bool HasBeenServed()
+    {
+        return hasBeenServed;
+    }
+
+    public bool ReceivedWrongBeer()
+    {
+        return receivedWrongBeer;
+    }
+
+    public bool MeetingWasMissed()
+    {
+        return meetingMissed;
+    }
+
+    public void ServeBeer(Beer beer)
+    {
+        if (!hasOrdered)
+        {
+            return;
+        }
+
+        if (hasBeenServed)
+        {
+            return;
+        }
+
+        hasBeenServed = true;
+
+        receivedWrongBeer = beer.IsWrongBeer();
+
+        if (receivedWrongBeer)
+        {
+            Debug.Log(
+                "WRONG BEER SERVED!"
+            );
+
+            meetingMissed = true;
+
+            Debug.Log(
+                "HISTORICAL EVENT CHANGED: " +
+                "The meeting was missed."
+            );
+
+            if (orderText != null)
+            {
+                orderText.text =
+                    "Customer: Uh... this isn't what I ordered.";
+            }
+        }
+        else
+        {
+            Debug.Log(
+                "CORRECT BEER SERVED!"
+            );
+
+            if (orderText != null)
+            {
+                orderText.text =
+                    "Customer: Thanks. That's perfect.";
+            }
+        }
+    }
+
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.gameObject.layer ==
+            LayerMask.NameToLayer("Player"))
         {
             PlaceOrder();
         }
