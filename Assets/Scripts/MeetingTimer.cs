@@ -43,7 +43,6 @@ public class MeetingTimer : MonoBehaviour
 
             meetingMissed = true;
             timerRunning = false;
-
             currentTimeSpeed = normalTimeSpeed;
 
             UpdateTimerUI();
@@ -58,6 +57,9 @@ public class MeetingTimer : MonoBehaviour
                     "MEETING MISSED";
             }
 
+            // Pause the entire game.
+            Time.timeScale = 0f;
+
             return;
         }
 
@@ -71,6 +73,14 @@ public class MeetingTimer : MonoBehaviour
             return;
         }
 
+        if (timerRunning)
+        {
+            return;
+        }
+
+        // Make sure the game is running.
+        Time.timeScale = 1f;
+
         timerRunning = true;
 
         Debug.Log(
@@ -80,6 +90,11 @@ public class MeetingTimer : MonoBehaviour
 
     public void SpeedUpTime()
     {
+        if (!timerRunning)
+        {
+            return;
+        }
+
         currentTimeSpeed = drunkTimeSpeed;
 
         Debug.Log(
@@ -102,6 +117,11 @@ public class MeetingTimer : MonoBehaviour
     public bool IsMeetingMissed()
     {
         return meetingMissed;
+    }
+
+    public bool IsTimerRunning()
+    {
+        return timerRunning;
     }
 
     public float GetRemainingTime()

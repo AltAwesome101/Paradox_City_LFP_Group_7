@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using System.Collections;
 
 public class HistoricalFigure : MonoBehaviour
 {
@@ -18,12 +19,22 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Meeting Result UI")]
     public TextMeshProUGUI meetingResultText;
 
+    [Header("Cinematic Camera")]
+    public CinematicCameraFocus cinematicCamera;
+
+    [Header("Leaving")]
+    public float leaveSpeed = 2f;
+    public float leaveDistance = 8f;
+
     private bool hasOrdered = false;
     private bool hasBeenServed = false;
     private bool receivedWrongBeer = false;
     private bool meetingMissed = false;
     private bool meetingAttended = false;
+    private bool leaving = false;
     private bool resultShown = false;
+
+    private Vector3 leaveDirection;
 
     public bool HasOrdered()
     {
@@ -49,11 +60,6 @@ public class HistoricalFigure : MonoBehaviour
             requestedBeer
         );
 
-        if (meetingTimer != null)
-        {
-            meetingTimer.StartMeetingTimer();
-        }
-
         if (orderText != null)
         {
             orderText.text =
@@ -62,9 +68,11 @@ public class HistoricalFigure : MonoBehaviour
             orderText.gameObject.SetActive(true);
         }
 
+        // Do NOT start the meeting timer here.
+        // The timer now starts when the beer is served.
+
         if (meetingResultText != null)
         {
-            meetingResultText.text = "";
             meetingResultText.gameObject.SetActive(false);
         }
     }
@@ -106,10 +114,26 @@ public class HistoricalFigure : MonoBehaviour
         receivedWrongBeer =
             beer.IsWrongBeer();
 
+        // Start the meeting timer ONLY after
+        // the NPC receives the beer.
+        if (meetingTimer != null)
+        {
+            meetingTimer.StartMeetingTimer();
+        }
+
+        // Start drinking.
         if (npcDrinking != null)
         {
             npcDrinking.StartDrinking(
                 receivedWrongBeer
+            );
+        }
+
+        // Start the cinematic camera.
+        if (cinematicCamera != null)
+        {
+            cinematicCamera.FocusOnNPC(
+                transform
             );
         }
 
@@ -145,34 +169,43 @@ public class HistoricalFigure : MonoBehaviour
 
     private void Update()
     {
-        if (meetingTimer == null)
+        // Do not process gameplay after the game
+        // has been paused by the missed meeting.
+        if (Time.timeScale == 0f)
         {
             return;
         }
 
-        // -----------------------------
-        // MEETING MISSED
-        // -----------------------------
-
-        if (meetingTimer.IsMeetingMissed() &&
+        if (meetingTimer != null &&
+            meetingTimer.IsMeetingMissed() &&
             !meetingMissed)
         {
             meetingMissed = true;
 
             ShowMeetingMissed();
+
+            if (cinematicCamera != null)
+            {
+                cinematicCamera.ReturnToPlayer();
+            }
+
+            return;
         }
 
-        // -----------------------------
-        // CORRECT BEER
-        // -----------------------------
-
+        // Correct beer:
+        // once the NPC finishes drinking, they leave.
         if (!receivedWrongBeer &&
             npcDrinking != null &&
             npcDrinking.HasFinishedDrinking() &&
-            !meetingMissed &&
-            !meetingAttended)
+            !meetingAttended &&
+            !leaving)
         {
             AttendMeeting();
+        }
+
+        if (leaving)
+        {
+            LeaveBar();
         }
     }
 
@@ -186,15 +219,63 @@ public class HistoricalFigure : MonoBehaviour
         meetingAttended = true;
 
         Debug.Log(
-            "HISTORICAL FIGURE ATTENDED THE MEETING!"
+            "HISTORICAL FIGURE FINISHED THE BEER " +
+            "AND IS LEAVING FOR THE MEETING!"
         );
 
         if (meetingResultText != null)
         {
             meetingResultText.text =
-                "MEETING ATTENDED";
+                "HEADING TO MEETING";
 
             meetingResultText.gameObject.SetActive(true);
+
+            StartCoroutine(
+                HideMeetingResult()
+            );
+        }
+
+        if (cinematicCamera != null)
+        {
+            cinematicCamera.ReturnToPlayer();
+        }
+
+        // Move away from the table/bar.
+        leaveDirection =
+            -transform.forward;
+
+        leaveDirection.y = 0f;
+
+        if (leaveDirection.sqrMagnitude < 0.01f)
+        {
+            leaveDirection = Vector3.forward;
+        }
+
+        leaveDirection.Normalize();
+
+        leaving = true;
+    }
+
+    private void LeaveBar()
+    {
+        transform.position +=
+            leaveDirection *
+            leaveSpeed *
+            Time.deltaTime;
+
+        float distanceTravelled =
+            Vector3.Distance(
+                transform.position,
+                transform.position +
+                leaveDirection *
+                leaveDistance
+            );
+
+        // Simple visual departure.
+        // Stop after moving for enough time.
+        if (distanceTravelled <= 0f)
+        {
+            leaving = false;
         }
     }
 
@@ -217,6 +298,20 @@ public class HistoricalFigure : MonoBehaviour
                 "MEETING MISSED";
 
             meetingResultText.gameObject.SetActive(true);
+
+            StartCoroutine(
+                HideMeetingResult()
+            );
+        }
+    }
+
+    private IEnumerator HideMeetingResult()
+    {
+        yield return new WaitForSecondsRealtime(5f);
+
+        if (meetingResultText != null)
+        {
+            meetingResultText.gameObject.SetActive(false);
         }
     }
 
