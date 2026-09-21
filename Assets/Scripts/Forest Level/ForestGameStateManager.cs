@@ -7,14 +7,15 @@ namespace Forestlevel
     public class ForestGameStateManager : Singleton<ForestGameStateManager>,
         IGamePlayEventListener<AppleCollectedEvent>,
         IGamePlayEventListener<LevelWonEvent>,
-        IGamePlayEventListener<LevelLostEvent>
+        IGamePlayEventListener<LevelLostEvent>,
+        IGamePlayEventListener<TutorialClosedEvent>
     {
         [SerializeField] int applesToWin = 10;
         int collected;
 
         void Start(){
             GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-            Invoke(nameof(changeToPlayArea), 30f);
+            Invoke(nameof(changeToPlayArea), 4f);
         }
 
         void changeToPlayArea(){
@@ -25,6 +26,8 @@ namespace Forestlevel
             GameEventBus.Register<AppleCollectedEvent>(this);
             GameEventBus.Register<LevelWonEvent>(this);
             GameEventBus.Register<LevelLostEvent>(this);
+            GameEventBus.Register<TutorialClosedEvent>(this);
+
         }
 
         void OnDisable()
@@ -32,6 +35,8 @@ namespace Forestlevel
             GameEventBus.Unregister<AppleCollectedEvent>(this);
             GameEventBus.Unregister<LevelWonEvent>(this);
             GameEventBus.Unregister<LevelLostEvent>(this);
+            GameEventBus.Unregister<TutorialClosedEvent>(this);
+
         }
 
         public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
@@ -48,6 +53,11 @@ namespace Forestlevel
         }
 
         public void OnGamePlayEvent(LevelLostEvent gameplayEvent) => collected = 0;
+
+        public void OnGamePlayEvent(TutorialClosedEvent gameplayEvent)
+        {
+            GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
+        }
     }
 
     // Order: [exploration] -> [Tutorial] -> [InGame]
@@ -62,10 +72,14 @@ namespace Forestlevel
             GameEventBus.Raise<IMovementStrategy>(new TraversalMovement()); //Player movement 3d raise event;
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = ExploreLocation}); // player Location change event
             Debug.Log($"Player's new position:{ExploreLocation}");
+
+            // Cursor hid and fix state
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
     }
 
-    public class TutorialGameStateEvent: IGameplayEvent{}
+    public struct TutorialGameStateEvent: IGameplayEvent{}
 
     public class EnterPlayAreaEvent: IGameplayEvent
     {
@@ -80,6 +94,13 @@ namespace Forestlevel
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = fixedLocation}); // player Location change event            
             Debug.Log($"Player's new position:{fixedLocation}");
 
+            // Cursor hid and fix state
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            // Raise Tutorial Event 
+            // ? might have add skip tutorial capabilities
+            GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
         }
     }
 
@@ -89,6 +110,9 @@ namespace Forestlevel
         // Raised after TutorialGameStateEvent 
         // Player movement = in game 2D lateral movement
         public InGameGameStateEvent(){
+            // Cursor hid and fix state
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
             GameEventBus.Raise<IMovementStrategy>(new InGameMovement()); //Player movement 2D raise event;
         }
     }

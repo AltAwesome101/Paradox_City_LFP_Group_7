@@ -8,7 +8,8 @@ using Forestlevel;
 
 public class AppleDeployManager : Singleton<AppleDeployManager>,
     IGamePlayEventListener<LevelWonEvent>,
-    IGamePlayEventListener<LevelLostEvent>
+    IGamePlayEventListener<LevelLostEvent>,
+    IGamePlayEventListener<InGameGameStateEvent>
 {
     [SerializeField] Apple ApplePrefab;
     [SerializeField] int defaultCapacity = 10;
@@ -30,7 +31,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
 
     ISingleObjectPool<Apple> applePool;
     ApplePacer pacer;
-    bool deploymentHalted;
+    bool deploymentHalted = true;
 
     readonly Dictionary<AppleDeployer, CountdownTimer> activeCountdowns = new();
 
@@ -48,12 +49,16 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     {
         GameEventBus.Register<LevelWonEvent>(this);
         GameEventBus.Register<LevelLostEvent>(this);
+        GameEventBus.Register<InGameGameStateEvent>(this);
+
     }
 
     void OnDisable()
     {
         GameEventBus.Unregister<LevelWonEvent>(this);
         GameEventBus.Unregister<LevelLostEvent>(this);
+        GameEventBus.Unregister<InGameGameStateEvent>(this);
+
     }
 
     void Update()
@@ -139,4 +144,6 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         AppleIndicatorManager.Instance.Hide();
         warningCounterUI.Hide();
     }
+
+    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent) => deploymentHalted = false;
 }

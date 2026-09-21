@@ -30,9 +30,9 @@ namespace Forestlevel
             RegisterViewCallbacks();
         }
 
-        void Start(){
-            OpenTutorials();
-        }
+        void OnEnable() => GameEventBus.Register<TutorialGameStateEvent>(this);
+        void OnDisable() => GameEventBus.Unregister<TutorialGameStateEvent>(this);
+
 
         void RegisterViewCallbacks()
         {
@@ -43,6 +43,7 @@ namespace Forestlevel
 
         public void OpenTutorials()
         {
+            Debug.Log("Tutorial Started!");
             _currentIndex = 0;
             DisplayCurrentTutorial();
         }

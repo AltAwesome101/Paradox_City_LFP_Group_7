@@ -2,8 +2,10 @@ using BetterSingletons;
 using BetterEventBus;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Forestlevel;
 
 public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleDroppedEvent>
+,IGamePlayEventListener<InGameGameStateEvent>
 {
     [SerializeField] UIDocument document;
     [SerializeField] int WakeUpLimit;
@@ -35,5 +37,10 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
         if (hasWoken) return;
         hasWoken = true;
         GameEventBus.Raise(new LevelLostEvent());
+    }
+
+    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent)
+    {
+        throw new System.NotImplementedException();
     }
 }
