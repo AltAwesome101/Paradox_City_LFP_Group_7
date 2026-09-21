@@ -14,6 +14,11 @@ namespace Forestlevel
 
         void Start(){
             GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
+            Invoke(nameof(changeToPlayArea), 15f);
+        }
+
+        void changeToPlayArea(){
+            GameEventBus.Raise<EnterPlayAreaEvent>(new EnterPlayAreaEvent());
         }
         void OnEnable()
         {
@@ -56,6 +61,7 @@ namespace Forestlevel
             GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); //Camera Raise event
             GameEventBus.Raise<IMovementStrategy>(new TraversalMovement()); //Player movement 3d raise event;
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = ExploreLocation}); // player Location change event
+            Debug.Log($"Player's new position:{ExploreLocation}");
         }
     }
 
@@ -72,6 +78,8 @@ namespace Forestlevel
             GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); //Camera Raise event
             GameEventBus.Raise<IMovementStrategy>(new IdleMovement()); //Player movement 3d raise event;
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = fixedLocation}); // player Location change event            
+            Debug.Log($"Player's new position:{fixedLocation}");
+
         }
     }
 

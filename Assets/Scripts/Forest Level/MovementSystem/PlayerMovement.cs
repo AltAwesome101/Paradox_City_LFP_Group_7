@@ -60,12 +60,6 @@ namespace Forestlevel
 
         }
 
-        void Start()
-        {
-            SetStrategy(new InGameMovement());
-            
-        }
-
         void OnEnable()
         {
             controls.Player.Enable();
@@ -75,6 +69,7 @@ namespace Forestlevel
             controls.Player.Sprint.canceled += OnSprint;
 
             GameEventBus.Register<IMovementStrategy>(this);
+            GameEventBus.Register<PlayerLocationEvent>(this); 
         }
 
         void OnDisable()
@@ -86,18 +81,12 @@ namespace Forestlevel
             controls.Player.Disable();
 
             GameEventBus.Unregister<IMovementStrategy>(this);
+            GameEventBus.Unregister<PlayerLocationEvent>(this); 
+
         }
 
         void OnMove(InputAction.CallbackContext ctx) => moveInput = ctx.ReadValue<Vector2>();
         void OnSprint(InputAction.CallbackContext ctx) => sprintHeld = ctx.ReadValueAsButton();
-
-        public void SetStrategy(IMovementStrategy newStrategy)
-        {
-            if (newStrategy == null) return;
-            currentStrategy?.OnExit();
-            currentStrategy = newStrategy;
-            currentStrategy.OnEnter(this);
-        }
 
         void FixedUpdate()
         {
@@ -180,6 +169,7 @@ namespace Forestlevel
         {
             // player location change
             transform.position = gameplayEvent.Destination;
+            Debug.Log($"Player current position{transform.position}");
         }
     }
 
