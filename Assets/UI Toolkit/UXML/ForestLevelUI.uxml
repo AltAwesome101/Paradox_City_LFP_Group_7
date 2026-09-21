@@ -1,6 +1,6 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <ui:Template name="arrow-image" src="project://database/Assets/UI%20Toolkit/UXML/arrow-image.uxml?fileID=9197481963319205126&amp;guid=05e58686ef7859545b861b2d2fbefb9c&amp;type=3#arrow-image"/>
-    <ui:ProgressBar value="22" title="my-progress" name="wake-progressbar"/>
+    <ui:ProgressBar value="0" title="my-progress" name="wake-progressbar"/>
     <ui:VisualElement name="applenotifier-element-archor" style="flex-grow: 0; flex-shrink: 0; width: 1724px; height: 816px; position: absolute; top: 143px; left: 111px;">
         <ui:Instance template="arrow-image" name="arrow-image" style="display: none;"/>
     </ui:VisualElement>
