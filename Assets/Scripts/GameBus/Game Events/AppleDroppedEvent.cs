@@ -12,7 +12,4 @@ public class AppleDroppedEvent : IGameplayEvent
 
 
 public class LevelWonEvent:IGameplayEvent{}
-public class LevelLostEvent : IGameplayEvent
-{
-    public readonly int collect = 0;
-}
+public class LevelLostEvent : IGameplayEvent{}

@@ -11,7 +11,7 @@ namespace Forestlevel
         CameraType currentCameraType = CameraType.FreeLook;
         public void OnGamePlayEvent(CameraChangeEvent evt){
             currentCameraType = evt.CameraType;
-            Debug.Log($"Current Camera Type:{currentCameraType.ToString()}");
+            Debug.Log($"Current Camera Type:{currentCameraType}");
         }
 
         void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);

@@ -30,6 +30,9 @@ namespace Forestlevel
             RegisterViewCallbacks();
         }
 
+        void Start(){
+            OpenTutorials();
+        }
 
         void RegisterViewCallbacks()
         {
@@ -47,6 +50,7 @@ namespace Forestlevel
         void DisplayCurrentTutorial()
         {
             TutorialDataSO data = _tutorials[_currentIndex];
+            _view.EnableTutorialPanel();
             _view.ChangeTutorialInfo(data);
         }
 

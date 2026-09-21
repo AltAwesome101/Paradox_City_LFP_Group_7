@@ -41,7 +41,7 @@ public class ApplePacer
 
         if (eligible.Count == 0)
         {
-            Debug.Log($"Pacer blocked: no eligible candidates — Busy Deploy Count:{registry.BusyCount}/{registry.DeployCount}");
+            // Debug.Log($"Pacer blocked: no eligible candidates — Busy Deploy Count:{registry.BusyCount}/{registry.DeployCount}");
             return false;
         }
 
