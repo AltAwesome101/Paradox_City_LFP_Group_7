@@ -1,9 +1,13 @@
 using UnityEngine;
+using TMPro;
 
 public class HistoricalFigure : MonoBehaviour
 {
     [Header("Order")]
     public string requestedBeer = "Correct Beer";
+
+    [Header("Order UI")]
+    public TextMeshProUGUI orderText;
 
     private bool hasOrdered = false;
 
@@ -30,6 +34,14 @@ public class HistoricalFigure : MonoBehaviour
             "Historical Figure ordered: " +
             requestedBeer
         );
+
+        if (orderText != null)
+        {
+            orderText.text =
+                "Customer: I'll have a beer, please.";
+
+            orderText.gameObject.SetActive(true);
+        }
     }
 
     private void OnTriggerEnter(Collider other)
