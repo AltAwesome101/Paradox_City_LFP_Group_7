@@ -6,6 +6,9 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Order")]
     public string requestedBeer = "Correct Beer";
 
+    [Header("Meeting")]
+    public MeetingTimer meetingTimer;
+
     [Header("Order UI")]
     public TextMeshProUGUI orderText;
 
@@ -37,6 +40,11 @@ public class HistoricalFigure : MonoBehaviour
             "Historical Figure ordered: " +
             requestedBeer
         );
+
+        if (meetingTimer != null)
+        {
+            meetingTimer.StartMeetingTimer();
+        }
 
         if (orderText != null)
         {
@@ -84,17 +92,14 @@ public class HistoricalFigure : MonoBehaviour
                 "WRONG BEER SERVED!"
             );
 
-            meetingMissed = true;
-
             Debug.Log(
-                "HISTORICAL EVENT CHANGED: " +
-                "The meeting was missed."
+                "The NPC does not know the beer is wrong."
             );
 
             if (orderText != null)
             {
                 orderText.text =
-                    "Customer: Uh... this isn't what I ordered.";
+                    "Customer: Thanks.";
             }
         }
         else
@@ -106,7 +111,7 @@ public class HistoricalFigure : MonoBehaviour
             if (orderText != null)
             {
                 orderText.text =
-                    "Customer: Thanks. That's perfect.";
+                    "Customer: Thanks.";
             }
         }
     }

@@ -1,0 +1,104 @@
+using UnityEngine;
+using TMPro;
+
+public class MeetingTimer : MonoBehaviour
+{
+    [Header("Timer")]
+    public float meetingTime = 120f;
+
+    [Header("UI")]
+    public TextMeshProUGUI timerText;
+
+    private float currentTime;
+    private bool timerRunning = false;
+    private bool meetingMissed = false;
+
+    private void Start()
+    {
+        currentTime = meetingTime;
+
+        UpdateTimerUI();
+    }
+
+    private void Update()
+    {
+        if (!timerRunning)
+        {
+            return;
+        }
+
+        currentTime -= Time.deltaTime;
+
+        if (currentTime <= 0f)
+        {
+            currentTime = 0f;
+
+            meetingMissed = true;
+            timerRunning = false;
+
+            UpdateTimerUI();
+
+            Debug.Log(
+                "MEETING MISSED!"
+            );
+
+            if (timerText != null)
+            {
+                timerText.text =
+                    "MEETING MISSED";
+            }
+
+            return;
+        }
+
+        UpdateTimerUI();
+    }
+
+    public void StartMeetingTimer()
+    {
+        if (meetingMissed)
+        {
+            return;
+        }
+
+        timerRunning = true;
+
+        Debug.Log(
+            "Meeting timer started."
+        );
+    }
+
+    public bool IsMeetingMissed()
+    {
+        return meetingMissed;
+    }
+
+    public float GetRemainingTime()
+    {
+        return currentTime;
+    }
+
+    private void UpdateTimerUI()
+    {
+        if (timerText == null)
+        {
+            return;
+        }
+
+        int minutes =
+            Mathf.FloorToInt(
+                currentTime / 60f
+            );
+
+        int seconds =
+            Mathf.FloorToInt(
+                currentTime % 60f
+            );
+
+        timerText.text =
+            "Meeting in: " +
+            minutes.ToString("00") +
+            ":" +
+            seconds.ToString("00");
+    }
+}
