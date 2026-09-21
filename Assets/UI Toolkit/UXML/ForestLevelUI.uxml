@@ -8,9 +8,12 @@
         <ui:Label text="Apple approaching in:" name="approachingApple-title-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left;"/>
         <ui:Label text="10" name="approachingApple-counter-label" style="-unity-font-style: bold; font-size: 40px; color: rgb(255, 255, 255); -unity-text-align: middle-right;"/>
     </ui:VisualElement>
-    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 0; position: absolute; height: 612px; width: 1057px; top: 260px; left: 382px; background-color: rgba(0, 0, 0, 0.863);">
+    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 0; position: absolute; height: 684px; width: 1057px; top: 260px; left: 382px; background-color: rgba(0, 0, 0, 0.863);">
+        <ui:Button text="Close" name="tutorial-close-button" style="width: 98px; height: 35px; position: absolute; top: -20px; left: 972px; -unity-font-style: bold;"/>
         <ui:Label text="Label" name="tutorial-title-label" style="color: rgb(255, 255, 255); font-size: 30px; -unity-text-align: upper-center; position: relative; top: 12px; left: -1px;"/>
         <ui:Image name="tutorial-image" style="height: 289px; flex-shrink: 1; position: absolute; width: 552px; top: 108px; left: 259px; background-color: rgb(195, 191, 191);"/>
         <ui:Label text="Label" name="tutorial-description-label" style="font-size: 25px; -unity-font-style: bold; color: rgb(255, 255, 255); bottom: -386px;"/>
+        <ui:Button text="Back" name="tutorial-prev-button" style="width: 98px; height: 35px; position: absolute; top: 317px; left: 103px; -unity-font-style: bold;"/>
+        <ui:Button text="Next" name="tutorial-next-button" style="width: 98px; height: 35px; position: absolute; top: 316px; left: 862px; -unity-font-style: bold;"/>
     </ui:VisualElement>
 </ui:UXML>

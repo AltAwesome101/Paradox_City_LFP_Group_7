@@ -5,20 +5,64 @@ using System.Collections.Generic;
 
 public class TutorialController : Singleton<TutorialController>
 {
-    [SerializeField] List<TutorialDataSO> startingdata;
+    [SerializeField] List<TutorialDataSO> startingData;
     [SerializeField] UIDocument document;
-    TutorialView view;
-    Queue<TutorialDataSO> dataqueue;
+
+    TutorialView _view;
+
+    List<TutorialDataSO> _tutorials;
+    int _currentIndex;
 
     protected override void Awake()
     {
         base.Awake();
+
         var root = document.rootVisualElement;
-        dataqueue = new Queue<TutorialDataSO>(startingdata);
-        view = new TutorialView(root.Q<VisualElement>("TutorialPanel-container"));
+
+        _tutorials = new List<TutorialDataSO>(startingData);
+
+        _view = new TutorialView(container: root.Q<VisualElement>("TutorialPanel-container"));
+
+        RegisterViewCallbacks();
     }
 
-    void Start(){
-        view.ChangeTutorialInfo(data);
+    void Start()=> OpenTutorials();
+
+    void RegisterViewCallbacks()
+    {
+        _view.CloseRequested += CloseTutorial;
+        _view.PreviousRequested += ShowPreviousTutorial;
+        _view.NextRequested += ShowNextTutorial;
     }
+
+    public void OpenTutorials()
+    {
+        _currentIndex = 0;
+        DisplayCurrentTutorial();
+    }
+
+    void DisplayCurrentTutorial()
+    {
+        TutorialDataSO data = _tutorials[_currentIndex];
+        _view.ChangeTutorialInfo(data);
+    }
+
+    void ShowNextTutorial()
+    {
+        if (_currentIndex >= _tutorials.Count - 1)
+            return;
+
+        _currentIndex++;
+        DisplayCurrentTutorial();
+    }
+
+    void ShowPreviousTutorial()
+    {
+        if (_currentIndex <= 0) return;
+
+        _currentIndex--;
+        DisplayCurrentTutorial();
+    }
+
+    void CloseTutorial() => _view.HideTutorialPanel();
 }
