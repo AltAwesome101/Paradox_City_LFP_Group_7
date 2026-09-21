@@ -8,12 +8,20 @@ namespace Forestlevel
 {
     public class CameraRig : MonoBehaviour,IGamePlayEventListener<CameraChangeEvent>
     {
+        [SerializeField] CinemachineCamera ExploreCamera;
+        [SerializeField] CinemachineCamera InGameCamera;
+
         CameraType currentCameraType = CameraType.FreeLook;
         public void OnGamePlayEvent(CameraChangeEvent evt){
             currentCameraType = evt.CameraType;
+            ChangeCamera(currentCameraType);
             Debug.Log($"Current Camera Type:{currentCameraType}");
         }
 
+        void ChangeCamera(CameraType cameraType){
+            ExploreCamera.Priority = cameraType == CameraType.FreeLook? 10 : 0;
+            InGameCamera.Priority = cameraType == CameraType.InGame? 10 : 0;
+        }
         void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);
         void OnDisable() => GameEventBus.Unregister<CameraChangeEvent>(this);
 
