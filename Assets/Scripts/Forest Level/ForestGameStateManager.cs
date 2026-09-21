@@ -52,7 +52,10 @@ namespace Forestlevel
                 Debug.Log("Game won!");
         }
 
-        public void OnGamePlayEvent(LevelLostEvent gameplayEvent) => collected = 0;
+        public void OnGamePlayEvent(LevelLostEvent gameplayEvent){
+            collected = 0;
+            GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
+        }
 
         public void OnGamePlayEvent(TutorialClosedEvent gameplayEvent)
         {

@@ -10,8 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 27b8bdc488804a34291c52a0299b1b58, type: 3}
-  m_Name: Final Tutorial
+  m_Name: LevelObjective
   m_EditorClassIdentifier: Assembly-CSharp::TutorialDataSO
-  TutorialName: ahiufhaifbai
-  tutorialImage: {fileID: 0}
-  TutorialDescription: daofanprnpvwnvrinsrninspinrbisn
+  TutorialName: Level Objective
+  tutorialImage: {fileID: 2800000, guid: e5a9c40a008c5364f9b6e5b1f23827b4, type: 3}
+  TutorialDescription: 'Avoid filling the wakeup progress bar.
+
+    By Catching failling
+    apples.
+
+    Dropped apples will increase the wakemeter.'

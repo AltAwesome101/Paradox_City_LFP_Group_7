@@ -10,8 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 27b8bdc488804a34291c52a0299b1b58, type: 3}
-  m_Name: Another Tutorial
+  m_Name: LevelResult
   m_EditorClassIdentifier: Assembly-CSharp::TutorialDataSO
-  TutorialName: Another tuttoriaol
-  tutorialImage: {fileID: 0}
-  TutorialDescription: lnoapnvprnpnanrnaprbuienbriap
+  TutorialName: LevelResult
+  tutorialImage: {fileID: 2800000, guid: e5a9c40a008c5364f9b6e5b1f23827b4, type: 3}
+  TutorialDescription: 'Catch enough falling apples to win.
+
+    Fill the wakemeter
+    to Lose.'
