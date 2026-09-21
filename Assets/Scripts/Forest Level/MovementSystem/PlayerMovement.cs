@@ -1,10 +1,13 @@
+using BetterEventBus;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Forestlevel
 {
     [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
-    public class PlayerMovement : MonoBehaviour
+    public class PlayerMovement : MonoBehaviour,
+    IGamePlayEventListener<IMovementStrategy>,
+    IGamePlayEventListener<PlayerLocationEvent>
     {
         [Header("References")]
         [SerializeField] Transform cameraTransform; // read by strategies for camera-relative direction
@@ -57,12 +60,6 @@ namespace Forestlevel
 
         }
 
-        void Start()
-        {
-            SetStrategy(new TraversalMovement());
-            
-        }
-
         void OnEnable()
         {
             controls.Player.Enable();
@@ -70,6 +67,9 @@ namespace Forestlevel
             controls.Player.Move.canceled += OnMove;
             controls.Player.Sprint.performed += OnSprint;
             controls.Player.Sprint.canceled += OnSprint;
+
+            GameEventBus.Register<IMovementStrategy>(this);
+            GameEventBus.Register<PlayerLocationEvent>(this); 
         }
 
         void OnDisable()
@@ -79,18 +79,14 @@ namespace Forestlevel
             controls.Player.Sprint.performed -= OnSprint;
             controls.Player.Sprint.canceled -= OnSprint;
             controls.Player.Disable();
+
+            GameEventBus.Unregister<IMovementStrategy>(this);
+            GameEventBus.Unregister<PlayerLocationEvent>(this); 
+
         }
 
         void OnMove(InputAction.CallbackContext ctx) => moveInput = ctx.ReadValue<Vector2>();
         void OnSprint(InputAction.CallbackContext ctx) => sprintHeld = ctx.ReadValueAsButton();
-
-        public void SetStrategy(IMovementStrategy newStrategy)
-        {
-            if (newStrategy == null) return;
-            currentStrategy?.OnExit();
-            currentStrategy = newStrategy;
-            currentStrategy.OnEnter(this);
-        }
 
         void FixedUpdate()
         {
@@ -160,5 +156,25 @@ namespace Forestlevel
 
             momentum = horizontal + vertical;
         }
+
+        public void OnGamePlayEvent(IMovementStrategy gameplayEvent)
+        {
+            if (gameplayEvent == null) return;
+            currentStrategy?.OnExit();
+            currentStrategy = gameplayEvent;
+            currentStrategy.OnEnter(this);
+        }
+
+        public void OnGamePlayEvent(PlayerLocationEvent gameplayEvent)
+        {
+            // player location change
+            transform.position = gameplayEvent.Destination;
+            Debug.Log($"Player current position{transform.position}");
+        }
+    }
+
+    public struct PlayerLocationEvent : IGameplayEvent
+    {
+        public Vector3 Destination{get;set;}
     }
 }

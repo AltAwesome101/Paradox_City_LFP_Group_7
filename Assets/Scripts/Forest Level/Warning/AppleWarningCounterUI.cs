@@ -12,22 +12,24 @@ using UnityEngine.UIElements;
 public class AppleWarningCounterUI
 {
     readonly Label _counter;
+    readonly VisualElement _container;
     readonly AppleWarningCounterDataSO data;
 
     int _lastShownInt = int.MinValue;
     float _pulseElapsed;
     float _previousRemaining = -1f;
 
-    public AppleWarningCounterUI(Label counterLabel, in AppleWarningCounterDataSO data)
+    public AppleWarningCounterUI(VisualElement counterLabelcontainer, in AppleWarningCounterDataSO data)
     {
-        _counter = counterLabel;
+        _container =counterLabelcontainer; 
+        _counter = _container.Q<Label>("approachingApple-counter-label");
         this.data = data;
         // _counter.style.position = Position.Absolute;
     }
 
     public void UpdateDisplay(float remaining)
     {
-        _counter.style.display = DisplayStyle.Flex;
+        _container.style.display = DisplayStyle.Flex;
         // Debug.Log("Warning Counter ON!");
 
         int currentInt = Mathf.CeilToInt(remaining);
@@ -55,5 +57,5 @@ public class AppleWarningCounterUI
         _counter.style.translate = new StyleTranslate(new Translate(jitter.x, jitter.y));
     }
 
-    public void Hide() => _counter.style.display = DisplayStyle.None;
+    public void Hide() => _container.style.display = DisplayStyle.None;
 }

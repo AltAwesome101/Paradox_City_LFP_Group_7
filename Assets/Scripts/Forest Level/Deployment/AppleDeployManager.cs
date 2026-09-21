@@ -8,7 +8,8 @@ using Forestlevel;
 
 public class AppleDeployManager : Singleton<AppleDeployManager>,
     IGamePlayEventListener<LevelWonEvent>,
-    IGamePlayEventListener<LevelLostEvent>
+    IGamePlayEventListener<LevelLostEvent>,
+    IGamePlayEventListener<InGameGameStateEvent>
 {
     [SerializeField] Apple ApplePrefab;
     [SerializeField] int defaultCapacity = 10;
@@ -30,7 +31,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
 
     ISingleObjectPool<Apple> applePool;
     ApplePacer pacer;
-    bool deploymentHalted;
+    bool deploymentHalted = true;
 
     readonly Dictionary<AppleDeployer, CountdownTimer> activeCountdowns = new();
 
@@ -40,20 +41,25 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         base.Awake();
         applePool = new SingleObjectPool<Apple>(prefab: ApplePrefab, defaultCapacity: defaultCapacity, maxSize: maxSize);
         pacer = new ApplePacer(deployerRegistry, conflictPairs, maxConcurrent, minSpawnInterval);
-        var warningCounterLabel = document.rootVisualElement.Q<Label>("approachingApple-counter-label");
+        var warningCounterLabel = document.rootVisualElement.Q<VisualElement>("approachingApple-counter-element");
         warningCounterUI = new AppleWarningCounterUI(warningCounterLabel,Data);
+        warningCounterUI.Hide();
     }
 
     void OnEnable()
     {
         GameEventBus.Register<LevelWonEvent>(this);
         GameEventBus.Register<LevelLostEvent>(this);
+        GameEventBus.Register<InGameGameStateEvent>(this);
+
     }
 
     void OnDisable()
     {
         GameEventBus.Unregister<LevelWonEvent>(this);
         GameEventBus.Unregister<LevelLostEvent>(this);
+        GameEventBus.Unregister<InGameGameStateEvent>(this);
+
     }
 
     void Update()
@@ -116,16 +122,29 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
             }
         }
 
-        if (soonest == null) { 
-            warningCounterUI.Hide(); 
-            return; 
+        if (soonest == null)
+        {
+            warningCounterUI.Hide();
+            AppleIndicatorManager.Instance.Hide();
+            return;
         }
 
-
         warningCounterUI.UpdateDisplay(soonestTimer.CurrentTime);
+        AppleIndicatorManager.Instance.PointAt(soonest);
     }
 
 
-    public void OnGamePlayEvent(LevelWonEvent gameplayEvent) => deploymentHalted = true;
-    public void OnGamePlayEvent(LevelLostEvent gameplayEvent) => deploymentHalted = true;
+    public void OnGamePlayEvent(LevelWonEvent gameplayEvent){
+        deploymentHalted = true;
+        AppleIndicatorManager.Instance.Hide();
+        warningCounterUI.Hide();
+
+    }
+    public void OnGamePlayEvent(LevelLostEvent gameplayEvent){
+        deploymentHalted = true;
+        AppleIndicatorManager.Instance.Hide();
+        warningCounterUI.Hide();
+    }
+
+    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent) => deploymentHalted = false;
 }

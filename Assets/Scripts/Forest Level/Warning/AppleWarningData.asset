@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: 2e1dc60f36cbb3644a0a3ebf880c5d29, type: 3}
   m_Name: AppleWarningData
   m_EditorClassIdentifier: Assembly-CSharp::AppleWarningCounterDataSO
   popUpCurve:
@@ -36,11 +36,11 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  alertColour: {r: 0.93962264, g: 0.45264736, b: 0.14005686, a: 1}
-  baseColour: {r: 0.94716984, g: 0.92751163, b: 0.92751163, a: 1}
+  alertColour: {r: 1, g: 1, b: 1, a: 1}
+  baseColour: {r: 0.98490566, g: 0.5596413, b: 0.17653958, a: 1}
   minScale: {x: 1, y: 1, z: 1}
   maxScale: {x: 1.6, y: 1.6, z: 1.6}
   pulseDuration: 0.35
-  shakeMagnitude: 8.5
+  shakeMagnitude: 8
   leftAnchorPercent: 20
   rightAnchorPercent: 80

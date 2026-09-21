@@ -2,28 +2,29 @@
 // state of its own; it's purely a consumer of PlayerMovement.IsLocked)
 using UnityEngine;
 using BetterEventBus;
+using Unity.Cinemachine;
 
 namespace Forestlevel
 {
     public class CameraRig : MonoBehaviour,IGamePlayEventListener<CameraChangeEvent>
     {
+        [SerializeField] CinemachineCamera ExploreCamera;
+        [SerializeField] CinemachineCamera InGameCamera;
+
         CameraType currentCameraType = CameraType.FreeLook;
         public void OnGamePlayEvent(CameraChangeEvent evt){
             currentCameraType = evt.CameraType;
-            Debug.Log($"Current Camera Type:{currentCameraType.ToString()}");
+            ChangeCamera(currentCameraType);
+            Debug.Log($"Current Camera Type:{currentCameraType}");
         }
 
+        void ChangeCamera(CameraType cameraType){
+            ExploreCamera.Priority = cameraType == CameraType.FreeLook? 10 : 0;
+            InGameCamera.Priority = cameraType == CameraType.InGame? 10 : 0;
+        }
         void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);
         void OnDisable() => GameEventBus.Unregister<CameraChangeEvent>(this);
 
-
-        // void Update()
-        // {
-        //     bool locked = playerMovement.IsLocked;
-
-        //     freeLookCam.Priority = locked ? 0 : 10;
-        //     lockedFollowCam.Priority = locked ? 10 : 0;
-        // }
     }
 
     public enum CameraType

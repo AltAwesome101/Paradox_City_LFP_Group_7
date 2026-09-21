@@ -22,6 +22,10 @@ public class WakemeterUI
         targetValue = progress.value;
     }
 
+    public void ShowProgress() => progress.style.display = DisplayStyle.Flex;
+    public void HideProgress() => progress.style.display = DisplayStyle.None;
+
+
     public void Disturb()
     {
         targetValue = Mathf.Min(targetValue + disturbAmount, progress.highValue);
