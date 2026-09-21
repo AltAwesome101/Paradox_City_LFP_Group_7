@@ -12,6 +12,10 @@ public class FPController : MonoBehaviour
     public float lookSensitivity = 2f;
     public float verticalLookLimit = 70f;
 
+    [Header("Beer Pickup")]
+    public Transform beerHoldPoint;
+    public float interactionRange = 3f;
+
     private CharacterController controller;
 
     private Vector2 moveInput;
@@ -20,6 +24,8 @@ public class FPController : MonoBehaviour
     private Vector3 velocity;
 
     private float verticalRotation = 0f;
+
+    private Beer carriedBeer;
 
     private void Awake()
     {
@@ -48,6 +54,14 @@ public class FPController : MonoBehaviour
     public void OnLook(InputAction.CallbackContext context)
     {
         lookInput = context.ReadValue<Vector2>();
+    }
+
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        if (context.started)
+        {
+            TryPickUpBeer();
+        }
     }
 
     // =========================
@@ -137,5 +151,107 @@ public class FPController : MonoBehaviour
             velocity *
             Time.deltaTime
         );
+    }
+
+    // =========================
+    // BEER PICKUP
+    // =========================
+
+    private void TryPickUpBeer()
+    {
+        if (carriedBeer != null)
+        {
+            return;
+        }
+
+        Camera cam =
+            cameraTransform.GetComponent<Camera>();
+
+        if (cam == null)
+        {
+            return;
+        }
+
+        Ray ray =
+            cam.ViewportPointToRay(
+                new Vector3(0.5f, 0.5f, 0f)
+            );
+
+        RaycastHit hit;
+
+        if (Physics.Raycast(
+            ray,
+            out hit,
+            interactionRange
+        ))
+        {
+            Beer beer =
+                hit.collider.GetComponent<Beer>();
+
+            if (beer != null)
+            {
+                PickUpBeer(beer);
+            }
+        }
+    }
+
+    private void PickUpBeer(Beer beer)
+    {
+        if (beerHoldPoint == null)
+        {
+            Debug.LogError(
+                "Beer Hold Point is not assigned!"
+            );
+
+            return;
+        }
+
+        carriedBeer = beer;
+
+        beer.transform.SetParent(
+            beerHoldPoint
+        );
+
+        beer.transform.localPosition =
+            Vector3.zero;
+
+        beer.transform.localRotation =
+            Quaternion.identity;
+
+        Collider beerCollider =
+            beer.GetComponent<Collider>();
+
+        if (beerCollider != null)
+        {
+            beerCollider.enabled = false;
+        }
+
+        Rigidbody beerRigidbody =
+            beer.GetComponent<Rigidbody>();
+
+        if (beerRigidbody != null)
+        {
+            beerRigidbody.isKinematic = true;
+            beerRigidbody.useGravity = false;
+        }
+
+        Debug.Log(
+            "Picked up: " +
+            beer.beerName
+        );
+    }
+
+    // =========================
+    // BEER INFORMATION
+    // =========================
+
+    public bool IsCarryingBeer()
+    {
+        return carriedBeer != null;
+    }
+
+    public Beer GetCarriedBeer()
+    {
+        return carriedBeer;
     }
 }
