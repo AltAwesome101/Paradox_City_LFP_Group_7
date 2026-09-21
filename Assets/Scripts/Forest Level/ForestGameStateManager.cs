@@ -1,6 +1,7 @@
 using BetterSingletons;
 using BetterEventBus;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Forestlevel
 {
@@ -11,7 +12,16 @@ namespace Forestlevel
         IGamePlayEventListener<TutorialClosedEvent>
     {
         [SerializeField] int applesToWin = 10;
+        [SerializeField] UIDocument document;
+        AppleCollectionView collectionView;
         int collected;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            var root = document.rootVisualElement;
+            collectionView = new AppleCollectionView(container: root.Q<VisualElement>("appleCollection-container"));
+        }
 
         void Start(){
             GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
@@ -42,8 +52,13 @@ namespace Forestlevel
         public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
         {
             collected++;
-            if (collected >= applesToWin)
+            collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
+            
+            if (collected >= applesToWin){
                 GameEventBus.Raise(new LevelWonEvent());
+                collectionView.UpdateDisplay($"LEVEL COMPLETED!");
+                
+            }
         }
 
         public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
@@ -52,11 +67,17 @@ namespace Forestlevel
                 Debug.Log("Game won!");
         }
 
-        public void OnGamePlayEvent(LevelLostEvent gameplayEvent) => collected = 0;
+        public void OnGamePlayEvent(LevelLostEvent gameplayEvent){
+            collected = 0;
+            GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
+            collectionView.Show();
+        }
 
         public void OnGamePlayEvent(TutorialClosedEvent gameplayEvent)
         {
             GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
+            collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
+            collectionView.Show();
         }
     }
 
@@ -74,12 +95,20 @@ namespace Forestlevel
             Debug.Log($"Player's new position:{ExploreLocation}");
 
             // Cursor hid and fix state
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+            UnityEngine.Cursor.visible = false;
         }
     }
 
-    public struct TutorialGameStateEvent: IGameplayEvent{}
+    public class TutorialGameStateEvent: IGameplayEvent
+    {
+        public TutorialGameStateEvent()
+        {   
+            // Cursor hid and fix state
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+            UnityEngine.Cursor.visible = true;
+        }
+    }
 
     public class EnterPlayAreaEvent: IGameplayEvent
     {
@@ -94,10 +123,6 @@ namespace Forestlevel
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = fixedLocation}); // player Location change event            
             Debug.Log($"Player's new position:{fixedLocation}");
 
-            // Cursor hid and fix state
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-
             // Raise Tutorial Event 
             // ? might have add skip tutorial capabilities
             GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
@@ -111,8 +136,8 @@ namespace Forestlevel
         // Player movement = in game 2D lateral movement
         public InGameGameStateEvent(){
             // Cursor hid and fix state
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+            UnityEngine.Cursor.visible = false;
             GameEventBus.Raise<IMovementStrategy>(new InGameMovement()); //Player movement 2D raise event;
         }
     }

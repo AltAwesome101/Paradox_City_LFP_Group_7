@@ -10,8 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 27b8bdc488804a34291c52a0299b1b58, type: 3}
-  m_Name: Test Tutorial
+  m_Name: AppleFallingTutorial
   m_EditorClassIdentifier: Assembly-CSharp::TutorialDataSO
-  TutorialName: Tutorial
-  tutorialImage: {fileID: 0}
-  TutorialDescription: kajgoaeoirnaobngpsbnrnapobnabnsp
+  TutorialName: AppleFalling
+  tutorialImage: {fileID: 2800000, guid: 2503a6df6b5b9db4a83241dc4e2bbb5b, type: 3}
+  TutorialDescription: 'The white sphere represent falling apples.
+
+    Make use
+    of A/D to move and catch the falling apples'
