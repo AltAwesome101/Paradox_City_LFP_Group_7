@@ -43,6 +43,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         pacer = new ApplePacer(deployerRegistry, conflictPairs, maxConcurrent, minSpawnInterval);
         var warningCounterLabel = document.rootVisualElement.Q<VisualElement>("approachingApple-counter-element");
         warningCounterUI = new AppleWarningCounterUI(warningCounterLabel,Data);
+        warningCounterUI.Hide();
     }
 
     void OnEnable()

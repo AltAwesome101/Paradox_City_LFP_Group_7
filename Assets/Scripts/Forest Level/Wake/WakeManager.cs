@@ -21,10 +21,17 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
         var progress = document.rootVisualElement.Q<ProgressBar>("wake-progressbar");
         wakemeter = new(progress, disturbAmount, WakeUpLimit, lerpSpeed);
         wakemeter.OnMeterFull += HandleMeterFull;
+        wakemeter.HideProgress();
     }
 
-    void OnEnable() => GameEventBus.Register<AppleDroppedEvent>(this);
-    void OnDisable() => GameEventBus.Unregister<AppleDroppedEvent>(this);
+    void OnEnable(){
+        GameEventBus.Register<AppleDroppedEvent>(this);
+        GameEventBus.Register<InGameGameStateEvent>(this);
+    }
+    void OnDisable(){
+        GameEventBus.Unregister<AppleDroppedEvent>(this);
+        GameEventBus.Unregister<InGameGameStateEvent>(this);
+    }
 
     public void OnGamePlayEvent(AppleDroppedEvent gameplayEvent)
     {
@@ -39,8 +46,5 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
         GameEventBus.Raise(new LevelLostEvent());
     }
 
-    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent)
-    {
-        throw new System.NotImplementedException();
-    }
+    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent) => wakemeter.ShowProgress();
 }
