@@ -13,7 +13,7 @@ public class PauseMenuController : MonoBehaviour
     public string level1SceneName = "ArtistHitler";
 
     [Tooltip("Exact scene name for Level 2 - Apple Forest")]
-    public string level2SceneName = "AppleForest";
+    public string level2SceneName = "Forest_Scene";
 
     [Tooltip("Exact scene name for Level 3 - The Wrong Beer")]
     public string level3SceneName = "TheWrongBeer";
@@ -84,7 +84,7 @@ public class PauseMenuController : MonoBehaviour
 
     public void OnLevel2Button()
     {
-        LoadLevel(level2SceneName);
+        LoadLevel("Forest_Scene");
     }
 
     public void OnLevel3Button()
