@@ -55,8 +55,12 @@ public class PauseMenuController : MonoBehaviour
         if (pauseBackgroundCamera != null)
             pauseBackgroundCamera.gameObject.SetActive(paused);
 
-        
+
         //Time.timeScale = paused ? 0f : 1f;
+        if (paused) {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
     }
 
     
