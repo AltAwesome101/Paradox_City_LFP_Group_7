@@ -758,7 +758,7 @@ PlayerSettings:
     Standalone: STARTER_ASSETS_PACKAGES_CHECKED;UNITY_POST_PROCESSING_STACK_V2;SENTIS_ANALYTICS_ENABLED;APP_UI_EDITOR_ONLY
     VisionOS: UNITY_POST_PROCESSING_STACK_V2
     WebGL: UNITY_POST_PROCESSING_STACK_V2
-    Windows Store Apps: UNITY_POST_PROCESSING_STACK_V2;APP_UI_EDITOR_ONLY
+    Windows Store Apps: UNITY_POST_PROCESSING_STACK_V2;APP_UI_EDITOR_ONLY;SENTIS_ANALYTICS_ENABLED
     XboxOne: UNITY_POST_PROCESSING_STACK_V2
     tvOS: UNITY_POST_PROCESSING_STACK_V2
   additionalCompilerArguments: {}
@@ -796,11 +796,11 @@ PlayerSettings:
   m_MobileRenderingPath: 1
   metroPackageName: Template3D
   metroPackageVersion: 1.0.0.0
-  metroCertificatePath: 
+  metroCertificatePath: Assets/WSATestCertificate.pfx
   metroCertificatePassword: 
-  metroCertificateSubject: 
-  metroCertificateIssuer: 
-  metroCertificateNotAfter: 0000000000000000
+  metroCertificateSubject: Group_7_LFP
+  metroCertificateIssuer: Group_7_LFP
+  metroCertificateNotAfter: 006b030aca69de01
   metroApplicationDescription: Template_3D
   wsaImages: {}
   metroTileShortName: gta v replica
