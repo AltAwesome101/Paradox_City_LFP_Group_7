@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
 namespace GameDevExtensionMethods{
@@ -218,6 +220,15 @@ namespace GameDevExtensionMethods{
             // (relevant for your swing indicator show/hide logic).
             element.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
             return element;
+        }
+    }
+
+    public static class CursorUtility
+    {
+        public static void LockAndHide(bool visible,bool lockstate)
+        {
+            UnityEngine.Cursor.visible = visible;
+            UnityEngine.Cursor.lockState= lockstate? CursorLockMode.Locked : CursorLockMode.None;
         }
     }
 }
