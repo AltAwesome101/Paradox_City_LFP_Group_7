@@ -35,14 +35,14 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
 
     readonly Dictionary<AppleDeployer, CountdownTimer> activeCountdowns = new();
 
-    //TODO: Refactor responsibility so the WarningCounterUI doesnt need to be in the AppleDeployManager
+    
     protected override void Awake()
     {
         base.Awake();
         applePool = new SingleObjectPool<Apple>(prefab: ApplePrefab, defaultCapacity: defaultCapacity, maxSize: maxSize);
         pacer = new ApplePacer(deployerRegistry, conflictPairs, maxConcurrent, minSpawnInterval);
         var warningCounterLabel = document.rootVisualElement.Q<VisualElement>("approachingApple-counter-element");
-        warningCounterUI = new AppleWarningCounterUI(warningCounterLabel,Data);
+        warningCounterUI = new AppleWarningCounterUI(warningCounterLabel, Data);
         warningCounterUI.Hide();
     }
 
@@ -51,7 +51,6 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         GameEventBus.Register<LevelWonEvent>(this);
         GameEventBus.Register<LevelLostEvent>(this);
         GameEventBus.Register<InGameGameStateEvent>(this);
-
     }
 
     void OnDisable()
@@ -59,7 +58,6 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         GameEventBus.Unregister<LevelWonEvent>(this);
         GameEventBus.Unregister<LevelLostEvent>(this);
         GameEventBus.Unregister<InGameGameStateEvent>(this);
-
     }
 
     void Update()
@@ -77,13 +75,17 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     {
         deployer.MarkBusy();
 
+        
+        GameEventBus.Raise<AppleWarningStartedEvent>(new AppleWarningStartedEvent(deployer.transform));
+
         var countdown = new CountdownTimer(warningDuration);
-        // NOTE: guessing at AppleIndicatorManager's API here — swap these two calls
-        // for whatever it actually exposes.
-        countdown.OnTick += remaining => {/*TODO: drive the countdown visual logic in here*/};
         countdown.OnTimerStop += () =>
         {
             activeCountdowns.Remove(deployer);
+
+            
+            GameEventBus.Raise<AppleWarningEndedEvent>(new AppleWarningEndedEvent(deployer.transform));
+
             DeployAt(deployer);
         };
 
@@ -93,7 +95,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
 
     void TickCountdowns(float deltaTime)
     {
-        // snapshot since OnComplete mutates the dictionary mid-loop
+        
         foreach (var countdown in new List<CountdownTimer>(activeCountdowns.Values))
             countdown.Tick(deltaTime);
     }
@@ -106,8 +108,12 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         Debug.Log($"Apple deployed at {deployer.transform.position.ToString().WithBold().WithColour(Color.coral)}");
         apple.transform.position = deployer.transform.position;
         apple.StartFalling(deployer);
+
+        
+        deployer.MarkFree();
     }
 
+    
     void UpdateWarningDisplay()
     {
         AppleDeployer soonest = null;
@@ -133,14 +139,15 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         AppleIndicatorManager.Instance.PointAt(soonest);
     }
 
-
-    public void OnGamePlayEvent(LevelWonEvent gameplayEvent){
+    public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
+    {
         deploymentHalted = true;
         AppleIndicatorManager.Instance.Hide();
         warningCounterUI.Hide();
-
     }
-    public void OnGamePlayEvent(LevelLostEvent gameplayEvent){
+
+    public void OnGamePlayEvent(LevelLostEvent gameplayEvent)
+    {
         deploymentHalted = true;
         AppleIndicatorManager.Instance.Hide();
         warningCounterUI.Hide();

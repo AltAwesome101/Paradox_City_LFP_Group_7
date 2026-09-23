@@ -23,21 +23,23 @@ namespace Forestlevel
             collectionView = new AppleCollectionView(container: root.Q<VisualElement>("appleCollection-container"));
         }
 
-        void Start(){
+        void Start()
+        {
             GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
             Invoke(nameof(changeToPlayArea), 4f);
         }
 
-        void changeToPlayArea(){
+        void changeToPlayArea()
+        {
             GameEventBus.Raise<EnterPlayAreaEvent>(new EnterPlayAreaEvent());
         }
+
         void OnEnable()
         {
             GameEventBus.Register<AppleCollectedEvent>(this);
             GameEventBus.Register<LevelWonEvent>(this);
             GameEventBus.Register<LevelLostEvent>(this);
             GameEventBus.Register<TutorialClosedEvent>(this);
-
         }
 
         void OnDisable()
@@ -46,28 +48,28 @@ namespace Forestlevel
             GameEventBus.Unregister<LevelWonEvent>(this);
             GameEventBus.Unregister<LevelLostEvent>(this);
             GameEventBus.Unregister<TutorialClosedEvent>(this);
-
         }
 
         public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
         {
             collected++;
             collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
-            
-            if (collected >= applesToWin){
+
+            if (collected >= applesToWin)
+            {
                 GameEventBus.Raise(new LevelWonEvent());
                 collectionView.UpdateDisplay($"LEVEL COMPLETED!");
-                
             }
         }
 
         public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
         {
-            // win UI / next-level trigger goes here
-                Debug.Log("Game won!");
+            
+            Debug.Log("Game won!");
         }
 
-        public void OnGamePlayEvent(LevelLostEvent gameplayEvent){
+        public void OnGamePlayEvent(LevelLostEvent gameplayEvent)
+        {
             collected = 0;
             GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
             collectionView.Show();
@@ -81,17 +83,17 @@ namespace Forestlevel
         }
     }
 
-    // Order: [exploration] -> [Tutorial] -> [InGame]
-    public class ExplorationGameStateEvent: IGameplayEvent{
-        // 3D player movement
-        // Open space
-        // Free look/ follow camera
-        static readonly Vector3 ExploreLocation = new Vector3(89f,.25f,200f); // Exploration position player teleports to when the exploration state
+    
+    public class ExplorationGameStateEvent : IGameplayEvent
+    {
+       
+        static readonly Vector3 ExploreLocation = new Vector3(89f, .25f, 200f); 
 
-        public ExplorationGameStateEvent(){
-            GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); //Camera Raise event
-            GameEventBus.Raise<IMovementStrategy>(new TraversalMovement()); //Player movement 3d raise event;
-            GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = ExploreLocation}); // player Location change event
+        public ExplorationGameStateEvent()
+        {
+            GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
+            GameEventBus.Raise<IMovementStrategy>(new TraversalMovement()); 
+            GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = ExploreLocation }); 
             Debug.Log($"Player's new position:{ExploreLocation}");
 
             // Cursor hid and fix state
@@ -100,41 +102,38 @@ namespace Forestlevel
         }
     }
 
-    public class TutorialGameStateEvent: IGameplayEvent
+    public class TutorialGameStateEvent : IGameplayEvent
     {
         public TutorialGameStateEvent()
-        {   
+        {
             // Cursor hid and fix state
             UnityEngine.Cursor.lockState = CursorLockMode.None;
             UnityEngine.Cursor.visible = true;
         }
     }
 
-    public class EnterPlayAreaEvent: IGameplayEvent
+    public class EnterPlayAreaEvent : IGameplayEvent
     {
-        // idle movement
-        // Fixed space meaning tp player
-        // Fixed camera view
-        static readonly Vector3 fixedLocation = new Vector3(-0.2f,1.077f,57.9f); // fixed position player teleports to when the tutorial state
+        
+        static readonly Vector3 fixedLocation = new Vector3(-0.2f, 1.077f, 57.9f); 
 
-        public EnterPlayAreaEvent(){
-            GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); //Camera Raise event
-            GameEventBus.Raise<IMovementStrategy>(new IdleMovement()); //Player movement 3d raise event;
-            GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent{Destination = fixedLocation}); // player Location change event            
+        public EnterPlayAreaEvent()
+        {
+            GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); 
+            GameEventBus.Raise<IMovementStrategy>(new IdleMovement()); 
+            GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = fixedLocation }); 
             Debug.Log($"Player's new position:{fixedLocation}");
 
-            // Raise Tutorial Event 
-            // ? might have add skip tutorial capabilities
+            
             GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
         }
     }
 
-
-    public class InGameGameStateEvent: IGameplayEvent
+    public class InGameGameStateEvent : IGameplayEvent
     {
-        // Raised after TutorialGameStateEvent 
-        // Player movement = in game 2D lateral movement
-        public InGameGameStateEvent(){
+        
+        public InGameGameStateEvent()
+        {
             // Cursor hid and fix state
             UnityEngine.Cursor.lockState = CursorLockMode.Locked;
             UnityEngine.Cursor.visible = false;
@@ -142,4 +141,3 @@ namespace Forestlevel
         }
     }
 }
-
