@@ -6,7 +6,7 @@ namespace Forestlevel
     // Default movement, used when not "in game" — full 3D exploration/traversal
     // where the player can move in any horizontal direction relative to the
     // camera. Owns the camera-lock-basis behaviour that used to live directly
-    // on PlayerMovement: once the player starts moving, "forward" freezes to
+    // on the controller: once the player starts moving, "forward" freezes to
     // whichever way the camera faced at that instant, so turning the player
     // doesn't drag the movement basis around with it.
     public class TraversalMovement : IMovementStrategy
@@ -14,12 +14,12 @@ namespace Forestlevel
         const float lockEnterSpeed = 0.15f;
         const float lockExitSpeed = 0.05f;
 
-        PlayerMovement owner;
+        IMovementOwner owner;
         Quaternion lockedBasis = Quaternion.identity;
 
         public bool IsLocked { get; private set; }
 
-        public void OnEnter(PlayerMovement owner)
+        public void OnEnter(IMovementOwner owner)
         {
             this.owner = owner;
             IsLocked = false; // re-entering traversal never inherits a stale lock
@@ -77,6 +77,4 @@ namespace Forestlevel
             }
         }
     }
-
 }
-

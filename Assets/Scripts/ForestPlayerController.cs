@@ -2,16 +2,22 @@ using System.Collections.Generic;
 using BetterEventBus;
 using Forestlevel;
 using UnityEngine;
-
+using UnityEngine.InputSystem;
+using GameDevExtensionMethods;
 
 [RequireComponent(typeof(CharacterController))]
-public class ForestPlayerController : MonoBehaviour,
+public class ForestPlayerController : MonoBehaviour, IMovementOwner,
+    IGamePlayEventListener<IMovementStrategy>,
     IGamePlayEventListener<ExplorationGameStateEvent>,
     IGamePlayEventListener<TutorialGameStateEvent>,
     IGamePlayEventListener<InGameGameStateEvent>,
     IGamePlayEventListener<LevelWonEvent>,
     IGamePlayEventListener<PlayerLocationEvent>
 {
+    [Header("References")]
+    [SerializeField] Transform cameraTransform; // read by strategies for camera-relative direction
+    public Transform CameraTransform => cameraTransform;
+
     [Header("Movement")]
     public float movementSpeed = 5f;
     public float rotSpeed = 450f;
@@ -40,17 +46,18 @@ public class ForestPlayerController : MonoBehaviour,
     public bool HasPlayerControl
     {
         get => playerControl;
-        set => playerControl = value;
+        set => SetControl(value);
     }
 
-    bool playerControl = true;   // taken away by parkour actions via SetControl
-    bool movementEnabled = true; // driven by the game-state events
-    bool lateralOnly;            // in-game: left/right only
-    bool catchingEnabled;        // only during the in-game state
+    bool playerControl = true;    // taken away by parkour actions via SetControl
+    bool catchingEnabled;         // only during the in-game state
+    bool movementLocked;          // LevelWonEvent backstop - see OnGamePlayEvent(LevelWonEvent)
     bool onSurface;
     float fallingSpeed;
-    Vector3 velocity;
-    Vector3 lastGroundedHorizontalVelocity;
+    Vector3 currentHorizontalVelocity; // last-applied horizontal velocity; fed into MovementContext
+                                        // so TraversalMovement's camera-lock speed threshold has
+                                        // something to read, same role "momentum" played on the
+                                        // Rigidbody version.
     Quaternion requiredRotation;
 
     readonly Collider[] catchHits = new Collider[8];
@@ -59,16 +66,35 @@ public class ForestPlayerController : MonoBehaviour,
     static readonly int MovementValueHash = Animator.StringToHash("movementValue");
     static readonly int OnSurfaceHash = Animator.StringToHash("onSurface");
 
+    DefaultInputSystem controls;
+    Vector2 moveInput;
+    bool sprintHeld;
+
+    IMovementStrategy currentStrategy;
+    public IMovementStrategy CurrentStrategy => currentStrategy;
+
     void Awake()
     {
         if (!CC) CC = GetComponent<CharacterController>();
         if (!animator) animator = GetComponentInChildren<Animator>();
         if (!environmentChecker) environmentChecker = GetComponent<EnvironmentChecker>();
         requiredRotation = transform.rotation;
+
+        controls = new DefaultInputSystem();
+
+        if (cameraTransform == null && Camera.main != null)
+            cameraTransform = Camera.main.transform;
     }
 
     void OnEnable()
     {
+        controls.Player.Enable();
+        controls.Player.Move.performed += OnMove;
+        controls.Player.Move.canceled += OnMove;
+        controls.Player.Sprint.performed += OnSprint;
+        controls.Player.Sprint.canceled += OnSprint;
+
+        GameEventBus.Register<IMovementStrategy>(this);
         GameEventBus.Register<ExplorationGameStateEvent>(this);
         GameEventBus.Register<TutorialGameStateEvent>(this);
         GameEventBus.Register<InGameGameStateEvent>(this);
@@ -78,12 +104,22 @@ public class ForestPlayerController : MonoBehaviour,
 
     void OnDisable()
     {
+        controls.Player.Move.performed -= OnMove;
+        controls.Player.Move.canceled -= OnMove;
+        controls.Player.Sprint.performed -= OnSprint;
+        controls.Player.Sprint.canceled -= OnSprint;
+        controls.Player.Disable();
+
+        GameEventBus.Unregister<IMovementStrategy>(this);
         GameEventBus.Unregister<ExplorationGameStateEvent>(this);
         GameEventBus.Unregister<TutorialGameStateEvent>(this);
         GameEventBus.Unregister<InGameGameStateEvent>(this);
         GameEventBus.Unregister<LevelWonEvent>(this);
         GameEventBus.Unregister<PlayerLocationEvent>(this);
     }
+
+    void OnMove(InputAction.CallbackContext ctx) => moveInput = ctx.ReadValue<Vector2>();
+    void OnSprint(InputAction.CallbackContext ctx) => sprintHeld = ctx.ReadValueAsButton();
 
     void Update()
     {
@@ -100,58 +136,56 @@ public class ForestPlayerController : MonoBehaviour,
 
     void HandleMovement()
     {
-        float h = movementEnabled ? Input.GetAxis("Horizontal") : 0f;
-        float v = (movementEnabled && !lateralOnly) ? Input.GetAxis("Vertical") : 0f;
-        float movementAmount = Mathf.Clamp01(Mathf.Abs(h) + Mathf.Abs(v));
+        // ASSUMPTION: MovementContext's constructor signature, inferred from the one
+        // working call site I've seen (PlayerMovement). If your actual struct differs,
+        // only this one line needs adjusting - the strategies just read ctx.moveInput /
+        // ctx.currentHorizontalVelocity, nothing else here depends on its shape.
+        var ctx = new MovementContext(moveInput, sprintHeld, onSurface, Vector3.up, currentHorizontalVelocity, Time.deltaTime);
 
-        Vector3 input = new Vector3(h, 0f, v).normalized;
-        Vector3 desiredDir = CameraFlatRotation() * input;
+        Vector3 wishDir = movementLocked
+            ? Vector3.zero
+            : (currentStrategy != null ? currentStrategy.GetHorizontalTarget(ctx) : Vector3.zero);
 
-        velocity = Vector3.zero;
+        Vector3 velocity = Vector3.zero;
 
         if (onSurface)
         {
             fallingSpeed = -0.5f;
-            velocity = desiredDir * movementSpeed;
+            velocity = wishDir * movementSpeed;
 
             LedgeInfo ledge = default;
-            playerOnLedge = environmentChecker != null && environmentChecker.CheckLedge(desiredDir, out ledge);
+            playerOnLedge = environmentChecker != null && wishDir.sqrMagnitude > 0.0001f
+                && environmentChecker.CheckLedge(wishDir, out ledge);
 
             if (playerOnLedge)
             {
                 LedgeInfo = ledge;
                 // stop at the edge; ParkourControllerScript decides whether to jump down
-                if (Vector3.Angle(ledge.surfaceHit.normal, desiredDir) < 90f)
+                if (Vector3.Angle(ledge.surfaceHit.normal, wishDir) < 90f)
                     velocity = Vector3.zero;
             }
 
-            lastGroundedHorizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
+            currentHorizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
         }
         else
         {
             fallingSpeed += Physics.gravity.y * Time.deltaTime;
-            // keep whatever horizontal momentum you had when you left the ground —
-            // don't force a constant forward push while airborne.
-            velocity = lastGroundedHorizontalVelocity;
+            // keep whatever horizontal momentum you had when you left the ground -
+            // no air control, matches the earlier CharacterController version.
+            velocity = currentHorizontalVelocity;
         }
 
         velocity.y = fallingSpeed;
         CC.Move(velocity * Time.deltaTime);
 
-        // rotate toward the input direction (even when stopped at a ledge, so the parkour check sees the right angle)
-        if (movementAmount > 0.01f)
-            requiredRotation = Quaternion.LookRotation(desiredDir);
+        if (wishDir.sqrMagnitude > 0.0001f)
+            requiredRotation = Quaternion.LookRotation(wishDir);
 
         transform.rotation = Quaternion.RotateTowards(transform.rotation, requiredRotation, rotSpeed * Time.deltaTime);
 
+        float movementAmount = Mathf.Clamp01(wishDir.magnitude);
         animator.SetFloat(MovementValueHash, movementAmount, 0.2f, Time.deltaTime);
         animator.SetBool(OnSurfaceHash, onSurface);
-    }
-
-    Quaternion CameraFlatRotation()
-    {
-        var cam = Camera.main;
-        return cam ? Quaternion.Euler(0f, cam.transform.eulerAngles.y, 0f) : Quaternion.identity;
     }
 
     void SurfaceCheck()
@@ -194,35 +228,32 @@ public class ForestPlayerController : MonoBehaviour,
         AppleDeployManager.Instance.ReturnToPool(apple);
     }
 
-    // ---------------- game state events ----------------
+    // ---------------- events ----------------
 
-    public void OnGamePlayEvent(ExplorationGameStateEvent e)
+    public void OnGamePlayEvent(IMovementStrategy e)
     {
-        movementEnabled = true;
-        lateralOnly = false;
-        catchingEnabled = false;
+        if (e == null) return;
+        currentStrategy?.OnExit();
+        currentStrategy = e;
+        currentStrategy.OnEnter(this);
     }
 
-    public void OnGamePlayEvent(TutorialGameStateEvent e)
-    {
-        movementEnabled = false;
-        catchingEnabled = false;
-    }
+    public void OnGamePlayEvent(ExplorationGameStateEvent e) => catchingEnabled = false;
+    public void OnGamePlayEvent(TutorialGameStateEvent e) => catchingEnabled = false;
+    public void OnGamePlayEvent(InGameGameStateEvent e) => catchingEnabled = true;
 
-    public void OnGamePlayEvent(InGameGameStateEvent e)
-    {
-        movementEnabled = true;
-        lateralOnly = true;
-        catchingEnabled = true;
-    }
-
+    // ForestGameStateManager's LevelWonEvent handler doesn't raise an IdleMovement
+    // strategy - it just logs. Without this, whatever strategy was active (usually
+    // InGameMovement) would keep driving the player around after winning.
     public void OnGamePlayEvent(LevelWonEvent e)
     {
-        movementEnabled = false;
+        movementLocked = true;
         catchingEnabled = false;
     }
 
-    // teleports (exploration spot / play area). CharacterController must be off while setting position.
+    // teleports (exploration spot / play area). CharacterController must be off while
+    // setting position. Also clears currentHorizontalVelocity so TraversalMovement's
+    // camera-lock threshold doesn't mis-fire off stale pre-teleport speed.
     public void OnGamePlayEvent(PlayerLocationEvent e)
     {
         bool ccWasEnabled = CC.enabled;
@@ -230,6 +261,8 @@ public class ForestPlayerController : MonoBehaviour,
         transform.position = e.Destination;
         CC.enabled = ccWasEnabled;
         fallingSpeed = 0f;
+        currentHorizontalVelocity = Vector3.zero;
+        movementLocked = false; // re-entering play (e.g. after a reset) should unlock movement again
     }
 
     void OnDrawGizmosSelected()

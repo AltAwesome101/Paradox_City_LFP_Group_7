@@ -162,7 +162,7 @@ namespace Forestlevel
             if (gameplayEvent == null) return;
             currentStrategy?.OnExit();
             currentStrategy = gameplayEvent;
-            currentStrategy.OnEnter(this);
+            // currentStrategy.OnEnter(this);
         }
 
         public void OnGamePlayEvent(PlayerLocationEvent gameplayEvent)
