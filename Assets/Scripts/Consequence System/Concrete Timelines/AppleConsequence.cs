@@ -5,7 +5,6 @@ namespace Consequence
     public class AppleConsequence : ITimelineConsequence
     {
         Rigidbody _rb;
-        public Era Era => Era.AppleForest;
 
         public AppleConsequence(Rigidbody rb){
             _rb = rb;
