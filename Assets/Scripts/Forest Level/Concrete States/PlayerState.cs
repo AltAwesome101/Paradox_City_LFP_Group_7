@@ -20,13 +20,14 @@ public class FreeRoamState : PlayerState
     ///  Normal 3D traversal walking. Making use of Traversal Movement from MovementStrategy
     /// </summary>
     
-    //TODO: Add input Reader
+    readonly InputReaderSO input;
     //TODO: Add Sensor
     readonly IMovementOwner owner;
     IMovementStrategy traversalStrategy;
 
-    public FreeRoamState(EntityController entity, PlayerMotion motion, AnimatorController anim, IMovementOwner owner) : base(entity, motion, anim)
+    public FreeRoamState(EntityController entity, PlayerMotion motion, AnimatorController anim,InputReaderSO input, IMovementOwner owner) : base(entity, motion, anim)
     {
+        this.input = input;
         this.owner = owner;
         traversalStrategy = new TraversalMovement();
     }
@@ -40,11 +41,17 @@ public class FreeRoamState : PlayerState
     public override void Update()
     {
         base.Update();
-
+        var deltaTime = Time.deltaTime;
         motion.RefreshSurface();
 
-        // var ctx = new MovementContext();
+        var ctx = new MovementContext(moveInput: input.MoveDirection, 
+                                    sprintHeld: input.IsSprintHeld,
+                                    isGrounded: motion.OnSurface,
+                                    groundNormal: Vector3.up
+                                    ,currentHorizontalVelocity: motion.HorizontalVelocity,
+                                    deltaTime: deltaTime);
 
+        traversalStrategy.GetHorizontalTarget(ctx);
 
     }
 
@@ -54,15 +61,17 @@ public class AppleCatchingState : PlayerState
 {
     /// <summary>
     ///  InGame 2D traversal movement. Making use of In Game Movement from MovementStrategy
+    /// Player catching animation occurs here with help with world state sensor
     /// </summary>
     
-    //TODO: Add input Reader
+    readonly InputReaderSO input;
     //TODO: Add Sensor
     readonly IMovementOwner owner;
     IMovementStrategy InGameStrategy;
 
-    public AppleCatchingState(EntityController entity, PlayerMotion motion, AnimatorController anim, IMovementOwner owner) : base(entity, motion, anim)
+    public AppleCatchingState(EntityController entity, PlayerMotion motion, AnimatorController anim,InputReaderSO input, IMovementOwner owner) : base(entity, motion, anim)
     {
+        this.input = input;
         this.owner = owner;
         InGameStrategy = new InGameMovement();
     }
@@ -77,11 +86,17 @@ public class AppleCatchingState : PlayerState
     {
         base.Update();
 
+        var deltaTime = Time.deltaTime;
         motion.RefreshSurface();
 
-        // var ctx = new MovementContext();
+        var ctx = new MovementContext(moveInput: input.MoveDirection, 
+                                    sprintHeld: input.IsSprintHeld,
+                                    isGrounded: motion.OnSurface,
+                                    groundNormal: Vector3.up
+                                    ,currentHorizontalVelocity: motion.HorizontalVelocity,
+                                    deltaTime: deltaTime);
 
-
+        InGameStrategy.GetHorizontalTarget(ctx);
     }
 
 }
