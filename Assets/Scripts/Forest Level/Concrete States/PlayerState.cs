@@ -21,12 +21,13 @@ public class FreeRoamState : PlayerState
     /// </summary>
     
     readonly InputReaderSO input;
-    //TODO: Add Sensor
+    readonly WorldStateSensor sensor;
     readonly IMovementOwner owner;
     IMovementStrategy traversalStrategy;
 
-    public FreeRoamState(EntityController entity, PlayerMotion motion, AnimatorController anim,InputReaderSO input, IMovementOwner owner) : base(entity, motion, anim)
+    public FreeRoamState(EntityController entity, PlayerMotion motion, AnimatorController anim,InputReaderSO input,WorldStateSensor sensor, IMovementOwner owner) : base(entity, motion, anim)
     {
+        this.sensor = sensor;
         this.input = input;
         this.owner = owner;
         traversalStrategy = new TraversalMovement();
