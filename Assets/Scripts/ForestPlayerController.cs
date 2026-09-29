@@ -73,6 +73,8 @@ public class ForestPlayerController : MonoBehaviour, IMovementOwner,
     IMovementStrategy currentStrategy;
     public IMovementStrategy CurrentStrategy => currentStrategy;
 
+    public IMovementStrategy MovementStrategy => currentStrategy;
+
     void Awake()
     {
         if (!CC) CC = GetComponent<CharacterController>();

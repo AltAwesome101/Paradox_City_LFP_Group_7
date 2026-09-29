@@ -11,6 +11,7 @@ namespace Forestlevel
     {
         Transform CameraTransform { get; }
         Transform transform { get; }
+        IMovementStrategy MovementStrategy{get;}
     }
 
     public interface IMovementStrategy : IGameplayEvent
