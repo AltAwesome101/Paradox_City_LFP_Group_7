@@ -37,7 +37,10 @@ namespace Forestlevel
             targetRotation = transform.rotation;
         }
 
-        public void RefreshSurface() => OnSurface = Physics.CheckSphere(transform.TransformPoint(surfaceCheckOffset),surfaceCheckRadius,surfaceLayer);
+        public void RefreshSurface(){
+            OnSurface = Physics.CheckSphere(transform.TransformPoint(surfaceCheckOffset),surfaceCheckRadius,surfaceLayer);
+            Debug.Log($"OnSurface:{OnSurface}");
+        }
         public void HoldCurrentRotation() => targetRotation = transform.rotation;
         public void SetEnabled(bool enabled) => character.enabled = enabled;
 
@@ -74,7 +77,7 @@ namespace Forestlevel
             HorizontalVelocity = Vector3.zero;
         }
 
-        void OwGizmosSelected()
+        void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawSphere(transform.TransformPoint(surfaceCheckOffset), surfaceCheckRadius);

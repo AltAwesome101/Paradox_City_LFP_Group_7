@@ -53,12 +53,17 @@ namespace Forestlevel
             if (!sensor) sensor = GetComponent<WorldStateSensor>();
 
             cameraTransform = Camera.main ? Camera.main.transform : null;
-
             BuildStateMachine();
         }
 
+        // Enable/Disable input here, not Awake, so it's symmetric with a Play session
+        // stopping and starting again - see InputReaderSO's EnableInputMap comment for
+        // why that pairing matters (ScriptableObject state can survive across Play
+        // sessions in the Editor while the Input System's own enabled-state doesn't).
         void OnEnable()
         {
+            input.EnableInputMap();
+
             GameEventBus.Register<IMovementStrategy>(this);
             GameEventBus.Register<ExplorationGameStateEvent>(this);
             GameEventBus.Register<TutorialGameStateEvent>(this);
@@ -70,6 +75,8 @@ namespace Forestlevel
 
         void OnDisable()
         {
+            input.DisableInputMap();
+
             GameEventBus.Unregister<IMovementStrategy>(this);
             GameEventBus.Unregister<ExplorationGameStateEvent>(this);
             GameEventBus.Unregister<TutorialGameStateEvent>(this);
