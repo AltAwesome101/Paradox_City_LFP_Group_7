@@ -56,10 +56,11 @@ namespace Forestlevel
             BuildStateMachine();
         }
 
-        // Enable/Disable input here, not Awake, so it's symmetric with a Play session
-        // stopping and starting again - see InputReaderSO's EnableInputMap comment for
-        // why that pairing matters (ScriptableObject state can survive across Play
-        // sessions in the Editor while the Input System's own enabled-state doesn't).
+        void Start(){
+            var freeRoam = new FreeRoamState(this, playerMotion, animatorController, input, sensor, this);
+            machine.SetState(freeRoam);
+        }
+
         void OnEnable()
         {
             input.EnableInputMap();
@@ -104,7 +105,6 @@ namespace Forestlevel
             machine.AddAnyTransition(appleCatching, new FuncPredicate(() => phase == GamePhase.InGame));
             machine.AddAnyTransition(locked, new FuncPredicate(() => phase == GamePhase.Tutorial || phase == GamePhase.Won || phase == GamePhase.Lost));
 
-            machine.SetState(freeRoam);
         }
 
         public void OnGamePlayEvent(IMovementStrategy e)

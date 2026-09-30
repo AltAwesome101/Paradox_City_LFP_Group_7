@@ -38,6 +38,7 @@ public abstract class PlayerState : BaseState
         anim.SetMovement(Mathf.Clamp01(wishDir.magnitude));
         anim.SetOnSurface(motion.OnSurface);
 
+        // Debug.Log($"move:{input.MoveDirection} strategy:{(owner.MovementStrategy == null ? "NULL" : owner.MovementStrategy.GetType().Name)} cam:{(owner.CameraTransform == null ? "NULL" : "ok")}");
         return wishDir;
     }
 }
@@ -71,6 +72,7 @@ public class FreeRoamState : PlayerState
     {
         base.OnEnter();
         GameEventBus.Raise<IMovementStrategy>(new TraversalMovement());
+        Debug.Log("PlayerState: FreeRoamState");
     }
 
     public override void Update()

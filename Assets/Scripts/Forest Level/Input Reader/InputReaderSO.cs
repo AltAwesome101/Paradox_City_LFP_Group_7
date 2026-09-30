@@ -13,6 +13,7 @@ public class InputReaderSO : ScriptableObject, DefaultInputSystem.IPlayerActions
         input ??= new DefaultInputSystem();
         input.Player.SetCallbacks(this);
         input.Enable();
+        Debug.Log("InputReader enabled and ready!");
     }
 
     public void DisableInputMap()
