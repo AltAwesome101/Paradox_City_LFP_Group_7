@@ -2,6 +2,7 @@ using BetterSingletons;
 using BetterEventBus;
 using UnityEngine;
 using UnityEngine.UIElements;
+using GameDevExtensionMethods;
 
 namespace Forestlevel
 {
@@ -32,6 +33,7 @@ namespace Forestlevel
         void changeToPlayArea()
         {
             GameEventBus.Raise<EnterPlayAreaEvent>(new EnterPlayAreaEvent());
+            GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
         }
 
         void OnEnable()
@@ -86,19 +88,16 @@ namespace Forestlevel
     
     public class ExplorationGameStateEvent : IGameplayEvent
     {
-       
         static readonly Vector3 ExploreLocation = new Vector3(89f, .25f, 200f); 
 
         public ExplorationGameStateEvent()
         {
             GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
-            GameEventBus.Raise<IMovementStrategy>(new TraversalMovement()); 
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = ExploreLocation }); 
             Debug.Log($"Player's new position:{ExploreLocation}");
 
             // Cursor hid and fix state
-            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-            UnityEngine.Cursor.visible = false;
+            CursorUtility.LockAndHide(visible: false,lockstate: true);
         }
     }
 
@@ -106,9 +105,8 @@ namespace Forestlevel
     {
         public TutorialGameStateEvent()
         {
-            // Cursor hid and fix state
-            UnityEngine.Cursor.lockState = CursorLockMode.None;
-            UnityEngine.Cursor.visible = true;
+            // Cursor visible and free lock state
+            CursorUtility.LockAndHide(visible: true,lockstate: false);
         }
     }
 
@@ -120,7 +118,6 @@ namespace Forestlevel
         public EnterPlayAreaEvent()
         {
             GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); 
-            GameEventBus.Raise<IMovementStrategy>(new IdleMovement()); 
             GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = fixedLocation }); 
             Debug.Log($"Player's new position:{fixedLocation}");
 
@@ -134,10 +131,8 @@ namespace Forestlevel
         
         public InGameGameStateEvent()
         {
-            // Cursor hid and fix state
-            UnityEngine.Cursor.lockState = CursorLockMode.Locked;
-            UnityEngine.Cursor.visible = false;
-            GameEventBus.Raise<IMovementStrategy>(new InGameMovement()); //Player movement 2D raise event;
+            // Cursor hide and fix state
+            CursorUtility.LockAndHide(visible: false,lockstate: true);
         }
     }
 }

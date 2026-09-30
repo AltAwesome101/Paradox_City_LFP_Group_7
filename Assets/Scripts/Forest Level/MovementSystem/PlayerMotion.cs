@@ -37,10 +37,7 @@ namespace Forestlevel
             targetRotation = transform.rotation;
         }
 
-        public void RefreshSurface(){
-            OnSurface = Physics.CheckSphere(transform.TransformPoint(surfaceCheckOffset),surfaceCheckRadius,surfaceLayer);
-            Debug.Log($"OnSurface:{OnSurface}");
-        }
+        public void RefreshSurface()=> OnSurface = Physics.CheckSphere(transform.TransformPoint(surfaceCheckOffset),surfaceCheckRadius,surfaceLayer);
         public void HoldCurrentRotation() => targetRotation = transform.rotation;
         public void SetEnabled(bool enabled) => character.enabled = enabled;
 
