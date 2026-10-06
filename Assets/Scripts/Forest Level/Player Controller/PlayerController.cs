@@ -127,12 +127,3 @@ namespace Forestlevel
         // level-flow source of truth, this controller just reads it.
     }
 }
-
-public enum GamePhase
-{
-    Exploration,
-    Tutorial,
-    InGame,
-    Won,
-    Lost
-}

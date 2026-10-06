@@ -55,13 +55,16 @@ namespace Forestlevel
 
         void UpdateLockState(in MovementContext ctx)
         {
-            // Uses horizontal velocity only — see note above re: original
-            // using full rb velocity and false-triggering off fall speed.
+            bool hasInput = ctx.moveInput.sqrMagnitude > 0.01f;
             float speedSqr = ctx.currentHorizontalVelocity.sqrMagnitude;
             bool wasLocked = IsLocked;
 
-            if (!IsLocked && speedSqr > lockEnterSpeed * lockEnterSpeed) IsLocked = true;
-            else if (IsLocked && speedSqr < lockExitSpeed * lockExitSpeed) IsLocked = false;
+            if (!hasInput)
+                IsLocked = false;                                   // new: no input, no lock
+            else if (!IsLocked && speedSqr > lockEnterSpeed * lockEnterSpeed)
+                IsLocked = true;
+            else if (IsLocked && speedSqr < lockExitSpeed * lockExitSpeed)
+                IsLocked = false;
 
             if (IsLocked && !wasLocked)
             {
