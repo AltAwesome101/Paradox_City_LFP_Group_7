@@ -5,7 +5,7 @@ using BetterEventBus;
 using Forestlevel;
 using UnityEngine.SceneManagement;
 
-public class PauseMenuView
+public class PauseMenuView : BaseUIView
 {
     readonly VisualElement _container;
     readonly Button _restartbtn;
@@ -17,7 +17,7 @@ public class PauseMenuView
     SceneReference futureScene;
 
     
-    public PauseMenuView(VisualElement container,SceneReference CurrentScene,SceneReference FutureScene){
+    public PauseMenuView(VisualElement container,SceneReference CurrentScene,SceneReference FutureScene): base(container){
         _container = container;
         _restartbtn = container.Q<Button>("restart-button");
         _resumebtn = container.Q<Button>("resume-button");
@@ -32,12 +32,14 @@ public class PauseMenuView
         _futurebtn.clicked += ReturnToFuture;
     }
 
-    public void Hide(){
+    public  override void Hide(){
+        base.Hide();
         _container.SetDisplay(false);
         Time.timeScale = 1f;
         CursorUtility.LockAndHide(visible: false,lockstate: true);
     }
-    public void Show(){
+    public override void Show(){
+        base.Show();
         _container.SetDisplay(true);
         Time.timeScale = 0f;
         CursorUtility.LockAndHide(visible: true,lockstate: false);
@@ -53,7 +55,7 @@ public class PauseMenuView
         SceneManager.LoadScene(futureScene.Name);
     }
 
-    ~PauseMenuView(){
+    public void Dispose(){
         _restartbtn.clicked -= RestartLevel;
         _resumebtn.clicked -= Hide;
         _futurebtn.clicked -= ReturnToFuture;
