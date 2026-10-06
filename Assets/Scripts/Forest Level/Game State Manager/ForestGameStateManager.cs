@@ -27,7 +27,7 @@
             void Start()
             {
                 GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-                Invoke(nameof(changeToPlayArea), 30f);
+                // Invoke(nameof(changeToPlayArea), 30f);
             }
 
             void changeToPlayArea()
@@ -88,13 +88,13 @@
         
         public class ExplorationGameStateEvent : IGameplayEvent
         {
-            static readonly Vector3 ExploreLocation = new Vector3(89f, .25f, 200f); 
+            // static readonly Vector3 ExploreLocation = new Vector3(89f, .25f, 200f); 
 
             public ExplorationGameStateEvent()
             {
                 GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
-                GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = ExploreLocation }); 
-                Debug.Log($"Player's new position:{ExploreLocation}");
+                // GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = ExploreLocation }); 
+                // Debug.Log($"Player's new position:{ExploreLocation}");
 
                 // Cursor hid and fix state
                 CursorUtility.LockAndHide(visible: false,lockstate: true);
