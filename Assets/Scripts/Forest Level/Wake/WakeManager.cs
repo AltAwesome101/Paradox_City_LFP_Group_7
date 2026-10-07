@@ -12,7 +12,7 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
     [SerializeField] int disturbAmount = 10;
     [SerializeField] float lerpSpeed = 8;
 
-    WakemeterUI wakemeter;
+    WakeMeterUIView wakemeter;
     bool hasWoken;
 
     protected override void Awake()

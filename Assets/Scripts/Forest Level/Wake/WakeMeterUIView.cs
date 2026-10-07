@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System;
 
-public class WakemeterUI
+public class WakeMeterUIView
 {
     public event Action OnMeterFull;
     readonly ProgressBar progress;
@@ -12,7 +12,7 @@ public class WakemeterUI
     float targetValue;
     IVisualElementScheduledItem scheduledItem;
 
-    public WakemeterUI(ProgressBar progress, int disturb, int maxLimit, float lerpSpeed = 8f)
+    public WakeMeterUIView(ProgressBar progress, int disturb, int maxLimit, float lerpSpeed = 8f)
     {
         this.progress = progress;
         this.progress.lowValue = 0f;

@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 
-public class TutorialView
+public class TutorialView : BaseUIView
 {
     // Tutorial Display
     readonly VisualElement _container;
@@ -19,7 +19,7 @@ public class TutorialView
     public event System.Action PreviousRequested;
     public event System.Action NextRequested;
 
-    public TutorialView(VisualElement container)
+    public TutorialView(VisualElement container) : base(container)
     {
         _container = container;
 
