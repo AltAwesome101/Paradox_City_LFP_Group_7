@@ -11,6 +11,8 @@ public class AnimatorController : MonoBehaviour
     static readonly int MovementValueHash = Animator.StringToHash("movementValue");
     static readonly int onSurfaceHash = Animator.StringToHash("onSurface");
     static readonly int HandsUpHash = Animator.StringToHash("HandsUp");
+    static readonly int JumpUpHash = Animator.StringToHash("JumpUp");
+
 
     // Public fields
     public Animator Animator => _anim;
@@ -25,4 +27,5 @@ public class AnimatorController : MonoBehaviour
     public void StopMovement()=> _anim.SetFloat(MovementValueHash,0f);
     public void SetOnSurface(bool onSurface)=> _anim.SetBool(onSurfaceHash, onSurface);
     public void SetHandsUp(bool handsUp) => _anim.SetBool(HandsUpHash, handsUp);
+    // public void SetJumpUp(){}
 }
