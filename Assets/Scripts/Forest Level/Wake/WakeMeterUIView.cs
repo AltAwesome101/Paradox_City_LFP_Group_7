@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System;
 
-public class WakeMeterUIView
+public class WakeMeterUIView : BaseUIView
 {
     public event Action OnMeterFull;
     readonly ProgressBar progress;
@@ -12,9 +12,9 @@ public class WakeMeterUIView
     float targetValue;
     IVisualElementScheduledItem scheduledItem;
 
-    public WakeMeterUIView(ProgressBar progress, int disturb, int maxLimit, float lerpSpeed = 8f)
+    public WakeMeterUIView(VisualElement container, int disturb, int maxLimit, float lerpSpeed = 8f): base(container)
     {
-        this.progress = progress;
+        this.progress = container.Q<ProgressBar>("wake-progressbar");
         this.progress.lowValue = 0f;
         this.progress.value = 0f;
         this.progress.highValue = maxLimit;
@@ -23,8 +23,8 @@ public class WakeMeterUIView
         targetValue = 0f;
     }
 
-    public void ShowProgress() => progress.style.display = DisplayStyle.Flex;
-    public void HideProgress() => progress.style.display = DisplayStyle.None;
+    public override void Show() => progress.style.display = DisplayStyle.Flex;
+    public override void Hide() => progress.style.display = DisplayStyle.None;
 
 
     public void Disturb()
