@@ -1,12 +1,15 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-
 public class PauseMenuController : MonoBehaviour
 {
     [Header("UI References")]
     [Tooltip("The root GameObject of the pause menu panel (buttons, dimmer background, etc.)")]
     public GameObject pauseMenuPanel;
+
+    [Tooltip("The Main Menu panel (same one assigned in UIMENUMANAGER). " +
+             "While it is open, Escape is ignored and the cursor stays visible.")]
+    public GameObject mainMenuPanel;
 
     [Header("Level Scene Names (edit these to match Build Settings)")]
     [Tooltip("Exact scene name for Level 1 - Artist Hitler")]
@@ -25,15 +28,18 @@ public class PauseMenuController : MonoBehaviour
 
     public bool IsPaused { get; private set; }
 
+    private bool MainMenuOpen => mainMenuPanel != null && mainMenuPanel.activeSelf;
+
     void Start()
     {
-        
         SetPaused(false);
     }
 
     void Update()
     {
-        
+        // Don't open the pause menu on top of the main menu
+        if (MainMenuOpen) return;
+
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             TogglePause();
@@ -55,15 +61,13 @@ public class PauseMenuController : MonoBehaviour
         if (pauseBackgroundCamera != null)
             pauseBackgroundCamera.gameObject.SetActive(paused);
 
-
         //Time.timeScale = paused ? 0f : 1f;
-        if (paused) {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
-    }
 
-    
+        // Cursor is only visible in the pause menu or the main menu
+        bool showCursor = paused || MainMenuOpen;
+        Cursor.lockState = showCursor ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = showCursor;
+    }
 
     public void OnResumeButton()
     {
@@ -104,7 +108,6 @@ public class PauseMenuController : MonoBehaviour
             return;
         }
 
-       
         //Time.timeScale = 1f;
         SceneManager.LoadScene(sceneName);
     }
