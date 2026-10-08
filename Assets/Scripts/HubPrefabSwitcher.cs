@@ -179,6 +179,7 @@ public class HubPrefabSwitcher : MonoBehaviour
     
     private static readonly HashSet<int> s_collectedParts = new HashSet<int>();
     private static bool s_deloreanRepaired;
+    public static bool DeloreanRepaired => s_deloreanRepaired;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetMissionStatics()
