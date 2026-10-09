@@ -4,9 +4,9 @@ namespace Forestlevel
 {
     public class IdleMovement : IMovementStrategy
     {
-        PlayerMovement owner;
+        IMovementOwner owner;
 
-        public void OnEnter(PlayerMovement owner)
+        public void OnEnter(IMovementOwner owner)
         {
             this.owner = owner;
         }
@@ -20,8 +20,5 @@ namespace Forestlevel
         {
             return Vector3.zero;
         }
-
     }
-
 }
-

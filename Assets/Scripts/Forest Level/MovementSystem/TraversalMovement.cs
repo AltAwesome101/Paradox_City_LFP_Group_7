@@ -6,7 +6,7 @@ namespace Forestlevel
     // Default movement, used when not "in game" — full 3D exploration/traversal
     // where the player can move in any horizontal direction relative to the
     // camera. Owns the camera-lock-basis behaviour that used to live directly
-    // on PlayerMovement: once the player starts moving, "forward" freezes to
+    // on the controller: once the player starts moving, "forward" freezes to
     // whichever way the camera faced at that instant, so turning the player
     // doesn't drag the movement basis around with it.
     public class TraversalMovement : IMovementStrategy
@@ -14,12 +14,12 @@ namespace Forestlevel
         const float lockEnterSpeed = 0.15f;
         const float lockExitSpeed = 0.05f;
 
-        PlayerMovement owner;
+        IMovementOwner owner;
         Quaternion lockedBasis = Quaternion.identity;
 
         public bool IsLocked { get; private set; }
 
-        public void OnEnter(PlayerMovement owner)
+        public void OnEnter(IMovementOwner owner)
         {
             this.owner = owner;
             IsLocked = false; // re-entering traversal never inherits a stale lock
@@ -55,13 +55,16 @@ namespace Forestlevel
 
         void UpdateLockState(in MovementContext ctx)
         {
-            // Uses horizontal velocity only — see note above re: original
-            // using full rb velocity and false-triggering off fall speed.
+            bool hasInput = ctx.moveInput.sqrMagnitude > 0.01f;
             float speedSqr = ctx.currentHorizontalVelocity.sqrMagnitude;
             bool wasLocked = IsLocked;
 
-            if (!IsLocked && speedSqr > lockEnterSpeed * lockEnterSpeed) IsLocked = true;
-            else if (IsLocked && speedSqr < lockExitSpeed * lockExitSpeed) IsLocked = false;
+            if (!hasInput)
+                IsLocked = false;                                   // new: no input, no lock
+            else if (!IsLocked && speedSqr > lockEnterSpeed * lockEnterSpeed)
+                IsLocked = true;
+            else if (IsLocked && speedSqr < lockExitSpeed * lockExitSpeed)
+                IsLocked = false;
 
             if (IsLocked && !wasLocked)
             {
@@ -77,6 +80,4 @@ namespace Forestlevel
             }
         }
     }
-
 }
-

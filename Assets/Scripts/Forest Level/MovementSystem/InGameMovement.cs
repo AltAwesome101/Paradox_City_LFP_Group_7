@@ -7,14 +7,14 @@ namespace Forestlevel
     // matters; W/S is discarded, not just left unused, so nothing upstream can
     // accidentally leak forward/back input through here.
     //
-    // ASSUMPTION: "right" comes from PlayerMovement.CameraTransform, flattened.
+    // ASSUMPTION: "right" comes from the owner's CameraTransform, flattened.
     // Once the dedicated fixed-camera system exists, swap this for that
     // reference instead — likely follow-up, not done here.
     public class InGameMovement : IMovementStrategy
     {
-        PlayerMovement owner;
+        IMovementOwner owner;
 
-        public void OnEnter(PlayerMovement owner)
+        public void OnEnter(IMovementOwner owner)
         {
             this.owner = owner;
         }
@@ -36,4 +36,3 @@ namespace Forestlevel
         }
     }
 }
-

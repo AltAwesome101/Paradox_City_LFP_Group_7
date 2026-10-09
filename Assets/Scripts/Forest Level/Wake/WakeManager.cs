@@ -12,16 +12,16 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
     [SerializeField] int disturbAmount = 10;
     [SerializeField] float lerpSpeed = 8;
 
-    WakemeterUI wakemeter;
+    WakeMeterUIView wakemeter;
     bool hasWoken;
 
     protected override void Awake()
     {
         base.Awake();
-        var progress = document.rootVisualElement.Q<ProgressBar>("wake-progressbar");
-        wakemeter = new(progress, disturbAmount, WakeUpLimit, lerpSpeed);
+        var root = document.rootVisualElement;
+        wakemeter = new(container: root, disturbAmount, WakeUpLimit, lerpSpeed);
         wakemeter.OnMeterFull += HandleMeterFull;
-        wakemeter.HideProgress();
+        wakemeter.Hide();
     }
 
     void OnEnable(){
@@ -49,6 +49,6 @@ public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleD
     public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent){
         hasWoken = false;
         wakemeter.ResetMeter();
-        wakemeter.ShowProgress();
+        wakemeter.Show();
     }
 }
