@@ -70,6 +70,13 @@ public class CarController : MonoBehaviour
     [Range(0f, 89f)]
     public float maximumSlopeAngle = 55f;
 
+    [Header("Flight - on-screen hint")]
+    [Tooltip("Optional. Assign a UI object (e.g. Text) that explains the climb/descend controls. It's shown only while flying. Leave empty to use the built-in on-screen text instead.")]
+    public GameObject flightControlsHintUI;
+
+    [Tooltip("Shows a built-in text hint while flying. Ignored if 'Flight Controls Hint UI' is assigned.")]
+    public bool showBuiltInFlightHint = true;
+
 
     // =========================================================
     // PAVEMENT / STEP CLIMBING
@@ -329,6 +336,8 @@ public class CarController : MonoBehaviour
 
     private Rigidbody rb;
 
+    private GUIStyle flightHintStyle;
+
     private float currentSpeed;
     private float currentSteerInput;
 
@@ -438,6 +447,9 @@ public class CarController : MonoBehaviour
 
         if (interactPromptUI != null)
             interactPromptUI.SetActive(false);
+
+        if (flightControlsHintUI != null)
+            flightControlsHintUI.SetActive(false);
     }
 
 
@@ -476,6 +488,7 @@ public class CarController : MonoBehaviour
         HandleSteering();
         MoveCar();
         MoveCarHeight();
+       
         OrientCarBody();
         PreventPhysicsRotation();
         HandleTireSmoke();
@@ -1259,6 +1272,8 @@ public class CarController : MonoBehaviour
         groundY = 0f;
         bool found = false;
 
+
+
         for (int i = 0; i < count; i++)
         {
             RaycastHit h = flightHitBuffer[i];
@@ -1274,6 +1289,49 @@ public class CarController : MonoBehaviour
         }
 
         return found;
+    }
+
+    private bool ShouldShowFlightHint => isBeingDriven && isFlying && !isLanding;
+
+    private void UpdateFlightHint()
+    {
+        if (flightControlsHintUI == null)
+            return;
+
+        bool show = ShouldShowFlightHint;
+
+        if (flightControlsHintUI.activeSelf != show)
+            flightControlsHintUI.SetActive(show);
+    }
+
+    private void DrawFlightHint()
+    {
+        // Skip if a custom UI object is handling it, or the hint is disabled
+        if (!showBuiltInFlightHint || flightControlsHintUI != null || !ShouldShowFlightHint)
+            return;
+
+        if (flightHintStyle == null)
+        {
+            flightHintStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 22,
+                fontStyle = FontStyle.Bold
+            };
+        }
+
+        string text =
+            "Hold " + ascendKey + " to ASCEND   |   Hold " + descendKey + " to DESCEND   |   " +
+            flightToggleKey + " to land";
+
+        Rect rect = new Rect(0f, Screen.height - 80f, Screen.width, 40f);
+
+        // Drop shadow so it's readable on any background
+        flightHintStyle.normal.textColor = Color.black;
+        GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), text, flightHintStyle);
+
+        flightHintStyle.normal.textColor = Color.white;
+        GUI.Label(rect, text, flightHintStyle);
     }
 
 
@@ -1586,6 +1644,7 @@ public class CarController : MonoBehaviour
         UpdateInteractPrompt();
         HandleEnterExitInput();
         HandleFlightToggleInput();
+        UpdateFlightHint();
         UpdateWheelVisuals();
     }
 
@@ -1699,6 +1758,10 @@ public class CarController : MonoBehaviour
 
     private void OnGUI()
     {
+        DrawFlightHint();
+
+        if (!enableDebugGUI || rb == null)
+            return;
         if (!enableDebugGUI || rb == null)
             return;
 
