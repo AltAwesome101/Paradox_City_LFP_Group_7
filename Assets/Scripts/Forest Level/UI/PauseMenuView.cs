@@ -16,6 +16,8 @@ public class PauseMenuView : BaseUIView
     SceneReference currentScene;
     SceneReference futureScene;
 
+    public event System.Action ResumeRequested;
+
     
     public PauseMenuView(VisualElement container,SceneReference CurrentScene,SceneReference FutureScene): base(container){
         _container = container;
@@ -28,21 +30,24 @@ public class PauseMenuView : BaseUIView
         futureScene = FutureScene;
 
         _restartbtn.clicked += RestartLevel;
-        _resumebtn.clicked += Hide;
+        _resumebtn.clicked += OnResumeClicked;
         _futurebtn.clicked += ReturnToFuture;
     }
 
-    public  override void Hide(){
+    public override void Hide()
+    {
         base.Hide();
         _container.SetDisplay(false);
-        Time.timeScale = 1f;
-        CursorUtility.LockAndHide(visible: false,lockstate: true);
+        GamePause.Release(this);                    // was: Time.timeScale = 1f
+        CursorUtility.LockAndHide(visible: false, lockstate: true);
     }
-    public override void Show(){
+
+    public override void Show()
+    {
         base.Show();
         _container.SetDisplay(true);
-        Time.timeScale = 0f;
-        CursorUtility.LockAndHide(visible: true,lockstate: false);
+        GamePause.Request(this);                    // was: Time.timeScale = 0f
+        CursorUtility.LockAndHide(visible: true, lockstate: false);
     }
 
     void RestartLevel(){
@@ -54,10 +59,10 @@ public class PauseMenuView : BaseUIView
         Debug.Log("Return to the future");
         SceneManager.LoadScene(futureScene.Name);
     }
-
+    void OnResumeClicked() => ResumeRequested?.Invoke();
     public void Dispose(){
         _restartbtn.clicked -= RestartLevel;
-        _resumebtn.clicked -= Hide;
+        _resumebtn.clicked -= OnResumeClicked;
         _futurebtn.clicked -= ReturnToFuture;
     }
 

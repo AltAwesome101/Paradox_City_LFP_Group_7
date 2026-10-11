@@ -9,12 +9,13 @@ namespace Forestlevel
         IGamePlayEventListener<TutorialRequestEvent>
     {
         [SerializeField] InputReaderSO input;
-
+        [SerializeField, Min(0f)] float readingBuffer = 1.5f;
         readonly Queue<BaseTutorialInstructionSO> _queue = new();
         readonly HashSet<BaseTutorialInstructionSO> _seen = new();
 
         BaseTutorialInstructionSO _current;   // null = no tutorial, player is playing
         IPredicate _condition;
+        float _elapsed;      // unscaled seconds spent in the reading phase
 
         public bool IsTutorialActive => _current != null;
 
@@ -37,30 +38,57 @@ namespace Forestlevel
 
         void StartNext()
         {
-            if (!_queue.TryDequeue(out _current)) return;   // queue empty -> stays null -> gameplay
+            if (!_queue.TryDequeue(out _current))
+                return;
 
             _seen.Add(_current);
-            _condition = _current.CreateCondition(input);   // fresh instance per run
-            if (_current.FreezeGame) GamePause.Request(this);
 
-            GameEventBus.Raise<TutorialStartedEvent>(new TutorialStartedEvent { Instruction = _current });
+            _condition = _current.CreateCondition(input);
+            _elapsed = 0f;
+
+            if (_current.FreezeGame)
+                GamePause.Request(this);
+
+            GameEventBus.Raise<TutorialStartedEvent>(
+                new TutorialStartedEvent
+                {
+                    Instruction = _current
+                }
+            );
+
+            // Debug.Log($"[Tutorial] {_current.name} freeze={_current.FreezeGame} timeScale={Time.timeScale}");
         }
 
         // Update still runs at timeScale 0; the condition must use unscaled time.
         void Update()
         {
-            if (_current == null) return;
-            if (_condition.Evaluate()) Complete();
+            if (_current == null)
+                return;
+
+            _elapsed += Time.unscaledDeltaTime;          // unscaled, so it keeps counting while paused
+
+            // Reading buffer: the condition is ignored entirely until this has elapsed.
+            if (_elapsed < readingBuffer)
+                return;
+
+            if (_condition.Evaluate())
+                Complete();
         }
 
         void Complete()
         {
-            GamePause.Release(this);
+            // Debug.Log($"[Tutorial] after Raise: timeScale={Time.timeScale}");   
+            if (_current.FreezeGame)
+                GamePause.Release(this);
+
             _current = null;
             _condition = null;
 
-            GameEventBus.Raise<TutorialClosedEvent>(new TutorialClosedEvent());
-            StartNext();                                     // chain queued ones, if any
+            GameEventBus.Raise<TutorialClosedEvent>(
+                new TutorialClosedEvent()
+            );
+
+            StartNext();
         }
     }
 

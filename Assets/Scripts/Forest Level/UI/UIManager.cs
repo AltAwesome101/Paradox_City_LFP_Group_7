@@ -74,6 +74,8 @@ public class UIManager : Singleton<UIManager>,
 
         _layouts[UIState.Objective]   = new HashSet<IHideableView> { Collection, WakeMeter };
         _layouts[UIState.Exploration] = new HashSet<IHideableView>();
+
+        PauseMenu.ResumeRequested += () => RemoveOverlay(PauseMenu);
         // Overlays (Tutorial, PauseMenu) are deliberately in no layout.
     }
 
@@ -81,16 +83,8 @@ public class UIManager : Singleton<UIManager>,
 
     public void TogglePause()
     {
-        if (_overlays.Contains(PauseMenu))
-        {
-            RemoveOverlay(PauseMenu);
-            GamePause.Release(PauseMenu);
-        }
-        else
-        {
-            AddOverlay(PauseMenu);
-            GamePause.Request(PauseMenu);
-        }
+        if (_overlays.Contains(PauseMenu)) RemoveOverlay(PauseMenu);
+        else AddOverlay(PauseMenu);
     }
 
 
