@@ -1,18 +1,22 @@
 using UnityEngine;
 using System;
+using BetterEventBus;
+using Forestlevel;
 
 public class Tester : MonoBehaviour
 {
-    [SerializeField] InputReaderSO input;
+    [SerializeField] BaseTutorialInstructionSO tutorial;
 
-    void Start()=>input.EnableInputMap();
-    void FixedUpdate()
+    void Start()
     {
-        DisplayNonZeroInput();
+        Invoke(nameof(TestTutorial), 10f);
+    
     }
-    void DisplayNonZeroInput(){
-        if(input.MoveDirection != Vector2.zero)
-            Debug.Log($"inputMove: {input.MoveDirection}");
+
+    void TestTutorial(){
+        Debug.Log("Tutorial run");
+        GameEventBus.Raise<TutorialRequestEvent>(new TutorialRequestEvent{Instruction = tutorial});
+        GameEventBus.Raise<TutorialStartedEvent>(new TutorialStartedEvent{Instruction = tutorial});
     }
 
 }

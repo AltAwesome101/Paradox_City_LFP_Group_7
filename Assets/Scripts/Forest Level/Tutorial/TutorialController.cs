@@ -1,109 +1,74 @@
-using BetterSingletons;
-using UnityEngine;
-using UnityEngine.UIElements;
 using System.Collections.Generic;
 using BetterEventBus;
-using UnityEngine.InputSystem;
+using BetterSingletons;
+using UnityEngine;
 
 namespace Forestlevel
 {
     public class TutorialController : Singleton<TutorialController>,
-    IGamePlayEventListener<TutorialGameStateEvent>
+        IGamePlayEventListener<TutorialRequestEvent>
     {
-        [SerializeField] List<TutorialDataSO> startingData;
-        [SerializeField] UIDocument document;
-        TutorialView _view;
+        [SerializeField] InputReaderSO input;
 
-        //TODO: Remove the quit logic to its own manager and refactor UI management
-        [Header("Pause Menu info")]
-        [SerializeField] SceneReference CurrentScene;
-        [SerializeField] SceneReference FutureScene;
-        
-        DefaultInputSystem controls;
-        PauseMenuView pauseMenu;
-        
+        readonly Queue<BaseTutorialInstructionSO> _queue = new();
+        readonly HashSet<BaseTutorialInstructionSO> _seen = new();
 
-        List<TutorialDataSO> _tutorials;
-        int _currentIndex;
+        BaseTutorialInstructionSO _current;   // null = no tutorial, player is playing
+        IPredicate _condition;
 
-        protected override void Awake()
-        {
-            base.Awake();
+        public bool IsTutorialActive => _current != null;
 
-            var root = document.rootVisualElement;
-
-            _tutorials = new List<TutorialDataSO>(startingData);
-            controls = new DefaultInputSystem();
-
-            _view = new TutorialView(container: root.Q<VisualElement>("TutorialPanel-container"));
-            pauseMenu = new PauseMenuView(container: root.Q<VisualElement>("pauseMenu-container"),CurrentScene,FutureScene);
-
-            RegisterViewCallbacks();
-        }
-
-        void OnEnable()
-        {
-            GameEventBus.Register<TutorialGameStateEvent>(this);
-            controls.Enable();
-            controls.UI.Escape.performed += OpenPausePanel;
-        }
+        void OnEnable()  => GameEventBus.Register<TutorialRequestEvent>(this);
         void OnDisable()
         {
-            GameEventBus.Unregister<TutorialGameStateEvent>(this);
-            controls.UI.Escape.performed -= OpenPausePanel;
-            controls.Disable();
+            GameEventBus.Unregister<TutorialRequestEvent>(this);
+            GamePause.Release(this);          // never leave the game frozen if we're destroyed mid-step
         }
 
-        void OpenPausePanel(InputAction.CallbackContext ctx) => pauseMenu.Show();
-
-
-        void RegisterViewCallbacks()
+        public void OnGamePlayEvent(TutorialRequestEvent e)
         {
-            _view.CloseRequested += CloseTutorial;
-            _view.PreviousRequested += ShowPreviousTutorial;
-            _view.NextRequested += ShowNextTutorial;
+            var ins = e.Instruction;
+            // "seen" is checked here, when the request arrives, so repeat triggers are free
+            if (ins == null || _seen.Contains(ins) || _queue.Contains(ins) || ins == _current) return;
+
+            _queue.Enqueue(ins);
+            if (_current == null) StartNext();
         }
 
-        public void OpenTutorials()
+        void StartNext()
         {
-            Debug.Log("Tutorial Started!");
-            _currentIndex = 0;
-            DisplayCurrentTutorial();
+            if (!_queue.TryDequeue(out _current)) return;   // queue empty -> stays null -> gameplay
+
+            _seen.Add(_current);
+            _condition = _current.CreateCondition(input);   // fresh instance per run
+            if (_current.FreezeGame) GamePause.Request(this);
+
+            GameEventBus.Raise<TutorialStartedEvent>(new TutorialStartedEvent { Instruction = _current });
         }
 
-        void DisplayCurrentTutorial()
+        // Update still runs at timeScale 0; the condition must use unscaled time.
+        void Update()
         {
-            TutorialDataSO data = _tutorials[_currentIndex];
-            _view.EnableTutorialPanel();
-            _view.ChangeTutorialInfo(data);
+            if (_current == null) return;
+            if (_condition.Evaluate()) Complete();
         }
 
-        void ShowNextTutorial()
+        void Complete()
         {
-            if (_currentIndex >= _tutorials.Count - 1)
-                return;
+            GamePause.Release(this);
+            _current = null;
+            _condition = null;
 
-            _currentIndex++;
-            DisplayCurrentTutorial();
+            GameEventBus.Raise<TutorialClosedEvent>(new TutorialClosedEvent());
+            StartNext();                                     // chain queued ones, if any
         }
-
-        void ShowPreviousTutorial()
-        {
-            if (_currentIndex <= 0) return;
-
-            _currentIndex--;
-            DisplayCurrentTutorial();
-        }
-
-        void CloseTutorial(){
-            _view.HideTutorialPanel();
-            GameEventBus.Raise<TutorialClosedEvent>(new TutorialClosedEvent()); //raise tutorial closed event
-        }
-
-        public void OnGamePlayEvent(TutorialGameStateEvent gameplayEvent) => OpenTutorials();
     }
-    
 
-    public struct TutorialClosedEvent : IGameplayEvent{}
+
+    public struct TutorialRequestEvent : IGameplayEvent { public BaseTutorialInstructionSO Instruction; } // raised by triggers
+    public struct TutorialStartedEvent : IGameplayEvent { public BaseTutorialInstructionSO Instruction; } // UI listens
+    public struct TutorialClosedEvent  : IGameplayEvent { }
 }
+
+
 

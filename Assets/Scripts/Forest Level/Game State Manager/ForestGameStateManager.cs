@@ -9,21 +9,10 @@
         public class ForestGameStateManager : Singleton<ForestGameStateManager>,
             IGamePlayEventListener<AppleCollectedEvent>,
             IGamePlayEventListener<LevelWonEvent>,
-            IGamePlayEventListener<LevelLostEvent>,
-            IGamePlayEventListener<TutorialClosedEvent>
+            IGamePlayEventListener<LevelLostEvent>
         {
             [SerializeField] int applesToWin = 10;
-            [SerializeField] UIDocument document;
-            AppleCollectionView collectionView;
             int collected;
-
-            protected override void Awake()
-            {
-                base.Awake();
-                var root = document.rootVisualElement;
-                collectionView = new AppleCollectionView(container: root.Q<VisualElement>("appleCollection-container"));
-            }
-
             void Start()
             {
                 GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
@@ -52,21 +41,8 @@
                 GameEventBus.Unregister<TutorialClosedEvent>(this);
             }
 
-            public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
-            {
-                collected++;
-                collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
-
-                if (collected >= applesToWin)
-                {
-                    GameEventBus.Raise(new LevelWonEvent());
-                    collectionView.UpdateDisplay($"LEVEL COMPLETED!");
-                }
-            }
-
             public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
             {
-                
                 Debug.Log("Game won!");
             }
 
@@ -74,16 +50,13 @@
             {
                 collected = 0;
                 GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
-                collectionView.Show();
             }
 
-            public void OnGamePlayEvent(TutorialClosedEvent gameplayEvent)
-            {
-                GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
-                collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
-                collectionView.Show();
-            }
+        public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
+        {
+
         }
+    }
 
         
         public class ExplorationGameStateEvent : IGameplayEvent
@@ -132,6 +105,7 @@
             public InGameGameStateEvent()
             {
                 // Cursor hide and fix state
+                Debug.Log("Ïn Game");
                 CursorUtility.LockAndHide(visible: false,lockstate: true);
             }
         }
