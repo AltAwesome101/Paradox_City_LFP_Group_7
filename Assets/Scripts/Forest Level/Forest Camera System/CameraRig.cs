@@ -25,10 +25,22 @@ namespace Forestlevel
             ExploreCamera.Priority = cameraType == CameraType.FreeLook? 10 : 0;
             InGameCamera.Priority = cameraType == CameraType.InGame? 10 : 0;
         }
-        void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);
-        void OnDisable() => GameEventBus.Unregister<CameraChangeEvent>(this);
+        void OnEnable()
+        {
+            GameEventBus.Register<CameraChangeEvent>(this);
+            GameEventBus.Register<CameraTrackTargetEvent>(this);
+        }
+        void OnDisable()
+        {
+            GameEventBus.Unregister<CameraChangeEvent>(this);
+            GameEventBus.Unregister<CameraTrackTargetEvent>(this);
+        }
 
-        public void OnGamePlayEvent(CameraTrackTargetEvent evt)=> InGameCamera.Target.TrackingTarget =  evt.target;
+        public void OnGamePlayEvent(CameraTrackTargetEvent evt)
+        {
+            InGameCamera.Target.TrackingTarget = evt.target;
+            InGameCamera.PreviousStateIsValid = false;   // snap to the new anchor instead of blending from the old zone
+        }
     }
 
     public enum CameraType

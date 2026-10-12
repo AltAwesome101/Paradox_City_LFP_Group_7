@@ -190,9 +190,9 @@ public readonly struct DeploySessionStartedEvent : IGameplayEvent
         Zone = z; 
 
         //Raising Camera type change = Objective
+        GameEventBus.Raise<CameraTrackTargetEvent>(new CameraTrackTargetEvent(z.CameraAnchor));
         GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame));
         GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent(z.PlayerSpawn.position)); 
-        GameEventBus.Raise<CameraTrackTargetEvent>(new CameraTrackTargetEvent(z.CameraAnchor));
 
         // Raise Game State event
         GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
