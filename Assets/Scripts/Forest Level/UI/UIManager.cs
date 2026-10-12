@@ -14,11 +14,15 @@ public enum UIState{
 
 public class UIManager : Singleton<UIManager>,
     IGamePlayEventListener<TutorialStartedEvent>,
-    IGamePlayEventListener<TutorialClosedEvent>
+    IGamePlayEventListener<TutorialClosedEvent>,
+    IGamePlayEventListener<InteractPromptEvent>,
+    IGamePlayEventListener<DeploySessionStartedEvent>,
+    IGamePlayEventListener<DeploySessionEndedEvent>
 {
     [Header("UI Document")]
     [SerializeField] UIDocument document;
     [SerializeField] InputReaderSO input;
+    [SerializeField] AppleWarningCounterDataSO warningData;
 
     [Header("Pause Menu info")]   // moved over from the old TutorialController
     [SerializeField] SceneReference currentScene;
@@ -31,12 +35,14 @@ public class UIManager : Singleton<UIManager>,
     public PauseMenuView PauseMenu{get; private set;}
     public WakeMeterUIView WakeMeter{get; private set;}
     public TutorialView Tutorial{get; private set;}
+    public AppleWarningCounterView WarningCounter { get; private set; }
+    public InteractPromptView InteractPrompt { get; private set; }
+
 
     readonly List<IHideableView> _allViews = new();
     readonly HashSet<IHideableView> _overlays = new(); 
     readonly Dictionary<UIState, HashSet<IHideableView>> _layouts = new();
     UIState _currentState = UIState.Exploration;
-
     protected override void Awake()
     {
         base.Awake();
@@ -49,16 +55,22 @@ public class UIManager : Singleton<UIManager>,
     {
         GameEventBus.Register<TutorialStartedEvent>(this);
         GameEventBus.Register<TutorialClosedEvent>(this);
-        _controls.Enable();
-        _controls.UI.Escape.performed += OnEscape;
+        GameEventBus.Register<InteractPromptEvent>(this);
+        GameEventBus.Register<DeploySessionStartedEvent>(this);
+        GameEventBus.Register<DeploySessionEndedEvent>(this);
+
+        input.Escape += OnEscape;
     }
 
     void OnDisable()
     {
         GameEventBus.Unregister<TutorialStartedEvent>(this);
         GameEventBus.Unregister<TutorialClosedEvent>(this);
-        _controls.UI.Escape.performed -= OnEscape;
-        _controls.Disable();
+        GameEventBus.Register<InteractPromptEvent>(this);
+        GameEventBus.Register<DeploySessionStartedEvent>(this);
+        GameEventBus.Register<DeploySessionEndedEvent>(this);
+
+        input.Escape -= OnEscape;
         GamePause.Release(PauseMenu);
     }
 
@@ -69,6 +81,8 @@ public class UIManager : Singleton<UIManager>,
         PauseMenu  = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"), currentScene, futureScene);
         Tutorial   = new TutorialView(root.Q<VisualElement>("TutorialPanel-container"));
         WakeMeter  = new WakeMeterUIView(root, disturb: 0, maxLimit: 0); // TODO real values
+        WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-element"), warningData);
+        InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
 
         _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter });
 
@@ -79,7 +93,7 @@ public class UIManager : Singleton<UIManager>,
         // Overlays (Tutorial, PauseMenu) are deliberately in no layout.
     }
 
-    void OnEscape(InputAction.CallbackContext ctx) => TogglePause();
+    void OnEscape() => TogglePause();
 
     public void TogglePause()
     {
@@ -113,4 +127,16 @@ public class UIManager : Singleton<UIManager>,
             else view.Hide();
         }
     }
+
+    public void OnGamePlayEvent(InteractPromptEvent e)
+    {
+        if (e.Visible) 
+        {   InteractPrompt.SetText(e.Text); 
+            AddOverlay(InteractPrompt);
+        }
+        else RemoveOverlay(InteractPrompt);
+    }
+    public void OnGamePlayEvent(DeploySessionStartedEvent e) => SetState(UIState.Objective);
+    public void OnGamePlayEvent(DeploySessionEndedEvent e)   => SetState(UIState.Exploration);
 }
+

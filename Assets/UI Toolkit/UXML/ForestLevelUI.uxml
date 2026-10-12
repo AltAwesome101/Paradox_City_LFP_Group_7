@@ -21,4 +21,7 @@
         <ui:Button text="Restart Level" name="restart-button" style="width: 338px; height: 64px; top: 392px; position: absolute; left: 476px; -unity-font-style: bold; font-size: 25px;"/>
         <ui:Button text="Return To Future" name="future-button" style="width: 338px; height: 64px; top: 545px; position: absolute; left: 480px; -unity-font-style: bold; font-size: 25px;"/>
     </ui:VisualElement>
+    <ui:VisualElement name="interactPrompt-container" style="flex-grow: 0; position: absolute; height: 64px; width: 568px; top: 500px; left: 745px; background-color: rgba(0, 0, 0, 0); display: flex; color: rgb(27, 27, 27);">
+        <ui:Label text="Label" name="interactPrompt-label" style="font-size: 33px; -unity-font-style: bold; color: rgb(253, 253, 253); bottom: 0; right: -18px; -unity-text-align: upper-center;"/>
+    </ui:VisualElement>
 </ui:UXML>

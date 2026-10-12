@@ -55,4 +55,11 @@ public class AppleWarningCounterView : BaseUIView
         _counter.style.translate = new StyleTranslate(new Translate(jitter.x, jitter.y));
     }
 
+    public void Clear()
+    {
+        _counter.style.visibility = Visibility.Hidden;
+        _lastShownInt = int.MinValue;      // otherwise stale state leaks into the next warning
+        _previousRemaining = -1f;
+    }
+
 }
