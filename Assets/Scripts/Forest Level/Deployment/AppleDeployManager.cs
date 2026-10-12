@@ -95,7 +95,6 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
             GameEventBus.Raise(new AppleWarningEndedEvent(kvp.Key.transform));
         }
         activeCountdowns.Clear();
-        AppleIndicatorManager.Instance.Hide();
 
         var zone = activeZone;
         if (won) zone.IsCompleted = true;
@@ -103,6 +102,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         pacer = null;
         phase = Phase.Idle;
 
+        ClearWarningUI();
         GameEventBus.Raise(new DeploySessionEndedEvent(zone, won));
         RefreshPrompt();   // lost + still standing in range -> prompt returns for a retry
     }
@@ -127,7 +127,8 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
 
     void TickCountdowns(float dt)
     {
-        foreach (var c in new List<CountdownTimer>(activeCountdowns.Values)) c.Tick(dt);
+        foreach (var c in new List<CountdownTimer>(activeCountdowns.Values)) 
+            c.Tick(dt);
     }
 
     void DeployAt(AppleDeployer deployer)
@@ -147,17 +148,27 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
             if (soonestTimer == null || kvp.Value.CurrentTime < soonestTimer.CurrentTime)
             { soonest = kvp.Key; soonestTimer = kvp.Value; }
 
-        var counter = UIManager.Instance.WarningCounter;
-        if (soonest == null) { counter.Clear(); AppleIndicatorManager.Instance.Hide(); return; }
+        if (soonest == null) { ClearWarningUI(); return; }
 
-        counter.UpdateDisplay(soonestTimer.CurrentTime);
-        AppleIndicatorManager.Instance.PointAt(soonest);
+        var ui = UIManager.Instance;
+        ui.WarningCounter.UpdateDisplay(soonestTimer.CurrentTime);
+        ui.Indicator.PointAt(soonest);
+        ui.Collection.UpdateDisplay($"{applesCaught}/{activeZone.CompletionRequirement} Apples Caught");
+
     }
 
+    void ClearWarningUI()
+    {
+        var ui = UIManager.Instance;
+        ui.WarningCounter.Clear();
+        ui.Indicator.Clear();
+    }
+    
     public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
     {
         if (phase != Phase.Playing) return;
         applesCaught++;
+
         
         if (applesCaught >= activeZone.CompletionRequirement) 
             EndSession(true);

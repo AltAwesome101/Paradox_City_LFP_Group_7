@@ -96,9 +96,9 @@ namespace Forestlevel
             var appleCatching = new AppleCatchingState(this, playerMotion, animatorController, input, sensor, this, catchEnterRadius, catchExitRadius);
             var locked = new LockedState(this, playerMotion, animatorController);
 
-            machine.AddAnyTransition(freeRoam, new FuncPredicate(() => phase == GamePhase.Exploration));
+            machine.AddAnyTransition(freeRoam, new FuncPredicate(() => phase == GamePhase.Exploration|| phase == GamePhase.Won));
             machine.AddAnyTransition(appleCatching, new FuncPredicate(() => phase == GamePhase.InGame));
-            machine.AddAnyTransition(locked, new FuncPredicate(() => phase == GamePhase.Tutorial || phase == GamePhase.Won || phase == GamePhase.Lost));
+            machine.AddAnyTransition(locked, new FuncPredicate(() => phase == GamePhase.Tutorial  || phase == GamePhase.Lost));
 
         }
 

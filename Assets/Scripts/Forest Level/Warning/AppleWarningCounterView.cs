@@ -27,8 +27,7 @@ public class AppleWarningCounterView : BaseUIView
 
     public void UpdateDisplay(float remaining)
     {
-        _container.style.display = DisplayStyle.Flex;
-        // Debug.Log("Warning Counter ON!");
+        _counter.style.visibility = Visibility.Visible;   // undo Clear()
 
         int currentInt = Mathf.CeilToInt(remaining);
         if (currentInt != _lastShownInt)

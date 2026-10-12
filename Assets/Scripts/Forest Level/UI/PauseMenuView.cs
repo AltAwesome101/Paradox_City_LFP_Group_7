@@ -7,7 +7,6 @@ using UnityEngine.SceneManagement;
 
 public class PauseMenuView : BaseUIView
 {
-    readonly VisualElement _container;
     readonly Button _restartbtn;
     readonly Button _resumebtn;
     readonly Button _futurebtn;
@@ -20,7 +19,6 @@ public class PauseMenuView : BaseUIView
 
     
     public PauseMenuView(VisualElement container,SceneReference CurrentScene,SceneReference FutureScene): base(container){
-        _container = container;
         _restartbtn = container.Q<Button>("restart-button");
         _resumebtn = container.Q<Button>("resume-button");
         _futurebtn = container.Q<Button>("future-button");

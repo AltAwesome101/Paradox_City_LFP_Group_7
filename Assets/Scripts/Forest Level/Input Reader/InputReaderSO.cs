@@ -16,6 +16,7 @@ public class InputReaderSO : ScriptableObject, DefaultInputSystem.IPlayerActions
     {
         input ??= new DefaultInputSystem();
         input.Player.SetCallbacks(this);
+        input.UI.SetCallbacks(this);
         input.Enable();
         Debug.Log("InputReader enabled and ready!");
     }
@@ -50,8 +51,9 @@ public class InputReaderSO : ScriptableObject, DefaultInputSystem.IPlayerActions
 
     public void OnEscape(InputAction.CallbackContext context)
     {
-        if(context.performed)
+        if (context.performed)
             Escape?.Invoke();
+
 
     }
 }

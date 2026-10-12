@@ -29,6 +29,7 @@
                 }
 
                 completed++;
+                Debug.Log($"Sessions Completed{completed}/{SessionToWin}");
                 if (completed >= SessionToWin)
                 {
                     levelOver = true;
