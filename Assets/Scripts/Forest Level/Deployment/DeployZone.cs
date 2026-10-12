@@ -13,6 +13,12 @@ public class DeployZone : MonoBehaviour
     [SerializeField] Transform playerSpawn;
     [SerializeField] Transform cameraAnchor;
 
+    [Header("Deploy Zone Conditions")]
+    [SerializeField]int ApplesToWin = 5;
+
+
+    public int CompletionRequirement => ApplesToWin;
+
     public Transform PlayerSpawn => playerSpawn;
     public Transform CameraAnchor => cameraAnchor;
     readonly List<AppleDeployer> _deployers = new();

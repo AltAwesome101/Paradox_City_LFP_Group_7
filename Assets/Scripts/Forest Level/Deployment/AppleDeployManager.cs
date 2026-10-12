@@ -7,8 +7,8 @@ using UnityEngine;
 
 public class AppleDeployManager : Singleton<AppleDeployManager>,
     IGamePlayEventListener<DeployZoneRangeEvent>,
-    IGamePlayEventListener<LevelWonEvent>,
-    IGamePlayEventListener<LevelLostEvent>
+    IGamePlayEventListener<AppleCollectedEvent>,
+    IGamePlayEventListener<WakeMeterFullEvent>
 {
     enum Phase { Idle, InRange, Playing }
 
@@ -27,6 +27,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     Phase phase = Phase.Idle;
     DeployZone inRangeZone, activeZone;
     readonly Dictionary<AppleDeployer, CountdownTimer> activeCountdowns = new();
+    int applesCaught;
 
     protected override void Awake()
     {
@@ -37,15 +38,15 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     void OnEnable()
     {
         GameEventBus.Register<DeployZoneRangeEvent>(this);
-        GameEventBus.Register<LevelWonEvent>(this);
-        GameEventBus.Register<LevelLostEvent>(this);
+        GameEventBus.Register<AppleCollectedEvent>(this);
+        GameEventBus.Register<WakeMeterFullEvent>(this);
         input.Interact += OnInteract;   // use whatever your InputReaderSO exposes
     }
     void OnDisable()
     {
         GameEventBus.Unregister<DeployZoneRangeEvent>(this);
-        GameEventBus.Unregister<LevelWonEvent>(this);
-        GameEventBus.Unregister<LevelLostEvent>(this);
+        GameEventBus.Unregister<AppleCollectedEvent>(this);
+        GameEventBus.Unregister<WakeMeterFullEvent>(this);
         input.Interact -= OnInteract;
     }
 
@@ -77,6 +78,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     {
         if (phase != Phase.InRange) return;
         activeZone = inRangeZone;
+        applesCaught = 0;
         pacer = new ApplePacer(activeZone, maxConcurrent, minSpawnInterval);
         phase = Phase.Playing;
         GameEventBus.Raise(new InteractPromptEvent(false, ""));
@@ -105,8 +107,6 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         RefreshPrompt();   // lost + still standing in range -> prompt returns for a retry
     }
 
-    public void OnGamePlayEvent(LevelWonEvent e)  => EndSession(true);
-    public void OnGamePlayEvent(LevelLostEvent e) => EndSession(false);
 
     // ---- warning / deploy (unchanged apart from the UI call) ----
     void BeginWarning(AppleDeployer deployer)
@@ -153,6 +153,17 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         counter.UpdateDisplay(soonestTimer.CurrentTime);
         AppleIndicatorManager.Instance.PointAt(soonest);
     }
+
+    public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
+    {
+        if (phase != Phase.Playing) return;
+        applesCaught++;
+        
+        if (applesCaught >= activeZone.CompletionRequirement) 
+            EndSession(true);
+    }
+
+    public void OnGamePlayEvent(WakeMeterFullEvent evt) => EndSession(false); 
 }
 
 public readonly struct DeployZoneRangeEvent : IGameplayEvent   // zone -> manager

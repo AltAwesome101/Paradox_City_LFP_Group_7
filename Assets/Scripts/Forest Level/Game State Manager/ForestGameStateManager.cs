@@ -7,51 +7,35 @@
     namespace Forestlevel
     {
         public class ForestGameStateManager : Singleton<ForestGameStateManager>,
-            IGamePlayEventListener<AppleCollectedEvent>,
-            IGamePlayEventListener<LevelWonEvent>,
-            IGamePlayEventListener<LevelLostEvent>
+            IGamePlayEventListener<DeploySessionEndedEvent>
         {
-            [SerializeField] int applesToWin = 10;
-            int collected = 0;
-            void Start()
+            [SerializeField] int SessionToWin = 4;
+            int completed;
+            bool levelOver;
+
+            void Start() => GameEventBus.Raise(new ExplorationGameStateEvent());
+            void OnEnable()  => GameEventBus.Register<DeploySessionEndedEvent>(this);
+            void OnDisable() => GameEventBus.Unregister<DeploySessionEndedEvent>(this);
+
+            public void OnGamePlayEvent(DeploySessionEndedEvent e)
             {
-                GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
+                if (levelOver) return;
+
+                if (!e.Won)
+                {
+                    levelOver = true;
+                    GameEventBus.Raise(new LevelLostEvent());
+                    return;
+                }
+
+                completed++;
+                if (completed >= SessionToWin)
+                {
+                    levelOver = true;
+                    GameEventBus.Raise(new LevelWonEvent());
+                }
             }
-
-
-            void OnEnable()
-            {
-                GameEventBus.Register<AppleCollectedEvent>(this);
-                GameEventBus.Register<LevelWonEvent>(this);
-                GameEventBus.Register<LevelLostEvent>(this);
-                GameEventBus.Register<TutorialClosedEvent>(this);
-            }
-
-            void OnDisable()
-            {
-                GameEventBus.Unregister<AppleCollectedEvent>(this);
-                GameEventBus.Unregister<LevelWonEvent>(this);
-                GameEventBus.Unregister<LevelLostEvent>(this);
-                GameEventBus.Unregister<TutorialClosedEvent>(this);
-            }
-
-            public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
-            {
-                Debug.Log("Game won!");
-            }
-
-            public void OnGamePlayEvent(LevelLostEvent gameplayEvent)
-            {
-                collected = 0;
-                // GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
-            }
-
-        public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
-        {
-            collected++;
-            UIManager.Instance.Collection.UpdateDisplay($"{collected}/{applesToWin}");
         }
-    }
 
         
         public class ExplorationGameStateEvent : IGameplayEvent
@@ -81,7 +65,7 @@
             public InGameGameStateEvent()
             {
                 // Cursor hide and fix state
-                Debug.Log("Ïn Game");
+                // Debug.Log("Ïn Game");
                 CursorUtility.LockAndHide(visible: false,lockstate: true);
             }
         }
