@@ -4,7 +4,7 @@ using UnityEngine.UIElements;
 
 public class BaseUIView : IHideableView
 {
-    readonly VisualElement _container;
+    protected readonly VisualElement _container;
     public BaseUIView(VisualElement container){
         _container = container;
     }

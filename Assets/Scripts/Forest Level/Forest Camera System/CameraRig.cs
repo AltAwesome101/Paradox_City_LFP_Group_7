@@ -11,7 +11,7 @@ namespace Forestlevel
         [SerializeField] CinemachineCamera ExploreCamera;
         [SerializeField] CinemachineCamera InGameCamera;
 
-        CameraType currentCameraType = CameraType.FreeLook;
+        CameraType currentCameraType = CameraType.InGame;
         public void OnGamePlayEvent(CameraChangeEvent evt){
             currentCameraType = evt.CameraType;
             ChangeCamera(currentCameraType);

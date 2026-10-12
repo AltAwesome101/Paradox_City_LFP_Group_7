@@ -16,13 +16,13 @@
             void Start()
             {
                 GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-                // Invoke(nameof(changeToPlayArea), 30f);
+                Invoke(nameof(changeToPlayArea), 5f);
             }
 
             void changeToPlayArea()
             {
                 GameEventBus.Raise<EnterPlayAreaEvent>(new EnterPlayAreaEvent());
-                GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
+                GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
             }
 
             void OnEnable()
@@ -91,11 +91,11 @@
             public EnterPlayAreaEvent()
             {
                 GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); 
-                GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = fixedLocation }); 
-                Debug.Log($"Player's new position:{fixedLocation}");
+                // GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = fixedLocation }); 
+                // Debug.Log($"Player's new position:{fixedLocation}");
 
                 
-                GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
+                // GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
             }
         }
 

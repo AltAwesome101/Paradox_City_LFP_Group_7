@@ -9,20 +9,18 @@ using UnityEngine.UIElements;
 /// (int)3(alert colour,shake, enlargen) -> float(return to smaller, base colour) ->(int)2(alert colour,shake, enlargen)-> etc... until countdown over
 /// 
 /// </summary>
-public class AppleWarningCounterUI
+public class AppleWarningCounterView : BaseUIView
 {
     readonly Label _counter;
-    readonly VisualElement _container;
     readonly AppleWarningCounterDataSO data;
 
     int _lastShownInt = int.MinValue;
     float _pulseElapsed;
     float _previousRemaining = -1f;
 
-    public AppleWarningCounterUI(VisualElement counterLabelcontainer, in AppleWarningCounterDataSO data)
-    {
-        _container =counterLabelcontainer; 
-        _counter = _container.Q<Label>("approachingApple-counter-label");
+    public AppleWarningCounterView(VisualElement container, in AppleWarningCounterDataSO data) : base(container)
+    { 
+        _counter = container.Q<Label>("approachingApple-counter-label");
         this.data = data;
         // _counter.style.position = Position.Absolute;
     }
@@ -57,5 +55,4 @@ public class AppleWarningCounterUI
         _counter.style.translate = new StyleTranslate(new Translate(jitter.x, jitter.y));
     }
 
-    public void Hide() => _container.style.display = DisplayStyle.None;
 }

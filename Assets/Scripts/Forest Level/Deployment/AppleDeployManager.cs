@@ -27,7 +27,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     [SerializeField] AppleWarningCounterDataSO Data;
     [SerializeField] Transform player;
     [SerializeField] Camera cam;
-    AppleWarningCounterUI warningCounterUI;
+    AppleWarningCounterView warningCounterUI;
 
     ISingleObjectPool<Apple> applePool;
     ApplePacer pacer;
@@ -42,7 +42,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         applePool = new SingleObjectPool<Apple>(prefab: ApplePrefab, defaultCapacity: defaultCapacity, maxSize: maxSize);
         pacer = new ApplePacer(deployerRegistry, conflictPairs, maxConcurrent, minSpawnInterval);
         var warningCounterLabel = document.rootVisualElement.Q<VisualElement>("approachingApple-counter-element");
-        warningCounterUI = new AppleWarningCounterUI(warningCounterLabel, Data);
+        warningCounterUI = new AppleWarningCounterView(warningCounterLabel, Data);
         warningCounterUI.Hide();
     }
 
@@ -154,4 +154,19 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     }
 
     public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent) => deploymentHalted = false;
+}
+
+// TODO: Remove UI management and move it to the UI Manager script
+// TODO: Refactor Deployment system. so that player moves to a location and has to interact to enter that deployment zone where only apple Deployers of that group will be deployed the rest will be ignored
+
+public class DeployGroupSelector{
+    readonly DeployRegistry deployRegistry;
+    readonly Transform player;
+
+    public DeployGroupSelector( DeployRegistry registry, Transform player){
+        this.player = player;
+        deployRegistry = registry;
+    }
+    
+    // Find Closest group of deployers from each other and the player to be the zone where the player plays from 
 }
