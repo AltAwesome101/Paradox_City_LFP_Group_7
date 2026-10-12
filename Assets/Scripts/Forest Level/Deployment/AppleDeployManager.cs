@@ -166,15 +166,39 @@ public readonly struct InteractPromptEvent : IGameplayEvent    // manager -> UIM
 {
     public readonly bool Visible; 
     public readonly string Text;
-    public InteractPromptEvent(bool v, string t) { Visible = v; Text = t; }
+    public InteractPromptEvent(bool v, string t) { 
+        Visible = v; 
+        Text = t; 
+    }
 }
+
 public readonly struct DeploySessionStartedEvent : IGameplayEvent
 {
     public readonly DeployZone Zone;
-    public DeploySessionStartedEvent(DeployZone z) { Zone = z; }
+    public DeploySessionStartedEvent(DeployZone z) { 
+        Zone = z; 
+
+        //Raising Camera type change = Objective
+        GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame));
+        GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent(z.PlayerSpawn.position)); 
+        GameEventBus.Raise<CameraTrackTargetEvent>(new CameraTrackTargetEvent(z.CameraAnchor));
+
+        // Raise Game State event
+        GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
+
+    }
 }
 public readonly struct DeploySessionEndedEvent : IGameplayEvent
 {
-    public readonly DeployZone Zone; public readonly bool Won;
-    public DeploySessionEndedEvent(DeployZone z, bool won) { Zone = z; Won = won; }
+    public readonly DeployZone Zone; 
+    public readonly bool Won;
+    public DeploySessionEndedEvent(DeployZone z, bool won) { 
+        Zone = z; 
+        Won = won;
+
+        //Raising Camera type change = Explorative
+        GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
+        // Raise Game State event
+        GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
+    }
 }

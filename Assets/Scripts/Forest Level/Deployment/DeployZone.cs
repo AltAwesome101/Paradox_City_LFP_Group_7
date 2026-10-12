@@ -9,12 +9,18 @@ public class DeployZone : MonoBehaviour
     [SerializeField] LayerMask playerMask;
     [SerializeField] string promptText = "Press E to start";
     [SerializeField] List<DeployerPair> conflictPairs;
+    [Header("Session Placement")]
+    [SerializeField] Transform playerSpawn;
+    [SerializeField] Transform cameraAnchor;
 
+    public Transform PlayerSpawn => playerSpawn;
+    public Transform CameraAnchor => cameraAnchor;
     readonly List<AppleDeployer> _deployers = new();
     public IReadOnlyList<AppleDeployer> Deployers => _deployers;
     public IReadOnlyList<DeployerPair> ConflictPairs => conflictPairs;
     public string PromptText => promptText;
     public bool IsCompleted { get; set; }
+    readonly HashSet<Collider> _inside = new();
 
     void Awake()
     {
@@ -27,11 +33,15 @@ public class DeployZone : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (InMask(other)) GameEventBus.Raise(new DeployZoneRangeEvent(this, true));
+        if (!InMask(other)) return;
+        if (_inside.Add(other) && _inside.Count == 1)
+            GameEventBus.Raise(new DeployZoneRangeEvent(this, true));
     }
+
     void OnTriggerExit(Collider other)
     {
-        if (InMask(other)) GameEventBus.Raise(new DeployZoneRangeEvent(this, false));
+        if (_inside.Remove(other) && _inside.Count == 0)
+            GameEventBus.Raise(new DeployZoneRangeEvent(this, false));
     }
     bool InMask(Collider c) => (playerMask.value & (1 << c.gameObject.layer)) != 0;
 

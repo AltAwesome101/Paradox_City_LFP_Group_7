@@ -12,18 +12,12 @@
             IGamePlayEventListener<LevelLostEvent>
         {
             [SerializeField] int applesToWin = 10;
-            int collected;
+            int collected = 0;
             void Start()
             {
                 GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-                Invoke(nameof(changeToPlayArea), 5f);
             }
 
-            void changeToPlayArea()
-            {
-                GameEventBus.Raise<EnterPlayAreaEvent>(new EnterPlayAreaEvent());
-                GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
-            }
 
             void OnEnable()
             {
@@ -49,12 +43,13 @@
             public void OnGamePlayEvent(LevelLostEvent gameplayEvent)
             {
                 collected = 0;
-                GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
+                // GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
             }
 
         public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
         {
-
+            collected++;
+            UIManager.Instance.Collection.UpdateDisplay($"{collected}/{applesToWin}");
         }
     }
 
@@ -65,10 +60,6 @@
 
             public ExplorationGameStateEvent()
             {
-                GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
-                // GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = ExploreLocation }); 
-                // Debug.Log($"Player's new position:{ExploreLocation}");
-
                 // Cursor hid and fix state
                 CursorUtility.LockAndHide(visible: false,lockstate: true);
             }
@@ -83,21 +74,6 @@
             }
         }
 
-        public class EnterPlayAreaEvent : IGameplayEvent
-        {
-            
-            static readonly Vector3 fixedLocation = new Vector3(-0.2f, 1.077f, 57.9f); 
-
-            public EnterPlayAreaEvent()
-            {
-                GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); 
-                // GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = fixedLocation }); 
-                // Debug.Log($"Player's new position:{fixedLocation}");
-
-                
-                // GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
-            }
-        }
 
         public class InGameGameStateEvent : IGameplayEvent
         {

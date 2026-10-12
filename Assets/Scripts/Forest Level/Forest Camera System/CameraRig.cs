@@ -6,12 +6,15 @@ using Unity.Cinemachine;
 
 namespace Forestlevel
 {
-    public class CameraRig : MonoBehaviour,IGamePlayEventListener<CameraChangeEvent>
+    public class CameraRig : MonoBehaviour
+    ,IGamePlayEventListener<CameraChangeEvent>
+    ,IGamePlayEventListener<CameraTrackTargetEvent>
     {
         [SerializeField] CinemachineCamera ExploreCamera;
         [SerializeField] CinemachineCamera InGameCamera;
 
-        CameraType currentCameraType = CameraType.InGame;
+        CameraType currentCameraType = CameraType.FreeLook;
+        
         public void OnGamePlayEvent(CameraChangeEvent evt){
             currentCameraType = evt.CameraType;
             ChangeCamera(currentCameraType);
@@ -25,6 +28,7 @@ namespace Forestlevel
         void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);
         void OnDisable() => GameEventBus.Unregister<CameraChangeEvent>(this);
 
+        public void OnGamePlayEvent(CameraTrackTargetEvent evt)=> InGameCamera.Target.TrackingTarget =  evt.target;
     }
 
     public enum CameraType
@@ -41,4 +45,13 @@ namespace Forestlevel
     }
 
 
+}
+
+
+public struct CameraTrackTargetEvent: IGameplayEvent{
+    public readonly Transform target;
+    public CameraTrackTargetEvent(Transform target)
+    {
+        this.target = target;
+    }
 }

@@ -5,6 +5,9 @@ namespace Forestlevel
 {
     public struct PlayerLocationEvent : IGameplayEvent
     {
-        public Vector3 Destination{get;set;}
+        public readonly Vector3 Destination{get;}
+        public PlayerLocationEvent(Vector3 destination){
+            Destination = destination;
+        }
     }
 }

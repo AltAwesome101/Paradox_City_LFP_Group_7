@@ -28,7 +28,6 @@ public class UIManager : Singleton<UIManager>,
     [SerializeField] SceneReference currentScene;
     [SerializeField] SceneReference futureScene;
 
-    DefaultInputSystem _controls; // same Escape binding the old controller used
     
     // public UI view Declarations
     public AppleCollectionView Collection{get; private set;}
@@ -46,7 +45,7 @@ public class UIManager : Singleton<UIManager>,
     protected override void Awake()
     {
         base.Awake();
-        _controls = new DefaultInputSystem();
+
         DeclareUIViewsAndLayout();
         SetState(UIState.Exploration);
     }
@@ -66,9 +65,9 @@ public class UIManager : Singleton<UIManager>,
     {
         GameEventBus.Unregister<TutorialStartedEvent>(this);
         GameEventBus.Unregister<TutorialClosedEvent>(this);
-        GameEventBus.Register<InteractPromptEvent>(this);
-        GameEventBus.Register<DeploySessionStartedEvent>(this);
-        GameEventBus.Register<DeploySessionEndedEvent>(this);
+        GameEventBus.Unregister<InteractPromptEvent>(this);          // these three say Register
+        GameEventBus.Unregister<DeploySessionStartedEvent>(this);    // in your pasted version
+        GameEventBus.Unregister<DeploySessionEndedEvent>(this);
 
         input.Escape -= OnEscape;
         GamePause.Release(PauseMenu);
@@ -84,13 +83,12 @@ public class UIManager : Singleton<UIManager>,
         WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-element"), warningData);
         InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
 
-        _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter });
+        _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter,WarningCounter,InteractPrompt});
 
-        _layouts[UIState.Objective]   = new HashSet<IHideableView> { Collection, WakeMeter };
+        _layouts[UIState.Objective] = new HashSet<IHideableView> { Collection, WakeMeter, WarningCounter };
         _layouts[UIState.Exploration] = new HashSet<IHideableView>();
 
         PauseMenu.ResumeRequested += () => RemoveOverlay(PauseMenu);
-        // Overlays (Tutorial, PauseMenu) are deliberately in no layout.
     }
 
     void OnEscape() => TogglePause();
@@ -105,6 +103,7 @@ public class UIManager : Singleton<UIManager>,
     void SetState(UIState state)
     {
         _currentState = state;
+        Debug.Log($"UI State: {state}");
         ApplyVisibility();
     }
 
