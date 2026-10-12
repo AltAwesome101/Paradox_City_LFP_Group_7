@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using static System.Net.Mime.MediaTypeNames;
 
 public class UIMENUMANAGER : MonoBehaviour
 {
@@ -12,6 +9,10 @@ public class UIMENUMANAGER : MonoBehaviour
     private void Start()
     {
         Time.timeScale = 0f;
+
+        // Main menu is showing: the mouse must be usable
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     public void PlayGame()
@@ -20,6 +21,10 @@ public class UIMENUMANAGER : MonoBehaviour
         MainMenuPanel.SetActive(false);
         GameUIPanel.SetActive(true);
         mainplayer.SetActive(true);
+
+        // Gameplay: hide and lock the mouse
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     public void ExitGame()
@@ -27,7 +32,7 @@ public class UIMENUMANAGER : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
-        UnityEngine.Application.Quit();
+        Application.Quit();
 #endif
     }
 }
