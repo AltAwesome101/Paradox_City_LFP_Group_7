@@ -8,6 +8,8 @@ public class DeployZone : MonoBehaviour
     [SerializeField] DeployZoneRegistry registry;
     [SerializeField] LayerMask playerMask;
     [SerializeField] string promptText = "Press E to start";
+    [SerializeField]  GameObject[] borders;
+    [SerializeField] GameObject marker;
     [SerializeField] List<DeployerPair> conflictPairs;
     [Header("Session Placement")]
     [SerializeField] Transform playerSpawn;
@@ -17,6 +19,9 @@ public class DeployZone : MonoBehaviour
     [SerializeField]int ApplesToWin = 5;
 
 
+
+    public GameObject [] Borders => borders;
+    public GameObject Marker => marker;
     public int CompletionRequirement => ApplesToWin;
 
     public Transform PlayerSpawn => playerSpawn;

@@ -83,6 +83,11 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
         phase = Phase.Playing;
         GameEventBus.Raise(new InteractPromptEvent(false, ""));
         GameEventBus.Raise(new DeploySessionStartedEvent(activeZone));
+
+        activeZone.Marker.SetActive(false);
+        foreach (var border in activeZone.Borders){
+            border.SetActive(true);
+        }
     }
 
     void EndSession(bool won)
@@ -95,6 +100,10 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
             GameEventBus.Raise(new AppleWarningEndedEvent(kvp.Key.transform));
         }
         activeCountdowns.Clear();
+
+        foreach (var border in activeZone.Borders){
+            border.SetActive(false);
+        }
 
         var zone = activeZone;
         if (won) zone.IsCompleted = true;
