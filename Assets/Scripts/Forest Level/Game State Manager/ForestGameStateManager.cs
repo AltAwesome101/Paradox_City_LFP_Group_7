@@ -3,13 +3,15 @@
     using UnityEngine;
     using UnityEngine.UIElements;
     using GameDevExtensionMethods;
+using UnityEngine.SceneManagement;
 
-    namespace Forestlevel
+namespace Forestlevel
     {
         public class ForestGameStateManager : Singleton<ForestGameStateManager>,
             IGamePlayEventListener<DeploySessionEndedEvent>
         {
             [SerializeField] int SessionToWin = 4;
+            [SerializeField] SceneReference currentScene;
             int completed;
             bool levelOver;
 
@@ -25,6 +27,8 @@
                 {
                     levelOver = true;
                     GameEventBus.Raise(new LevelLostEvent());
+                    SceneManager.LoadScene(currentScene.Name);
+
                     return;
                 }
 
