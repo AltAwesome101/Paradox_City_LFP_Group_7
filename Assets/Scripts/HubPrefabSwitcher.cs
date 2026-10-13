@@ -167,7 +167,11 @@ public class HubPrefabSwitcher : MonoBehaviour
     [Tooltip("Fires once when the parts are installed. Hook up the flight system here.")]
     [SerializeField] private UnityEvent onDeloreanRepaired;
 
-   
+    [Header("Wrong Beer consequence - advert quads (all generated in code)")]
+    [SerializeField] private WrongBeerAdBoards wrongBeerAds = new WrongBeerAdBoards();
+    private bool _beerApplied;
+
+
     private class FloatItem
     {
         public Transform t;
@@ -242,6 +246,9 @@ public class HubPrefabSwitcher : MonoBehaviour
         CacheFloatItems();
         CacheTimeMachines();
         BuildMissionBeams();
+
+        _beerApplied = WorldStateManager.Instance.IsLevelCompleted(LevelId.WrongBeer);
+        wrongBeerAds.Initialise(_beerApplied);
         SyncWithWorldState();
         RefreshMission();
     }
@@ -252,6 +259,7 @@ public class HubPrefabSwitcher : MonoBehaviour
             if (b != null && b.go != null) Destroy(b.go);
         if (_deloreanBeam != null && _deloreanBeam.go != null) Destroy(_deloreanBeam.go);
         if (_builtMaterial != null) Destroy(_builtMaterial);
+        wrongBeerAds.Dispose();
     }
 
     private void Update()
@@ -392,7 +400,12 @@ public class HubPrefabSwitcher : MonoBehaviour
             RefreshMission();
         }
 
-        // Wrong Beer: Thandolwethu Your Task Bro !
+        bool beer = wsm.IsLevelCompleted(LevelId.WrongBeer);
+        if (beer != _beerApplied)
+        {
+            _beerApplied = beer;
+            wrongBeerAds.SetCompleted(beer);
+        }
     }
 
    
