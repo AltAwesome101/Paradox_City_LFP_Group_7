@@ -15,7 +15,11 @@ namespace Forestlevel
             int completed;
             bool levelOver;
 
-            void Start() => GameEventBus.Raise(new ExplorationGameStateEvent());
+            void Start()
+            {
+                GameEventBus.Raise(new ExplorationGameStateEvent());
+                UIManager.Instance.Objective.UpdateDisplay($"DeployZone Completed {completed}/{SessionToWin}");
+            }
             void OnEnable()  => GameEventBus.Register<DeploySessionEndedEvent>(this);
             void OnDisable() => GameEventBus.Unregister<DeploySessionEndedEvent>(this);
 
@@ -33,10 +37,14 @@ namespace Forestlevel
                 }
 
                 completed++;
-                Debug.Log($"Sessions Completed{completed}/{SessionToWin}");
+                UIManager.Instance.Objective.UpdateDisplay($"DeployZone Completed {completed}/{SessionToWin}");
+
+                Debug.Log($"DeployZone Completed{completed}/{SessionToWin}");
                 if (completed >= SessionToWin)
                 {
                     levelOver = true;
+                    WorldStateManager.Instance.SetLevelCompleted(LevelId.AppleForest, true);
+                    UIManager.Instance.PauseMenu.ReturnToFuture();
                     GameEventBus.Raise(new LevelWonEvent());
                 }
             }

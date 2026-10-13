@@ -41,6 +41,7 @@ public class UIManager : Singleton<UIManager>,
     public AppleWarningCounterView WarningCounter { get; private set; }
     public InteractPromptView InteractPrompt { get; private set; }
     public AppleIndicatorView Indicator { get; private set; }
+    public ObjectiveView Objective {get; private set;}
 
 
 
@@ -89,11 +90,12 @@ public class UIManager : Singleton<UIManager>,
         WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-element"), warningData);
         InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
         Indicator = new AppleIndicatorView(root.Q<VisualElement>("applenotifier-element-archor"), indicatorSettings, cam, player);
+        Objective = new ObjectiveView(root.Q<VisualElement>("objective-container"));
 
-        _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter,WarningCounter,InteractPrompt});
+        _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter,WarningCounter,InteractPrompt,Objective});
 
         _layouts[UIState.Objective] = new HashSet<IHideableView> { Collection, WakeMeter, WarningCounter, Indicator };
-        _layouts[UIState.Exploration] = new HashSet<IHideableView>();
+        _layouts[UIState.Exploration] = new HashSet<IHideableView>{Objective};
 
         PauseMenu.ResumeRequested += () => RemoveOverlay(PauseMenu);
     }

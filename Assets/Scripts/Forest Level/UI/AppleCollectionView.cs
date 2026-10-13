@@ -10,7 +10,6 @@ namespace Forestlevel
             : base(container)
         {
             _collectionLabel = container.Q<Label>("appleCollection-label");
-            Hide();
         }
 
         public void UpdateDisplay(string display)=> _collectionLabel.text = display;
