@@ -87,6 +87,9 @@ public class Level1ObjectiveTracker : MonoBehaviour
         // All paintings have been corrected.
         if (completedCount >= paintings.Count)
         {
+            // Record the consequence so the Future hub can read it
+            WorldStateManager.Instance.SetLevelCompleted(LevelId.ArtistHitler);
+
             hitler.Celebrate();
 
             StartCoroutine(FinishLevelAfterDelay());
