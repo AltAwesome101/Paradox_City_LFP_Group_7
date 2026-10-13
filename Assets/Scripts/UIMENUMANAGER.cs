@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using static System.Net.Mime.MediaTypeNames;
 
 public class UIMENUMANAGER : MonoBehaviour
 {
@@ -9,16 +6,41 @@ public class UIMENUMANAGER : MonoBehaviour
     public GameObject GameUIPanel;
     public GameObject mainplayer;
 
+    
+    private static bool s_menuShown;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        s_menuShown = false;
+    }
+
     private void Start()
     {
+        if (s_menuShown)
+        {
+            // Menu was already shown earlier this playthrough: go straight into gameplay.
+            StartGameplay();
+            return;
+        }
+
         Time.timeScale = 0f;
 
-                // Main menu is showing: the mouse must be usable
+        // Main menu is showing: the mouse must be usable
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+
+        MainMenuPanel.SetActive(true);
+        GameUIPanel.SetActive(false);
     }
 
     public void PlayGame()
+    {
+        s_menuShown = true;
+        StartGameplay();
+    }
+
+    private void StartGameplay()
     {
         Time.timeScale = 1f;
         MainMenuPanel.SetActive(false);
@@ -35,7 +57,7 @@ public class UIMENUMANAGER : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
-        UnityEngine.Application.Quit();
+        Application.Quit();
 #endif
     }
 }

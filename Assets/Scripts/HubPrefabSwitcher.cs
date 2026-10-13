@@ -12,6 +12,22 @@ public class HubPrefabSwitcher : MonoBehaviour
         Destroy     
     }
 
+    [System.Serializable]
+    public class FloatingTimeMachine
+    {
+        [Tooltip("The time machine in the scene (drag from the Hierarchy).")]
+        public Transform timeMachine;
+        [Tooltip("How many world units above its normal position this time machine floats.")]
+        public float floatHeight = 20f;
+
+        [System.NonSerialized] public Vector3 originalPos;
+        [System.NonSerialized] public Rigidbody rb;
+        [System.NonSerialized] public bool wasKinematic;
+        [System.NonSerialized] public float offset;
+        [System.NonSerialized] public float offsetVelocity;
+        [System.NonSerialized] public float bobPhase;
+    }
+
 
     [Header("DEBUG - Simulate level completion (Play Mode only)")]
     [Tooltip("Tick to mark the level complete and apply its consequence. Untick to undo it. " +
@@ -87,9 +103,20 @@ public class HubPrefabSwitcher : MonoBehaviour
              "Side effect: floating objects pass through each other.")]
     [SerializeField] private bool disableCollidersWhileFloating = true;
 
-    
+    [Header("Time machines - rise above their normal position once Apple Forest is complete")]
+    [Tooltip("Add one entry per time machine and set its own float height.")]
+    [SerializeField] private List<FloatingTimeMachine> timeMachines = new List<FloatingTimeMachine>();
+    [Tooltip("Higher = slower, softer rise.")]
+    [SerializeField] private float liftSmoothTime = 4f;
+    [Tooltip("Maximum rising speed in units per second.")]
+    [SerializeField] private float liftMaxSpeed = 8f;
+    [Tooltip("How far each time machine bobs up and down once it has risen. 0 = no bobbing.")]
+    [SerializeField] private float bobAmount = 0.5f;
+    [SerializeField] private float bobSpeed = 0.8f;
+
+
     // DELOREAN REPAIR MISSION 
-    
+
     [Header("DeLorean mission - parts (mission starts once Apple Forest is complete)")]
     [Tooltip("The part objects placed around the hub (drag from the Hierarchy). " +
              "They stay hidden until the mission starts. The counter total is the number of items here (use 3).")]
@@ -213,6 +240,7 @@ public class HubPrefabSwitcher : MonoBehaviour
     {
         CacheHitlerObjects();
         CacheFloatItems();
+        CacheTimeMachines();
         BuildMissionBeams();
         SyncWithWorldState();
         RefreshMission();
@@ -232,6 +260,7 @@ public class HubPrefabSwitcher : MonoBehaviour
         SyncWithWorldState();
 
         if (_appleApplied) UpdateFloating();
+        UpdateTimeMachines();
         UpdateMission();
     }
 
@@ -269,6 +298,66 @@ public class HubPrefabSwitcher : MonoBehaviour
         }
     }
 
+    private void CacheTimeMachines()
+    {
+        foreach (var tm in timeMachines)
+        {
+            if (tm == null || tm.timeMachine == null) continue;
+
+            tm.originalPos = tm.timeMachine.position;
+            tm.rb = tm.timeMachine.GetComponent<Rigidbody>();
+            tm.wasKinematic = tm.rb != null && tm.rb.isKinematic;
+            tm.offset = 0f;
+            tm.offsetVelocity = 0f;
+            tm.bobPhase = Random.value * Mathf.PI * 2f;
+        }
+    }
+
+    private void RaiseTimeMachines()
+    {
+        foreach (var tm in timeMachines)
+        {
+            if (tm == null || tm.timeMachine == null) continue;
+
+            if (tm.rb != null) tm.rb.isKinematic = true; // so physics doesn't fight the lift
+            tm.offsetVelocity = 0f;
+        }
+    }
+
+    private void LowerTimeMachines()
+    {
+        foreach (var tm in timeMachines)
+        {
+            if (tm == null || tm.timeMachine == null) continue;
+
+            tm.offset = 0f;
+            tm.offsetVelocity = 0f;
+            tm.timeMachine.position = tm.originalPos;
+            if (tm.rb != null) tm.rb.isKinematic = tm.wasKinematic;
+        }
+    }
+
+    private void UpdateTimeMachines()
+    {
+        if (!_appleApplied) return;
+
+        float dt = Time.deltaTime;
+
+        foreach (var tm in timeMachines)
+        {
+            if (tm == null || tm.timeMachine == null) continue;
+
+            tm.offset = Mathf.SmoothDamp(tm.offset, tm.floatHeight,
+                                         ref tm.offsetVelocity, liftSmoothTime, liftMaxSpeed, dt);
+
+            
+            float arrived = tm.floatHeight > 0.01f ? Mathf.Clamp01(tm.offset / tm.floatHeight) : 0f;
+            float bob = Mathf.Sin(Time.time * bobSpeed * Mathf.PI * 2f + tm.bobPhase) * bobAmount * arrived;
+
+            tm.timeMachine.position = tm.originalPos + Vector3.up * (tm.offset + bob);
+        }
+    }
+
     private void SyncToggle(LevelId level, ref bool toggle, ref bool last)
     {
         var wsm = WorldStateManager.Instance;
@@ -298,8 +387,8 @@ public class HubPrefabSwitcher : MonoBehaviour
         if (apple != _appleApplied)
         {
             _appleApplied = apple;
-            if (apple) StartFloating();
-            else StopFloating();
+            if (apple) { StartFloating(); RaiseTimeMachines(); }
+            else { StopFloating(); LowerTimeMachines(); }
             RefreshMission();
         }
 

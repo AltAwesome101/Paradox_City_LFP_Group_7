@@ -6,6 +6,13 @@ using UnityEngine.UI;
 using TMPro;
 using StarterAssets;
 
+public enum LineRequirement
+{
+    Any,            // don't care
+    MustBeDone,     // only show this line if it IS complete
+    MustNotBeDone   // only show this line if it is NOT complete
+}
+
 [System.Serializable]
 public class DialogueLine
 {
@@ -14,6 +21,14 @@ public class DialogueLine
 
     [Tooltip("Index in cameraswap1's camera list to switch to when this line starts. Use -1 to leave the camera where it is.")]
     public int cameraIndexForThisLine = -1;
+
+    [Header("Only show this line when... (Any = always)")]
+    public LineRequirement anyLevelCompleted;
+    public LineRequirement allLevelsCompleted;
+    public LineRequirement artistHitlerCompleted;
+    public LineRequirement appleForestCompleted;
+    public LineRequirement wrongBeerCompleted;
+    public LineRequirement deloreanRepaired;
 }
 
 
@@ -93,6 +108,14 @@ public class BiboGuide : MonoBehaviour
     [Tooltip("Optional: a small UI element that says 'Press E to Interact'.")]
     public GameObject interactPromptUI;
 
+    [Header("Interaction prompt limit")]
+    [Tooltip("The 'Press E' prompt only appears this many times per playthrough. E still works afterwards.")]
+    public int maxPromptShows = 2;
+
+    [Tooltip("The player must stay out of range this long before walking back in counts as a new showing. " +
+             "Stops flicker at the edge of the range from using up the shows.")]
+    public float promptRearmSeconds = 3f;
+
     [Header("Player Control Lock - assign ONE of these two")]
     public ThirdPersonController thirdPersonController;
     public PlayerScript playerScript;
@@ -131,7 +154,7 @@ public class BiboGuide : MonoBehaviour
     [Tooltip("Seconds between each typed character")]
     public float typeSpeed = 0.02f;
 
-    [Tooltip("Leave empty to use the built-in default line-up")]
+    [Tooltip("Leave EMPTY (Size 0) to use the built-in, progress-aware default line-up")]
     public List<DialogueLine> dialogueLines = new List<DialogueLine>();
 
     [Header("Check-in UI (optional)")]
@@ -165,7 +188,7 @@ public class BiboGuide : MonoBehaviour
     private InteractIndicator indicator;
 
     // Flight
-    private Vector3 _logicalPos;      
+    private Vector3 _logicalPos;
     private Vector3 _homePos;
     private Vector3 _flightVelocity;
     private bool _facePlayer;
@@ -186,6 +209,7 @@ public class BiboGuide : MonoBehaviour
     private int currentLineIndex;
     private bool isTyping;
     private Coroutine typingCoroutine;
+    private readonly List<DialogueLine> _activeLines = new List<DialogueLine>();
 
     // Animation
     private string _currentAnim;
@@ -193,11 +217,23 @@ public class BiboGuide : MonoBehaviour
     private readonly HashSet<string> _warnedStates = new HashSet<string>();
     private float _nextPlayerSearch;
 
+    // Interaction prompt limit
+    // Static = survives scene reloads, so the limit is per playthrough, not per scene load.
+    private static int s_promptShowCount;
+    private bool _approachCounted;
+    private bool _approachMayShowPrompt;
+    private float _outOfRangeTime;
+
     private GameObject QuipPanel => quipBox != null ? quipBox : dialogueBox;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetPromptStatics()
+    {
+        s_promptShowCount = 0;
+    }
 
     private void Awake()
     {
-        
         var leftoverAgent = GetComponent<NavMeshAgent>();
         if (leftoverAgent != null)
         {
@@ -205,7 +241,6 @@ public class BiboGuide : MonoBehaviour
             Debug.LogWarning("[BiboGuide] A NavMeshAgent is still on BIBO. It has been disabled - you can remove the component.");
         }
 
-        
         rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
@@ -218,11 +253,9 @@ public class BiboGuide : MonoBehaviour
 
         if (useAnimator && animator == null) animator = GetComponentInChildren<Animator>();
 
-        
         foreach (var a in GetComponentsInChildren<Animator>(true))
             a.applyRootMotion = false;
 
-        
         if (patrolPoints != null)
         {
             foreach (var wp in patrolPoints)
@@ -418,7 +451,6 @@ public class BiboGuide : MonoBehaviour
             _logicalPos.y = Mathf.Max(_logicalPos.y, currentGround + minGroundClearance * 0.5f);
     }
 
-    
     private bool TryGetGroundY(Vector3 pos, out float groundY)
     {
         groundY = 0f;
@@ -495,16 +527,12 @@ public class BiboGuide : MonoBehaviour
     private void ApplyMotion()
     {
         // Facing: look at the player when talking, otherwise face the direction of travel
-        Vector3 face = Vector3.zero;
+        Vector3 face;
 
         if (_facePlayer && PlayerReady())
-        {
             face = player.position - _logicalPos;
-        }
         else
-        {
             face = _flightVelocity;
-        }
 
         face.y = 0f;
         float minFace = (_facePlayer && PlayerReady()) ? 0.04f : 0.25f;
@@ -574,7 +602,7 @@ public class BiboGuide : MonoBehaviour
         _state = State.CheckInApproach;
         _checkInElapsed = 0f;
 
-        // Approach from the side BIBO is already on
+        
         Vector3 away = _logicalPos - player.position;
         away.y = 0f;
         _checkInDir = away.sqrMagnitude > 0.01f ? away.normalized : player.forward;
@@ -595,7 +623,7 @@ public class BiboGuide : MonoBehaviour
         Vector3 point = GetCheckInPoint();
         FlyTowards(point, flySpeed * checkInSpeedMultiplier);
 
-        // Face where he is heading until he arrives
+        
         _facePlayer = Vector3.Distance(_logicalPos, point) < checkInDistance * 2f;
 
         if (Vector3.Distance(_logicalPos, point) <= 1.5f)
@@ -616,7 +644,7 @@ public class BiboGuide : MonoBehaviour
             return;
         }
 
-        // Keep hovering beside the player while talking
+        
         FlyTowards(GetCheckInPoint(), flySpeed * checkInSpeedMultiplier);
         _facePlayer = true;
     }
@@ -625,7 +653,7 @@ public class BiboGuide : MonoBehaviour
     {
         _state = State.Roaming;
         _facePlayer = false;
-        _checkInTimer = _currentInterval * 0.5f; // try again a bit sooner
+        _checkInTimer = _currentInterval * 0.5f; 
     }
 
     private void BeginQuip()
@@ -670,7 +698,7 @@ public class BiboGuide : MonoBehaviour
             _quipRoutine = null;
         }
 
-        // Don't hide the shared box if a real conversation is using it
+        
         GameObject panel = QuipPanel;
         if (panel != null && !inDialogue) panel.SetActive(false);
 
@@ -685,15 +713,18 @@ public class BiboGuide : MonoBehaviour
         var world = WorldStateManager.Instance;
         bool anyComplete = false;
 
-        if (world.IsLevelCompleted(LevelId.ArtistHitler)) { pool.AddRange(afterHitlerQuips); anyComplete = true; }
-        if (world.IsLevelCompleted(LevelId.AppleForest)) { pool.AddRange(afterAppleForestQuips); anyComplete = true; }
-        if (world.IsLevelCompleted(LevelId.WrongBeer)) { pool.AddRange(afterWrongBeerQuips); anyComplete = true; }
+        if (world != null)
+        {
+            if (world.IsLevelCompleted(LevelId.ArtistHitler)) { pool.AddRange(afterHitlerQuips); anyComplete = true; }
+            if (world.IsLevelCompleted(LevelId.AppleForest)) { pool.AddRange(afterAppleForestQuips); anyComplete = true; }
+            if (world.IsLevelCompleted(LevelId.WrongBeer)) { pool.AddRange(afterWrongBeerQuips); anyComplete = true; }
+        }
 
         if (!anyComplete) pool.AddRange(earlyGameQuips);
 
         if (pool.Count == 0) return null;
 
-        // Avoid saying the same line twice in a row
+       
         string pick = pool[Random.Range(0, pool.Count)];
         for (int tries = 0; tries < 10 && pool.Count > 1 && pick == _lastQuip; tries++)
             pick = pool[Random.Range(0, pool.Count)];
@@ -710,7 +741,25 @@ public class BiboGuide : MonoBehaviour
     {
         if (interactPromptUI == null) return;
 
-        bool shouldShow = playerNearby && !inDialogue;
+        if (playerNearby)
+        {
+            _outOfRangeTime = 0f;
+
+            
+            if (!_approachCounted)
+            {
+                _approachCounted = true;
+                _approachMayShowPrompt = s_promptShowCount < maxPromptShows;
+                if (_approachMayShowPrompt) s_promptShowCount++;
+            }
+        }
+        else
+        {
+            _outOfRangeTime += Time.unscaledDeltaTime;
+            if (_outOfRangeTime >= promptRearmSeconds) _approachCounted = false;
+        }
+
+        bool shouldShow = playerNearby && _approachMayShowPrompt && !inDialogue;
         if (interactPromptUI.activeSelf != shouldShow)
             interactPromptUI.SetActive(shouldShow);
     }
@@ -719,22 +768,66 @@ public class BiboGuide : MonoBehaviour
     // DIALOGUE
     // =============================================================
 
+    
+    private void BuildActiveDialogue()
+    {
+        _activeLines.Clear();
+
+        foreach (var line in dialogueLines)
+            if (line != null && LineApplies(line)) _activeLines.Add(line);
+
+        if (_activeLines.Count == 0)
+        {
+            Debug.LogWarning("[BiboGuide] No dialogue line matched the current progress, using a fallback line.");
+            _activeLines.Add(new DialogueLine { text = "Nothing new from me. Go fix history!", cameraIndexForThisLine = -1 });
+        }
+    }
+
+    private bool LineApplies(DialogueLine line)
+    {
+        var world = WorldStateManager.Instance;
+
+        bool hitler = world != null && world.IsLevelCompleted(LevelId.ArtistHitler);
+        bool apple = world != null && world.IsLevelCompleted(LevelId.AppleForest);
+        bool beer = world != null && world.IsLevelCompleted(LevelId.WrongBeer);
+
+        return Matches(line.anyLevelCompleted, hitler || apple || beer)
+            && Matches(line.allLevelsCompleted, hitler && apple && beer)
+            && Matches(line.artistHitlerCompleted, hitler)
+            && Matches(line.appleForestCompleted, apple)
+            && Matches(line.wrongBeerCompleted, beer)
+            && Matches(line.deloreanRepaired, HubPrefabSwitcher.DeloreanRepaired);
+    }
+
+    private static bool Matches(LineRequirement req, bool state)
+    {
+        switch (req)
+        {
+            case LineRequirement.MustBeDone: return state;
+            case LineRequirement.MustNotBeDone: return !state;
+            default: return true;
+        }
+    }
+
     private void StartDialogue()
     {
-        // Cancel any random line that is currently showing
+        
         EndQuip();
 
         inDialogue = true;
         currentLineIndex = -1;
 
-        // Lock player
+        
+        BuildActiveDialogue();
+
+        
         SetPlayerControl(false);
 
-        // Hide interaction indicators
+        
         if (indicator != null) indicator.SetVisible(false);
         if (interactPromptUI != null) interactPromptUI.SetActive(false);
 
-        // Show dialogue UI
+        
         if (dialogueBox != null) dialogueBox.SetActive(true);
         SetSpeaker(npcName);
 
@@ -744,7 +837,7 @@ public class BiboGuide : MonoBehaviour
 
         _facePlayer = true;
 
-        if (debugLogging) Debug.Log("[BiboGuide] Dialogue started - BIBO is hovering in place.");
+        if (debugLogging) Debug.Log($"[BiboGuide] Dialogue started with {_activeLines.Count} lines - BIBO is hovering in place.");
 
         AdvanceDialogue();
     }
@@ -755,16 +848,16 @@ public class BiboGuide : MonoBehaviour
 
         if (isTyping)
         {
-            // Finish current line immediately
+            
             if (typingCoroutine != null) StopCoroutine(typingCoroutine);
 
-            SetDialogue(dialogueLines[currentLineIndex].text);
+            SetDialogue(_activeLines[currentLineIndex].text);
 
             isTyping = false;
         }
         else
         {
-            // Go to next dialogue line
+            
             AdvanceDialogue();
         }
     }
@@ -773,22 +866,22 @@ public class BiboGuide : MonoBehaviour
     {
         currentLineIndex++;
 
-        // Dialogue finished
-        if (currentLineIndex >= dialogueLines.Count)
+        
+        if (currentLineIndex >= _activeLines.Count)
         {
             EndDialogue();
             return;
         }
 
-        DialogueLine line = dialogueLines[currentLineIndex];
+        DialogueLine line = _activeLines[currentLineIndex];
 
         if (debugLogging)
-            Debug.Log($"[BiboGuide] Showing line {currentLineIndex + 1}/{dialogueLines.Count}");
+            Debug.Log($"[BiboGuide] Showing line {currentLineIndex + 1}/{_activeLines.Count}");
 
-        // Change camera if required (a bad camera index must never stop the dialogue)
+        
         SwitchCamera(line.cameraIndexForThisLine);
 
-        // Stop previous typing coroutine
+        
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
 
         typingCoroutine = StartCoroutine(TypeLine(line.text));
@@ -813,21 +906,21 @@ public class BiboGuide : MonoBehaviour
     {
         inDialogue = false;
 
-        // Hide dialogue
+        
         if (dialogueBox != null) dialogueBox.SetActive(false);
 
-        // Restore normal camera
+        
         SwitchCamera(normalCameraIndex);
 
-        // Restore player control
+        
         SetPlayerControl(true);
 
-        // Back to flying around; the next check-in countdown starts fresh
+        
         _facePlayer = false;
         _state = State.Roaming;
         ResetCheckInTimer();
 
-        // Restore interaction indicator
+        
         if (indicator != null) indicator.SetVisible(true);
 
         if (debugLogging) Debug.Log("[BiboGuide] Dialogue ended - BIBO resumed flying.");
@@ -858,7 +951,7 @@ public class BiboGuide : MonoBehaviour
         }
         else
         {
-            SetDialogue(value); // no separate quip box: reuse the dialogue text
+            SetDialogue(value); 
         }
     }
 
@@ -877,7 +970,7 @@ public class BiboGuide : MonoBehaviour
         }
     }
 
-    /// <summary>If no dialogue text was assigned, borrow one from inside the dialogue box.</summary>
+    
     private void AutoFindDialogueText()
     {
         if (dialogueText != null || dialogueTextTMP != null || dialogueBox == null) return;
@@ -908,7 +1001,7 @@ public class BiboGuide : MonoBehaviour
 
     private bool _warnedNoController;
 
-    /// <summary>If neither controller was assigned, look for the one the player is actually using.</summary>
+    
     private void EnsurePlayerControllers()
     {
         if (thirdPersonController != null || playerScript != null) return;
@@ -918,7 +1011,7 @@ public class BiboGuide : MonoBehaviour
             var tpc = player.GetComponentInChildren<ThirdPersonController>(true);
             var ps = player.GetComponentInChildren<PlayerScript>(true);
 
-            // Prefer whichever one is currently running
+            
             if (tpc != null && tpc.enabled) thirdPersonController = tpc;
             else if (ps != null && ps.enabled) playerScript = ps;
             else if (tpc != null) thirdPersonController = tpc;
@@ -1007,60 +1100,59 @@ public class BiboGuide : MonoBehaviour
         };
     }
 
+    
+    private const LineRequirement Any = LineRequirement.Any;
+    private const LineRequirement Done = LineRequirement.MustBeDone;
+    private const LineRequirement NotDone = LineRequirement.MustNotBeDone;
+
+    private static DialogueLine Line(string text, int camera,
+        LineRequirement anyLevel = Any, LineRequirement allLevels = Any,
+        LineRequirement hitler = Any, LineRequirement apple = Any,
+        LineRequirement beer = Any, LineRequirement delorean = Any)
+    {
+        return new DialogueLine
+        {
+            text = text,
+            cameraIndexForThisLine = camera,
+            anyLevelCompleted = anyLevel,
+            allLevelsCompleted = allLevels,
+            artistHitlerCompleted = hitler,
+            appleForestCompleted = apple,
+            wrongBeerCompleted = beer,
+            deloreanRepaired = delorean
+        };
+    }
+
     private List<DialogueLine> GetDefaultDialogue()
     {
         return new List<DialogueLine>
         {
-            new DialogueLine
-            {
-                text = "Oh good, you're up. Name's BIBO — self-appointed tour guide of Paradox City.",
-                cameraIndexForThisLine = 8
-            },
-            new DialogueLine
-            {
-                text = "Quick version: history's a mess. Wars that shouldn't have happened, ideas that never got their shot, meetings that went sideways — and it's all still sitting out there, unfixed.",
-                cameraIndexForThisLine = 7
-            },
-            new DialogueLine
-            {
-                text = "The world's pretty messed up right now. Think you can fix it?",
-                cameraIndexForThisLine = 7
-            },
-            new DialogueLine
-            {
-                text = "See those three time machines? Each one drops you into a moment that's still waiting to be put right.",
-                cameraIndexForThisLine = 7
-            },
-            new DialogueLine
-            {
-                text = "That one takes you to an art school entrance exam that's about to go very badly for someone. Worth a look.",
-                cameraIndexForThisLine = 3
-            },
-            new DialogueLine
-            {
-                text = "That one drops you in an orchard, under a very sleepy, soon-to-be-famous scientist. Don't wake him. Also — catch the apples.",
-                cameraIndexForThisLine = 4
-            },
-            new DialogueLine
-            {
-                text = "And that one leads to a tavern, right before a meeting that's supposed to change everything. Or doesn't. Depends what's in the glass.",
-                cameraIndexForThisLine = 5
-            },
-            new DialogueLine
-            {
-                text = "Fix what you can back there. Every change ripples forward — keep an eye on this place when you get back, it won't look the same twice.",
-                cameraIndexForThisLine = 7
-            },
-            new DialogueLine
-            {
-                text = "Oh, one more thing.",
-                cameraIndexForThisLine = 7
-            },
-            new DialogueLine
-            {
-                text = "Cool car, by the way.",
-                cameraIndexForThisLine = 6
-            }
+            // ---------- FIRST MEETING (no level completed yet) ----------
+            Line("Oh good, you're up. Name's BIBO — self-appointed tour guide of Paradox City.", 8, anyLevel: NotDone),
+            Line("Quick version: history's a mess. Wars that shouldn't have happened, ideas that never got their shot, meetings that went sideways — and it's all still sitting out there, unfixed.", 7, anyLevel: NotDone),
+            Line("The world's pretty messed up right now. Think you can fix it?", 7, anyLevel: NotDone),
+            Line("See those three time machines? Each one drops you into a moment that's still waiting to be put right.", 7, anyLevel: NotDone),
+
+            // ---------- WELCOME BACK ----------
+            Line("Welcome back! Let's see what your meddling has done to the place.", 8, anyLevel: Done),
+
+            // ---------- THANK-YOUS FOR COMPLETED LEVELS (no panning to those machines) ----------
+            Line("First things first: thank you. The Nazis are gone. The whole city feels lighter, and I don't even have lungs.", 8, hitler: Done),
+            Line("The orchard worked too. Gravity has officially resigned: the market stalls are floating, and so are the time machines. Look up.", 7, apple: Done),
+            Line("The only way up there is the DeLorean, and its flight system is toast. Find the missing parts around the hub, follow the beams of light, then bring them back to the car.", 6, apple: Done, delorean: NotDone),
+            Line("And you fixed the DeLorean's flight system. That car is your ticket up to those time machines.", 6, apple: Done, delorean: Done),
+            Line("The tavern worked too. One wrong beer and the whole skyline's signs changed. Marketing is furious. I love it.", 7, beer: Done),
+
+            // ---------- MACHINES THAT STILL NEED A VISIT (camera pans to them) ----------
+            Line("That one takes you to an art school entrance exam that's about to go very badly for someone. Worth a look.", 3, hitler: NotDone),
+            Line("That one drops you in an orchard, under a very sleepy, soon-to-be-famous scientist. Don't wake him. Also — catch the apples.", 4, apple: NotDone),
+            Line("And that one leads to a tavern, right before a meeting that's supposed to change everything. Or doesn't. Depends what's in the glass.", 5, beer: NotDone),
+
+            // ---------- OUTRO ----------
+            Line("Fix what you can back there. Every change ripples forward — keep an eye on this place when you get back, it won't look the same twice.", 7, allLevels: NotDone),
+            Line("That's all three. History's patched up... mostly. I'm proud of you. Don't tell anyone I said that.", 8, allLevels: Done),
+            Line("Oh, one more thing.", 7, anyLevel: NotDone),
+            Line("Cool car, by the way.", 6, anyLevel: NotDone)
         };
     }
 }
