@@ -6,12 +6,15 @@ using Unity.Cinemachine;
 
 namespace Forestlevel
 {
-    public class CameraRig : MonoBehaviour,IGamePlayEventListener<CameraChangeEvent>
+    public class CameraRig : MonoBehaviour
+    ,IGamePlayEventListener<CameraChangeEvent>
+    ,IGamePlayEventListener<CameraTrackTargetEvent>
     {
         [SerializeField] CinemachineCamera ExploreCamera;
         [SerializeField] CinemachineCamera InGameCamera;
 
         CameraType currentCameraType = CameraType.FreeLook;
+        
         public void OnGamePlayEvent(CameraChangeEvent evt){
             currentCameraType = evt.CameraType;
             ChangeCamera(currentCameraType);
@@ -22,9 +25,22 @@ namespace Forestlevel
             ExploreCamera.Priority = cameraType == CameraType.FreeLook? 10 : 0;
             InGameCamera.Priority = cameraType == CameraType.InGame? 10 : 0;
         }
-        void OnEnable() => GameEventBus.Register<CameraChangeEvent>(this);
-        void OnDisable() => GameEventBus.Unregister<CameraChangeEvent>(this);
+        void OnEnable()
+        {
+            GameEventBus.Register<CameraChangeEvent>(this);
+            GameEventBus.Register<CameraTrackTargetEvent>(this);
+        }
+        void OnDisable()
+        {
+            GameEventBus.Unregister<CameraChangeEvent>(this);
+            GameEventBus.Unregister<CameraTrackTargetEvent>(this);
+        }
 
+        public void OnGamePlayEvent(CameraTrackTargetEvent evt)
+        {
+            InGameCamera.Target.TrackingTarget = evt.target;
+            InGameCamera.PreviousStateIsValid = false;   // snap to the new anchor instead of blending from the old zone
+        }
     }
 
     public enum CameraType
@@ -41,4 +57,13 @@ namespace Forestlevel
     }
 
 
+}
+
+
+public struct CameraTrackTargetEvent: IGameplayEvent{
+    public readonly Transform target;
+    public CameraTrackTargetEvent(Transform target)
+    {
+        this.target = target;
+    }
 }

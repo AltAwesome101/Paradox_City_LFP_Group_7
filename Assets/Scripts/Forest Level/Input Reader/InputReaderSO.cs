@@ -1,17 +1,22 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 [CreateAssetMenu(fileName = "InputReaderSO", menuName = "InputReader")]
-public class InputReaderSO : ScriptableObject, DefaultInputSystem.IPlayerActions
+public class InputReaderSO : ScriptableObject, DefaultInputSystem.IPlayerActions, DefaultInputSystem.IUIActions
 {
     DefaultInputSystem input;
     public Vector2 MoveDirection { get; private set; }
     public bool IsSprintHeld { get; private set; }
+    public event Action Interact;
+    public event Action Escape;
+
 
     public void EnableInputMap()
     {
         input ??= new DefaultInputSystem();
         input.Player.SetCallbacks(this);
+        input.UI.SetCallbacks(this);
         input.Enable();
         Debug.Log("InputReader enabled and ready!");
     }
@@ -37,4 +42,18 @@ public class InputReaderSO : ScriptableObject, DefaultInputSystem.IPlayerActions
 
     public void OnJump(InputAction.CallbackContext context) { }
     public void OnLook(InputAction.CallbackContext context) { }
+
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        if(context.performed)
+            Interact?.Invoke();
+    }
+
+    public void OnEscape(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+            Escape?.Invoke();
+
+
+    }
 }

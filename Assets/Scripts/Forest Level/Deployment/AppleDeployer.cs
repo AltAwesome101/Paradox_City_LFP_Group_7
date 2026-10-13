@@ -2,11 +2,10 @@ using UnityEngine;
 
 public class AppleDeployer : MonoBehaviour
 {
-    [SerializeField] DeployRegistry registry;
     public bool IsBusy { get; private set; }
+    public DeployZone Zone { get; private set; }
 
-    void OnEnable() => registry.Register(this);
-    void OnDisable() => registry.Deregister(this);
+    void Awake() => Zone = GetComponentInParent<DeployZone>();
 
     public void MarkBusy() => IsBusy = true;
     public void MarkFree() => IsBusy = false;

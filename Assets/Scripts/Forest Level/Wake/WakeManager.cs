@@ -4,51 +4,52 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using Forestlevel;
 
-public class WakeManager : Singleton<WakeManager>, IGamePlayEventListener<AppleDroppedEvent>
-,IGamePlayEventListener<InGameGameStateEvent>
+public class WakeManager : Singleton<WakeManager>,
+    IGamePlayEventListener<AppleDroppedEvent>,
+    IGamePlayEventListener<DeploySessionStartedEvent>,
+    IGamePlayEventListener<DeploySessionEndedEvent>
 {
-    [SerializeField] UIDocument document;
     [SerializeField] int WakeUpLimit = 50;
     [SerializeField] int disturbAmount = 10;
     [SerializeField] float lerpSpeed = 8;
 
     WakeMeterUIView wakemeter;
-    bool hasWoken;
+    bool sessionActive;
 
-    protected override void Awake()
+    void Start()   // Start, not Awake: UIManager has built its views by now
     {
-        base.Awake();
-        var root = document.rootVisualElement;
-        wakemeter = new(container: root, disturbAmount, WakeUpLimit, lerpSpeed);
+        wakemeter = UIManager.Instance.WakeMeter;
+        wakemeter.Configure(disturbAmount, WakeUpLimit, lerpSpeed);
         wakemeter.OnMeterFull += HandleMeterFull;
-        wakemeter.Hide();
     }
+    void OnDestroy() { if (wakemeter != null) wakemeter.OnMeterFull -= HandleMeterFull; }
 
-    void OnEnable(){
-        GameEventBus.Register<AppleDroppedEvent>(this);
-        GameEventBus.Register<InGameGameStateEvent>(this);
-    }
-    void OnDisable(){
-        GameEventBus.Unregister<AppleDroppedEvent>(this);
-        GameEventBus.Unregister<InGameGameStateEvent>(this);
-    }
-
-    public void OnGamePlayEvent(AppleDroppedEvent gameplayEvent)
+    void OnEnable()
     {
-        if (hasWoken) return;
+        GameEventBus.Register<AppleDroppedEvent>(this);
+        GameEventBus.Register<DeploySessionStartedEvent>(this);
+        GameEventBus.Register<DeploySessionEndedEvent>(this);
+    }
+    void OnDisable()
+    {
+        GameEventBus.Unregister<AppleDroppedEvent>(this);
+        GameEventBus.Unregister<DeploySessionStartedEvent>(this);
+        GameEventBus.Unregister<DeploySessionEndedEvent>(this);
+    }
+
+    public void OnGamePlayEvent(DeploySessionStartedEvent e) { sessionActive = true; wakemeter.ResetMeter(); }
+    public void OnGamePlayEvent(DeploySessionEndedEvent e)   => sessionActive = false;
+
+    public void OnGamePlayEvent(AppleDroppedEvent e)
+    {
+        if (!sessionActive) return;   // apples still falling after a session ends must not disturb Newton
         wakemeter.Disturb();
     }
 
     void HandleMeterFull()
     {
-        if (hasWoken) return;
-        hasWoken = true;
-        GameEventBus.Raise(new LevelLostEvent());
-    }
-
-    public void OnGamePlayEvent(InGameGameStateEvent gameplayEvent){
-        hasWoken = false;
-        wakemeter.ResetMeter();
-        wakemeter.Show();
+        if (!sessionActive) return;
+        sessionActive = false;
+        GameEventBus.Raise(new WakeMeterFullEvent());
     }
 }

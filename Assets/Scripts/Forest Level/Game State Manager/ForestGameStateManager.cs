@@ -3,85 +3,42 @@
     using UnityEngine;
     using UnityEngine.UIElements;
     using GameDevExtensionMethods;
+using UnityEngine.SceneManagement;
 
-    namespace Forestlevel
+namespace Forestlevel
     {
         public class ForestGameStateManager : Singleton<ForestGameStateManager>,
-            IGamePlayEventListener<AppleCollectedEvent>,
-            IGamePlayEventListener<LevelWonEvent>,
-            IGamePlayEventListener<LevelLostEvent>,
-            IGamePlayEventListener<TutorialClosedEvent>
+            IGamePlayEventListener<DeploySessionEndedEvent>
         {
-            [SerializeField] int applesToWin = 10;
-            [SerializeField] UIDocument document;
-            AppleCollectionView collectionView;
-            int collected;
+            [SerializeField] int SessionToWin = 4;
+            [SerializeField] SceneReference currentScene;
+            int completed;
+            bool levelOver;
 
-            protected override void Awake()
+            void Start() => GameEventBus.Raise(new ExplorationGameStateEvent());
+            void OnEnable()  => GameEventBus.Register<DeploySessionEndedEvent>(this);
+            void OnDisable() => GameEventBus.Unregister<DeploySessionEndedEvent>(this);
+
+            public void OnGamePlayEvent(DeploySessionEndedEvent e)
             {
-                base.Awake();
-                var root = document.rootVisualElement;
-                collectionView = new AppleCollectionView(container: root.Q<VisualElement>("appleCollection-container"));
-            }
+                if (levelOver) return;
 
-            void Start()
-            {
-                GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-                // Invoke(nameof(changeToPlayArea), 30f);
-            }
-
-            void changeToPlayArea()
-            {
-                GameEventBus.Raise<EnterPlayAreaEvent>(new EnterPlayAreaEvent());
-                GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
-            }
-
-            void OnEnable()
-            {
-                GameEventBus.Register<AppleCollectedEvent>(this);
-                GameEventBus.Register<LevelWonEvent>(this);
-                GameEventBus.Register<LevelLostEvent>(this);
-                GameEventBus.Register<TutorialClosedEvent>(this);
-            }
-
-            void OnDisable()
-            {
-                GameEventBus.Unregister<AppleCollectedEvent>(this);
-                GameEventBus.Unregister<LevelWonEvent>(this);
-                GameEventBus.Unregister<LevelLostEvent>(this);
-                GameEventBus.Unregister<TutorialClosedEvent>(this);
-            }
-
-            public void OnGamePlayEvent(AppleCollectedEvent gameplayEvent)
-            {
-                collected++;
-                collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
-
-                if (collected >= applesToWin)
+                if (!e.Won)
                 {
-                    GameEventBus.Raise(new LevelWonEvent());
-                    collectionView.UpdateDisplay($"LEVEL COMPLETED!");
+                    levelOver = true;
+                    GameEventBus.Raise(new LevelLostEvent());
+                    SceneManager.LoadScene(currentScene.Name);
+
+                    return;
                 }
-            }
 
-            public void OnGamePlayEvent(LevelWonEvent gameplayEvent)
-            {
-                
-                Debug.Log("Game won!");
-            }
-
-            public void OnGamePlayEvent(LevelLostEvent gameplayEvent)
-            {
-                collected = 0;
-                GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
-                collectionView.Show();
-            }
-
-            public void OnGamePlayEvent(TutorialClosedEvent gameplayEvent)
-            {
-                GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
-                collectionView.UpdateDisplay($"{collected}/{applesToWin} Apples caught");
-                collectionView.Show();
+                completed++;
+                Debug.Log($"Sessions Completed{completed}/{SessionToWin}");
+                if (completed >= SessionToWin)
+                {
+                    levelOver = true;
+                    GameEventBus.Raise(new LevelWonEvent());
+                }
             }
         }
 
@@ -92,10 +49,6 @@
 
             public ExplorationGameStateEvent()
             {
-                GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
-                // GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = ExploreLocation }); 
-                // Debug.Log($"Player's new position:{ExploreLocation}");
-
                 // Cursor hid and fix state
                 CursorUtility.LockAndHide(visible: false,lockstate: true);
             }
@@ -110,21 +63,6 @@
             }
         }
 
-        public class EnterPlayAreaEvent : IGameplayEvent
-        {
-            
-            static readonly Vector3 fixedLocation = new Vector3(-0.2f, 1.077f, 57.9f); 
-
-            public EnterPlayAreaEvent()
-            {
-                GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame)); 
-                GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent { Destination = fixedLocation }); 
-                Debug.Log($"Player's new position:{fixedLocation}");
-
-                
-                GameEventBus.Raise<TutorialGameStateEvent>(new TutorialGameStateEvent());
-            }
-        }
 
         public class InGameGameStateEvent : IGameplayEvent
         {
@@ -132,6 +70,7 @@
             public InGameGameStateEvent()
             {
                 // Cursor hide and fix state
+                // Debug.Log("Ïn Game");
                 CursorUtility.LockAndHide(visible: false,lockstate: true);
             }
         }

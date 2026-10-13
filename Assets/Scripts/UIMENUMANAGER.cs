@@ -1,4 +1,7 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using static System.Net.Mime.MediaTypeNames;
 
 public class UIMENUMANAGER : MonoBehaviour
 {
@@ -10,7 +13,7 @@ public class UIMENUMANAGER : MonoBehaviour
     {
         Time.timeScale = 0f;
 
-        // Main menu is showing: the mouse must be usable
+                // Main menu is showing: the mouse must be usable
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }

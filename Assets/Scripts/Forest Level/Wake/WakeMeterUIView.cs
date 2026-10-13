@@ -1,26 +1,30 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 using System;
+using BetterEventBus;
 
 public class WakeMeterUIView : BaseUIView
 {
     public event Action OnMeterFull;
-    readonly ProgressBar progress;
-    readonly int disturbAmount;
-    readonly float lerpSpeed;
+    ProgressBar progress;
+    int disturbAmount;
+    float lerpSpeed;
 
     float targetValue;
     IVisualElementScheduledItem scheduledItem;
 
     public WakeMeterUIView(VisualElement container, int disturb, int maxLimit, float lerpSpeed = 8f): base(container)
     {
-        this.progress = container.Q<ProgressBar>("wake-progressbar");
-        this.progress.lowValue = 0f;
-        this.progress.value = 0f;
-        this.progress.highValue = maxLimit;
+        progress = container.Q<ProgressBar>("wake-progressbar");
+        progress.lowValue = 0f;
+        progress.value = 0f;
+    }
+
+    public void Configure(int disturb, int maxLimit, float lerpSpeed)
+    {
         disturbAmount = disturb;
+        progress.highValue = maxLimit;
         this.lerpSpeed = lerpSpeed;
-        targetValue = 0f;
     }
 
     public override void Show() => progress.style.display = DisplayStyle.Flex;
@@ -51,3 +55,5 @@ public class WakeMeterUIView : BaseUIView
         progress.value = Mathf.Lerp(progress.value, targetValue, lerpSpeed * 0.016f);
     }
 }
+
+public readonly struct WakeMeterFullEvent : IGameplayEvent { }
