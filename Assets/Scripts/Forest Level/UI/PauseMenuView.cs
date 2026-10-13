@@ -53,7 +53,7 @@ public class PauseMenuView : BaseUIView
         Hide();
         SceneManager.LoadScene(currentScene.Name);
     }
-    void ReturnToFuture(){
+    public void ReturnToFuture(){
         Debug.Log("Return to the future");
         SceneManager.LoadScene(futureScene.Name);
     }
