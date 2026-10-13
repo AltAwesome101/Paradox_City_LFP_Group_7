@@ -1,0 +1,25 @@
+:root {
+}
+
+.unity-progress-bar__background {
+    background-color: rgba(0, 0, 0, 0.914);
+}
+
+.unity-progress-bar__title {
+    display: none;
+}
+
+.unity-progress-bar {
+    border-top-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+    border-left-color: rgb(255, 255, 255);
+    border-right-color: rgb(255, 255, 255);
+    border-top-color: rgb(255, 255, 255);
+    border-bottom-color: rgb(255, 255, 255);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
