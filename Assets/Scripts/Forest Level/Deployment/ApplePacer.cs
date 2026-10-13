@@ -3,16 +3,17 @@ using UnityEngine;
 
 public class ApplePacer
 {
-    readonly DeployZone zone;
+    readonly DeployRegistry registry;
+    readonly List<DeployerPair> conflictPairs;
     readonly int maxConcurrent;
     readonly float minSpawnInterval;
-    readonly List<AppleDeployer> eligible = new();   // reused each call, no per-frame allocation
 
     float timeSinceLastSpawn;
 
-    public ApplePacer(DeployZone zone, int maxConcurrent, float minSpawnInterval)
+    public ApplePacer(DeployRegistry registry, List<DeployerPair> conflictPairs, int maxConcurrent, float minSpawnInterval)
     {
-        this.zone = zone;
+        this.registry = registry;
+        this.conflictPairs = conflictPairs ?? new List<DeployerPair>();
         this.maxConcurrent = maxConcurrent;
         this.minSpawnInterval = minSpawnInterval;
         timeSinceLastSpawn = minSpawnInterval; // lets the very first spawn happen immediately
@@ -25,15 +26,14 @@ public class ApplePacer
 
         if (timeSinceLastSpawn < minSpawnInterval) return false;
 
-        int busy = zone.BusyCount;
-        if (busy >= maxConcurrent)
+        if (registry.BusyCount >= maxConcurrent)
         {
-            Debug.Log($"Pacer blocked: busy count {busy} >= cap {maxConcurrent}");
+            Debug.Log($"Pacer blocked: busy count {registry.BusyCount} >= cap {maxConcurrent}");
             return false;
         }
 
-        eligible.Clear();
-        foreach (var candidate in zone.GetAllFree())
+        var eligible = new List<AppleDeployer>();
+        foreach (var candidate in registry.GetAllFree())
         {
             if (!HasBusyConflict(candidate))
                 eligible.Add(candidate);
@@ -41,7 +41,7 @@ public class ApplePacer
 
         if (eligible.Count == 0)
         {
-            Debug.Log($"Pacer blocked: no eligible candidates — Busy Deploy Count:{busy}/{zone.DeployCount}");
+            Debug.Log($"Pacer blocked: no eligible candidates — Busy Deploy Count:{registry.BusyCount}/{registry.DeployCount}");
             return false;
         }
 
@@ -52,7 +52,7 @@ public class ApplePacer
 
     bool HasBusyConflict(AppleDeployer candidate)
     {
-        foreach (var pair in zone.ConflictPairs)
+        foreach (var pair in conflictPairs)
         {
             if (pair.a == candidate && pair.b.IsBusy) return true;
             if (pair.b == candidate && pair.a.IsBusy) return true;

@@ -1,28 +1,29 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <ui:Template name="arrow-image" src="project://database/Assets/UI%20Toolkit/UXML/arrow-image.uxml?fileID=9197481963319205126&amp;guid=05e58686ef7859545b861b2d2fbefb9c&amp;type=3#arrow-image"/>
     <ui:ProgressBar value="0" title="my-progress" name="wake-progressbar"/>
-    <ui:VisualElement name="applenotifier-element-archor" style="flex-grow: 0; flex-shrink: 0; width: 1699px; height: 451px; position: absolute; top: 468px; left: 129px;">
+    <ui:VisualElement name="applenotifier-element-archor" style="flex-grow: 0; flex-shrink: 0; width: 1724px; height: 816px; position: absolute; top: 143px; left: 111px;">
         <ui:Instance template="arrow-image" name="arrow-image" style="display: none;"/>
     </ui:VisualElement>
     <ui:VisualElement name="approachingApple-counter-element" style="flex-grow: 0; flex-shrink: 0; height: 92px; width: 463px; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 40px; left: 1454px;">
         <ui:Label text="Apple approaching in:" name="approachingApple-title-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left;"/>
         <ui:Label text="10" name="approachingApple-counter-label" style="-unity-font-style: bold; font-size: 40px; color: rgb(255, 255, 255); -unity-text-align: middle-right;"/>
     </ui:VisualElement>
-    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 0; position: absolute; height: 64px; width: 568px; top: 54px; left: 12px; background-color: rgba(0, 0, 0, 0.863); display: flex;">
-        <ui:Image name="tutorial-image" style="height: 388px; width: 686px; flex-shrink: 0; flex-grow: 1; position: absolute; top: 259px; left: 619px; background-color: rgb(0, 0, 0); border-top-width: 1.2px; border-right-width: 1.2px; border-bottom-width: 1.2px; border-left-width: 1.2px; border-left-color: rgb(0, 0, 0); border-right-color: rgb(0, 0, 0); border-top-color: rgb(0, 0, 0); border-bottom-color: rgb(0, 0, 0);"/>
-        <ui:Label text="Label" name="tutorial-instruction-label" style="font-size: 25px; -unity-font-style: bold; color: rgb(255, 255, 255); bottom: 0; right: -18px;"/>
+    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 0; position: absolute; height: 684px; width: 1057px; top: 260px; left: 382px; background-color: rgba(0, 0, 0, 0.863); display: none;">
+        <ui:Button text="Close" name="tutorial-close-button" style="width: 98px; height: 35px; position: absolute; top: -20px; left: 972px; -unity-font-style: bold;"/>
+        <ui:Label text="Label" name="tutorial-title-label" style="color: rgb(255, 255, 255); font-size: 30px; -unity-text-align: upper-center; position: relative; top: 12px; left: -1px;"/>
+        <ui:Image name="tutorial-image" style="height: 289px; flex-shrink: 1; position: absolute; width: 552px; top: 108px; left: 259px; background-color: rgb(195, 191, 191);"/>
+        <ui:Label text="Label" name="tutorial-description-label" style="font-size: 25px; -unity-font-style: bold; color: rgb(255, 255, 255); bottom: -386px; right: -18px;"/>
+        <ui:Button text="Back" name="tutorial-prev-button" style="width: 98px; height: 35px; position: absolute; top: 317px; left: 103px; -unity-font-style: bold;"/>
+        <ui:Button text="Next" name="tutorial-next-button" style="width: 98px; height: 35px; position: absolute; top: 316px; left: 862px; -unity-font-style: bold;"/>
     </ui:VisualElement>
     <ui:VisualElement name="appleCollection-container" style="flex-grow: 0; flex-shrink: 0; height: 92px; width: 368px; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 978px; left: 11px;">
         <ui:Label text="0/10 Apples Caught" name="appleCollection-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: -33px;"/>
     </ui:VisualElement>
-    <ui:VisualElement name="pauseMenu-container" style="flex-grow: 0; color: rgb(18, 17, 17); flex-shrink: 0; position: absolute; height: 788px; width: 1314px; top: 158px; left: 272px; background-color: rgb(0, 0, 0); display: flex; opacity: 1;">
+    <ui:VisualElement name="pauseMenu-container" style="flex-grow: 0; color: rgb(18, 17, 17); flex-shrink: 0; position: absolute; height: 788px; width: 1314px; top: 158px; left: 272px; background-color: rgb(0, 0, 0); display: none;">
         <ui:Label text="Pause Menu" name="pauseMenu-title" style="color: rgb(245, 245, 245); -unity-text-align: upper-center; font-size: 50px;"/>
         <ui:Label text="Apple Forest - 16th century" name="pauseMenu-Level-title" style="color: rgb(245, 245, 245); -unity-text-align: upper-center; font-size: 35px; top: 47px;"/>
         <ui:Button text="Resume" name="resume-button" style="width: 338px; height: 64px; top: 258px; position: absolute; left: 477px; -unity-font-style: bold; font-size: 25px;"/>
         <ui:Button text="Restart Level" name="restart-button" style="width: 338px; height: 64px; top: 392px; position: absolute; left: 476px; -unity-font-style: bold; font-size: 25px;"/>
         <ui:Button text="Return To Future" name="future-button" style="width: 338px; height: 64px; top: 545px; position: absolute; left: 480px; -unity-font-style: bold; font-size: 25px;"/>
-    </ui:VisualElement>
-    <ui:VisualElement name="interactPrompt-container" style="flex-grow: 0; position: absolute; height: 64px; width: 568px; top: 500px; left: 745px; background-color: rgba(0, 0, 0, 0); display: flex; color: rgb(27, 27, 27);">
-        <ui:Label text="Label" name="interactPrompt-label" style="font-size: 33px; -unity-font-style: bold; color: rgb(253, 253, 253); bottom: 0; right: -18px; -unity-text-align: upper-center;"/>
     </ui:VisualElement>
 </ui:UXML>

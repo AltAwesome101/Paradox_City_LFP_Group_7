@@ -2,7 +2,11 @@ fileFormatVersion: 2
 guid: ddbbb2b4151a5d04f820b67115b8bf23
 NativeFormatImporter:
   externalObjects: {}
+<<<<<<< HEAD
   mainObjectFileID: 0
+=======
+  mainObjectFileID: 9100000
+>>>>>>> parent of 1e62b3c (Merged Leruo into main)
   userData: 
   assetBundleName: 
   assetBundleVariant: 

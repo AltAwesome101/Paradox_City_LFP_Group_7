@@ -3,24 +3,69 @@ using UnityEngine.UIElements;
 
 public class TutorialView : BaseUIView
 {
-    readonly Label _instruction;
+    // Tutorial Display
+    readonly VisualElement _container;
+    readonly Label _title;
     readonly Image _image;
+    readonly Label _description;
+
+    // Button controls
+    readonly Button _closeButton;
+    readonly Button _previousButton;
+    readonly Button _nextButton;
+
+    // Event handling
+    public event System.Action CloseRequested;
+    public event System.Action PreviousRequested;
+    public event System.Action NextRequested;
 
     public TutorialView(VisualElement container) : base(container)
     {
-        _instruction = container.Q<Label>("tutorial-instruction-label");
-        _image = container.Q<Image>("tutorial-image");
+        _container = container;
 
-        container.pickingMode = PickingMode.Ignore;   // prompt must never block the screen
-        // _image.scaleMode = ScaleMode.ScaleToFit;
+        _title = container.Q<Label>("tutorial-title-label");
+        _image = container.Q<Image>("tutorial-image");
+        _description = container.Q<Label>("tutorial-description-label");
+
+        _closeButton = container.Q<Button>("tutorial-close-button");
+        _previousButton = container.Q<Button>("tutorial-prev-button");
+        _nextButton = container.Q<Button>("tutorial-next-button");
+
+        RegisterCallbacks();
     }
 
-    public void SetTutorialDisplay(BaseTutorialInstructionSO tutorial)
+    void RegisterCallbacks()
     {
-        _instruction.text = tutorial.Instruction;
+        _closeButton.clicked += OnCloseButtonPressed;
+        _previousButton.clicked += OnPreviousButtonPressed;
+        _nextButton.clicked += OnNextButtonPressed;
+    }
 
-        var image = tutorial.InstructionImage;
-        _image.image = image;
-        _image.style.display = image != null ? DisplayStyle.Flex : DisplayStyle.None;
+    void DeregisterCallbacks()
+    {
+        _closeButton.clicked -= OnCloseButtonPressed;
+        _previousButton.clicked -= OnPreviousButtonPressed;
+        _nextButton.clicked -= OnNextButtonPressed;
+    }
+
+        
+    void OnCloseButtonPressed() => CloseRequested?.Invoke();
+    void OnPreviousButtonPressed() => PreviousRequested?.Invoke();
+    void OnNextButtonPressed() => NextRequested?.Invoke();
+
+    public void HideTutorialPanel()=> _container.style.display = DisplayStyle.None;
+    public void EnableTutorialPanel()=> _container.style.display = DisplayStyle.Flex;
+
+    public void ChangeTutorialInfo(TutorialDataSO data)
+    {
+        EnableTutorialPanel();
+
+        _title.text = data.TutorialName;
+        _description.text = data.TutorialDescription;
+
+        _image.style.display = data.tutorialImage? DisplayStyle.Flex: DisplayStyle.None;
+
+        if (data.tutorialImage != null)
+            _image.image = data.tutorialImage;
     }
 }
