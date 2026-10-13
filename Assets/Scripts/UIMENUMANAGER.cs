@@ -1,4 +1,5 @@
 using UnityEngine;
+using TMPro;
 
 public class UIMENUMANAGER : MonoBehaviour
 {
@@ -6,7 +7,10 @@ public class UIMENUMANAGER : MonoBehaviour
     public GameObject GameUIPanel;
     public GameObject mainplayer;
 
-    
+    [Header("Intro Cinematic Options")]
+    public AudioClip introMusic;
+    public TMP_FontAsset introFont;
+
     private static bool s_menuShown;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -37,7 +41,12 @@ public class UIMENUMANAGER : MonoBehaviour
     public void PlayGame()
     {
         s_menuShown = true;
-        StartGameplay();
+
+        // Hide the main menu UI so it doesn't overlap with the cinematic
+        MainMenuPanel.SetActive(false);
+
+        // Play the intro cinematic and proceed to gameplay once complete or skipped
+        ParadoxIntroCinematic.Play(StartGameplay, introMusic, introFont);
     }
 
     private void StartGameplay()
