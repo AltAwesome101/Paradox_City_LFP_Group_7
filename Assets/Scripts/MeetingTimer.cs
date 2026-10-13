@@ -59,7 +59,7 @@ public class MeetingTimer : MonoBehaviour
 
             // Pause the entire game.
             Time.timeScale = 0f;
-
+            WorldStateManager.Instance.SetLevelCompleted(LevelId.WrongBeer, true);
             return;
         }
 
