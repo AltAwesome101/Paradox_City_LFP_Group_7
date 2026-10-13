@@ -37,6 +37,7 @@ namespace Forestlevel
                 if (completed >= SessionToWin)
                 {
                     levelOver = true;
+                    WorldStateManager.Instance.SetLevelCompleted(LevelId.AppleForest, true);
                     GameEventBus.Raise(new LevelWonEvent());
                 }
             }
