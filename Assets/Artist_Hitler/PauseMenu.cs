@@ -7,6 +7,7 @@ public class PauseMenu : MonoBehaviour
     public GameObject pauseMenu;
 
     [Header("Player")]
+    [Tooltip("Optional. Drag the PlayerScript here so player movement is disabled while paused.")]
     public PlayerScript player;
 
     [Header("Future Scene")]
@@ -25,6 +26,7 @@ public class PauseMenu : MonoBehaviour
         if (pauseMenu != null)
             pauseMenu.SetActive(false);
 
+        
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
     }
@@ -43,14 +45,17 @@ public class PauseMenu : MonoBehaviour
     public void PauseGame()
     {
         isPaused = true;
+
         Time.timeScale = 0f;
 
         if (pauseMenu != null)
             pauseMenu.SetActive(true);
 
+        
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
+        
         if (player != null)
             player.SetControl(false);
 
@@ -61,14 +66,17 @@ public class PauseMenu : MonoBehaviour
     public void ResumeGame()
     {
         isPaused = false;
+
         Time.timeScale = 1f;
 
         if (pauseMenu != null)
             pauseMenu.SetActive(false);
 
+        
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
 
+        
         if (player != null)
             player.SetControl(true);
 
@@ -87,28 +95,6 @@ public class PauseMenu : MonoBehaviour
         string currentScene =
             SceneManager.GetActiveScene().name;
 
-        // Reset all level progress before restarting.
-        if (LevelProgressManager.Instance != null)
-        {
-            LevelProgressManager.Instance.ResetAllProgress();
-
-            if (debugLogging)
-                Debug.Log(
-                    "[PauseMenu] All level progress reset."
-                );
-        }
-        else
-        {
-            Debug.LogWarning(
-                "[PauseMenu] LevelProgressManager not found."
-            );
-        }
-
-        if (debugLogging)
-            Debug.Log(
-                "[PauseMenu] Restarting: " + currentScene
-            );
-
         SceneManager.LoadScene(currentScene);
     }
 
@@ -125,16 +111,17 @@ public class PauseMenu : MonoBehaviour
             Debug.LogError(
                 "[PauseMenu] Future Scene Name is empty!"
             );
+
             return;
         }
 
         if (!Application.CanStreamedLevelBeLoaded(futureSceneName))
         {
             Debug.LogError(
-                "[PauseMenu] Can't find scene \"" +
-                futureSceneName +
-                "\". Make sure it is added to Build Settings."
+                $"[PauseMenu] Can't find scene \"{futureSceneName}\". " +
+                "Make sure it is added to Build Settings."
             );
+
             return;
         }
 

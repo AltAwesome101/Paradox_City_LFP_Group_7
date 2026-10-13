@@ -70,13 +70,6 @@ public class CarController : MonoBehaviour
     [Range(0f, 89f)]
     public float maximumSlopeAngle = 55f;
 
-    [Header("Flight - on-screen hint")]
-    [Tooltip("Optional. Assign a UI object (e.g. Text) that explains the climb/descend controls. It's shown only while flying. Leave empty to use the built-in on-screen text instead.")]
-    public GameObject flightControlsHintUI;
-
-    [Tooltip("Shows a built-in text hint while flying. Ignored if 'Flight Controls Hint UI' is assigned.")]
-    public bool showBuiltInFlightHint = true;
-
 
     // =========================================================
     // PAVEMENT / STEP CLIMBING
@@ -179,66 +172,6 @@ public class CarController : MonoBehaviour
 
 
     // =========================================================
-    // FLIGHT MODE
-    // =========================================================
-
-    [Header("===== FLIGHT MODE =====")]
-
-    [Tooltip("Toggles flight on/off while driving. Only works once the DeLorean is repaired.")]
-    public KeyCode flightToggleKey = KeyCode.E;
-
-    [Tooltip("A can't be used for ascend because A is also steer-left. Change both if you want A.")]
-    public KeyCode ascendKey = KeyCode.X;
-    public KeyCode descendKey = KeyCode.Z;
-
-    [Tooltip("Testing only: allows flight without finishing the repair mission.")]
-    public bool debugUnlockFlight = false;
-
-    [Header("Flight - movement")]
-    public float maxFlightSpeed = 35f;
-    public float maxFlightReverseSpeed = 10f;
-    public float flightAcceleration = 15f;
-
-    [Tooltip("How fast the car slows down when no throttle is held.")]
-    public float flightDrag = 6f;
-    public float flightTurnSpeed = 80f;
-
-    [Tooltip("Lower = floatier, more sliding when turning.")]
-    public float flightGrip = 5f;
-
-    [Header("Flight - altitude")]
-    [Tooltip("Height above the ground the car rises to when flight starts.")]
-    public float hoverHeight = 2f;
-
-    [Tooltip("The car can't descend below this height above the ground.")]
-    public float minFlightHeight = 1f;
-
-    [Tooltip("Ceiling, measured from the ground height at take-off.")]
-    public float maxFlightHeight = 150f;
-
-    public float flightVerticalSpeed = 10f;
-    public float flightVerticalAccel = 20f;
-
-    [Tooltip("How firmly the car holds / returns to its target altitude.")]
-    public float flightAltitudeHoldGain = 4f;
-
-    public float flightGroundRayDistance = 1000f;
-    public float hoverBobAmount = 0.12f;
-    public float hoverBobSpeed = 2f;
-
-    [Header("Flight - body tilt")]
-    public float flightForwardPitch = 8f;
-    public float flightClimbPitch = 10f;
-    public float flightBankAngle = 20f;
-    public float flightTiltSpeed = 6f;
-
-    [Header("Flight - wheels")]
-    [Tooltip("Extra local Y rotation applied to all 4 wheels in flight mode.")]
-    public float flightWheelAngleY = -90f;
-    public float wheelFoldDuration = 0.6f;
-
-
-    // =========================================================
     // DEBUG
     // =========================================================
 
@@ -324,10 +257,6 @@ public class CarController : MonoBehaviour
     public HealthController driverHealth;
 
     public bool IsGrounded => grounded;
-    public bool IsFlying => isFlying;
-
-    /// <summary>True once the DeLorean mission is complete (or the debug override is on).</summary>
-    public bool FlightUnlocked => debugUnlockFlight || HubPrefabSwitcher.DeloreanRepaired;
 
 
     // =========================================================
@@ -335,8 +264,6 @@ public class CarController : MonoBehaviour
     // =========================================================
 
     private Rigidbody rb;
-
-    private GUIStyle flightHintStyle;
 
     private float currentSpeed;
     private float currentSteerInput;
@@ -359,7 +286,7 @@ public class CarController : MonoBehaviour
     private bool[] probeHits;
     private float[] probeHeights;
 
-    // Raw ground height (no groundOffset applied) per probe - used to rest wheel visuals exactly on the ground surface.
+    [Tooltip("Raw ground height (no groundOffset applied) per probe - used to rest wheel visuals exactly on the ground surface.")]
     private float[] rawGroundHeights;
 
     // Hyper reverse turn state
@@ -379,18 +306,6 @@ public class CarController : MonoBehaviour
     private ParticleSystem rearRightSmoke;
     private float currentSmokeRate;
 
-    // Flight state
-    private bool isFlying;
-    private bool isLanding;
-    private float flightBlend;            // 0 = wheels down, 1 = wheels folded
-    private float flightTargetY;
-    private float flightCeilingY;
-    private float flightHeading;
-    private float flightPitch;
-    private float flightRoll;
-    private float flightVerticalVelocity;
-    private readonly RaycastHit[] flightHitBuffer = new RaycastHit[8];
-
 
     // =========================================================
     // AWAKE
@@ -402,36 +317,79 @@ public class CarController : MonoBehaviour
 
         if (rb == null)
         {
-            Debug.LogError("[CAR DEBUG] Rigidbody missing!");
+            Debug.LogError(
+                "[CAR DEBUG] Rigidbody missing!"
+            );
+
             return;
         }
 
+        
         rb.constraints =
             RigidbodyConstraints.FreezeRotationX |
             RigidbodyConstraints.FreezeRotationZ;
 
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
-        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.interpolation =
+            RigidbodyInterpolation.Interpolate;
 
+        rb.collisionDetectionMode =
+            CollisionDetectionMode.ContinuousDynamic;
+
+        
         rb.useGravity = false;
-        rb.angularDamping = 20f;
-        rb.angularVelocity = Vector3.zero;
-        rb.centerOfMass = new Vector3(0f, -0.5f, 0f);
 
-        probePoints = new Vector3[5];
-        probeHits = new bool[5];
-        probeHeights = new float[5];
-        rawGroundHeights = new float[5];
+        rb.angularDamping = 20f;
+
+        rb.angularVelocity =
+            Vector3.zero;
+
+        
+        rb.centerOfMass =
+            new Vector3(
+                0f,
+                -0.5f,
+                0f
+            );
+
+        probePoints =
+            new Vector3[5];
+
+        probeHits =
+            new bool[5];
+
+        probeHeights =
+            new float[5];
+
+        rawGroundHeights =
+            new float[5];
 
         SetupWheelVisuals();
+
         SetupTireSmoke();
 
-        Debug.Log("[CAR DEBUG] =================================");
-        Debug.Log("[CAR DEBUG] CAR CONTROLLER INITIALIZED");
-        Debug.Log("[CAR DEBUG] Gravity disabled");
-        Debug.Log("[CAR DEBUG] X/Z rotation frozen");
-        Debug.Log("[CAR DEBUG] Vertical position controlled by probes");
-        Debug.Log("[CAR DEBUG] =================================");
+        Debug.Log(
+            "[CAR DEBUG] ================================="
+        );
+
+        Debug.Log(
+            "[CAR DEBUG] CAR CONTROLLER INITIALIZED"
+        );
+
+        Debug.Log(
+            "[CAR DEBUG] Gravity disabled"
+        );
+
+        Debug.Log(
+            "[CAR DEBUG] X/Z rotation frozen"
+        );
+
+        Debug.Log(
+            "[CAR DEBUG] Vertical position controlled by probes"
+        );
+
+        Debug.Log(
+            "[CAR DEBUG] ================================="
+        );
 
         if (player == null)
         {
@@ -447,9 +405,6 @@ public class CarController : MonoBehaviour
 
         if (interactPromptUI != null)
             interactPromptUI.SetActive(false);
-
-        if (flightControlsHintUI != null)
-            flightControlsHintUI.SetActive(false);
     }
 
 
@@ -463,35 +418,39 @@ public class CarController : MonoBehaviour
             return;
 
         DetectGround();
+
         DetectPavement();
+
         ReadInput();
+
         HandleHyperReverseTurn();
 
+       
         if (isFlipping)
         {
             UpdateHyperFlip();
-            MoveCarHeight();
-            PrintDebugInfo();
-            return;
-        }
 
-        // Flight replaces all of the ground driving logic
-        if (isFlying)
-        {
-            FlightFixedUpdate();
-            HandleTireSmoke();
+            MoveCarHeight();
+
             PrintDebugInfo();
+
             return;
         }
 
         HandleSpeed();
+
         HandleSteering();
+
         MoveCar();
+
         MoveCarHeight();
-       
+
         OrientCarBody();
+
         PreventPhysicsRotation();
+
         HandleTireSmoke();
+
         PrintDebugInfo();
     }
 
@@ -500,90 +459,201 @@ public class CarController : MonoBehaviour
     // GROUND DETECTION
     // =========================================================
 
-    private Vector3 GetProbeLocalPosition(int index)
-    {
-        switch (index)
-        {
-            case 0: return new Vector3(-sideProbeDistance, probeStartHeight, frontProbeDistance);
-            case 1: return new Vector3(0f, probeStartHeight, frontProbeDistance);
-            case 2: return new Vector3(sideProbeDistance, probeStartHeight, frontProbeDistance);
-            case 3: return new Vector3(-sideProbeDistance, probeStartHeight, -rearProbeDistance);
-            default: return new Vector3(sideProbeDistance, probeStartHeight, -rearProbeDistance);
-        }
-    }
-
     private void DetectGround()
     {
+        
+
+        Vector3[] localPositions =
+        {
+            new Vector3(
+                -sideProbeDistance,
+                probeStartHeight,
+                frontProbeDistance
+            ),
+
+            new Vector3(
+                0f,
+                probeStartHeight,
+                frontProbeDistance
+            ),
+
+            new Vector3(
+                sideProbeDistance,
+                probeStartHeight,
+                frontProbeDistance
+            ),
+
+            new Vector3(
+                -sideProbeDistance,
+                probeStartHeight,
+                -rearProbeDistance
+            ),
+
+            new Vector3(
+                sideProbeDistance,
+                probeStartHeight,
+                -rearProbeDistance
+            )
+        };
+
         int hits = 0;
 
         float heightSum = 0f;
-        Vector3 normalSum = Vector3.zero;
-        Vector3 pointSum = Vector3.zero;
+
+        Vector3 normalSum =
+            Vector3.zero;
+
+        Vector3 pointSum =
+            Vector3.zero;
+
+        float lowestHeight =
+            float.MaxValue;
+
+        float highestHeight =
+            float.MinValue;
 
         for (int i = 0; i < 5; i++)
         {
-            Vector3 origin = transform.TransformPoint(GetProbeLocalPosition(i));
+            Vector3 origin =
+                transform.TransformPoint(
+                    localPositions[i]
+                );
 
-            probePoints[i] = origin;
+            probePoints[i] =
+                origin;
 
-            probeHits[i] = Physics.Raycast(
-                origin,
-                Vector3.down,
-                out RaycastHit hit,
-                groundProbeDistance,
-                groundMask,
-                QueryTriggerInteraction.Ignore);
+            probeHits[i] =
+                Physics.Raycast(
+                    origin,
+                    Vector3.down,
+                    out RaycastHit hit,
+                    groundProbeDistance,
+                    groundMask,
+                    QueryTriggerInteraction.Ignore
+                );
 
             if (probeHits[i])
             {
-                float height = hit.point.y + groundOffset;
+                float height =
+                    hit.point.y +
+                    groundOffset;
 
-                probeHeights[i] = height;
-                rawGroundHeights[i] = hit.point.y;
+                probeHeights[i] =
+                    height;
 
-                heightSum += height;
-                normalSum += hit.normal;
-                pointSum += hit.point;
+                rawGroundHeights[i] =
+                    hit.point.y;
+
+                heightSum +=
+                    height;
+
+                normalSum +=
+                    hit.normal;
+
+                pointSum +=
+                    hit.point;
+
+                lowestHeight =
+                    Mathf.Min(
+                        lowestHeight,
+                        height
+                    );
+
+                highestHeight =
+                    Mathf.Max(
+                        highestHeight,
+                        height
+                    );
 
                 hits++;
 
-                Debug.DrawLine(origin, hit.point, Color.green);
+                Debug.DrawLine(
+                    origin,
+                    hit.point,
+                    Color.green
+                );
             }
             else
             {
-                probeHeights[i] = float.NaN;
-                rawGroundHeights[i] = float.NaN;
+                probeHeights[i] =
+                    float.NaN;
 
-                Debug.DrawLine(origin, origin + Vector3.down * groundProbeDistance, Color.red);
+                rawGroundHeights[i] =
+                    float.NaN;
+
+                Debug.DrawLine(
+                    origin,
+                    origin +
+                    Vector3.down *
+                    groundProbeDistance,
+                    Color.red
+                );
             }
         }
 
         if (hits > 0)
         {
-            groundHeight = heightSum / hits;
-            groundNormal = (normalSum / hits).normalized;
-            groundPoint = pointSum / hits;
-            groundAngle = Vector3.Angle(groundNormal, Vector3.up);
-            grounded = groundAngle <= maximumSlopeAngle;
-            groundDistance = transform.position.y - groundHeight;
+            groundHeight =
+                heightSum / hits;
+
+            groundNormal =
+                (
+                    normalSum / hits
+                ).normalized;
+
+            groundPoint =
+                pointSum / hits;
+
+            groundAngle =
+                Vector3.Angle(
+                    groundNormal,
+                    Vector3.up
+                );
+
+            grounded =
+                groundAngle <=
+                maximumSlopeAngle;
+
+            groundDistance =
+                transform.position.y -
+                groundHeight;
         }
         else
         {
             grounded = false;
-            groundHeight = transform.position.y;
-            groundNormal = Vector3.up;
-            groundPoint = transform.position;
+
+            groundHeight =
+                transform.position.y;
+
+            groundNormal =
+                Vector3.up;
+
+            groundPoint =
+                transform.position;
+
             groundAngle = 0f;
+
             groundDistance = -1f;
         }
 
+        
         if (hits >= 3)
         {
-            float heightDifference = GetFrontHeight() - GetRearHeight();
+            float frontAverage =
+                GetFrontHeight();
+
+            float rearAverage =
+                GetRearHeight();
+
+            float heightDifference =
+                frontAverage -
+                rearAverage;
 
             climbingPavement =
-                heightDifference > 0.05f &&
-                heightDifference <= maximumStepHeight;
+                heightDifference >
+                0.05f &&
+                heightDifference <=
+                maximumStepHeight;
         }
         else
         {
@@ -593,7 +663,7 @@ public class CarController : MonoBehaviour
 
 
     // =========================================================
-    // FRONT / REAR HEIGHT
+    // FRONT HEIGHT
     // =========================================================
 
     private float GetFrontHeight()
@@ -603,9 +673,12 @@ public class CarController : MonoBehaviour
 
         for (int i = 0; i < 3; i++)
         {
-            if (!float.IsNaN(probeHeights[i]))
+            if (!float.IsNaN(
+                probeHeights[i]))
             {
-                total += probeHeights[i];
+                total +=
+                    probeHeights[i];
+
                 count++;
             }
         }
@@ -616,6 +689,11 @@ public class CarController : MonoBehaviour
         return total / count;
     }
 
+
+    // =========================================================
+    // REAR HEIGHT
+    // =========================================================
+
     private float GetRearHeight()
     {
         float total = 0f;
@@ -623,9 +701,12 @@ public class CarController : MonoBehaviour
 
         for (int i = 3; i < 5; i++)
         {
-            if (!float.IsNaN(probeHeights[i]))
+            if (!float.IsNaN(
+                probeHeights[i]))
             {
-                total += probeHeights[i];
+                total +=
+                    probeHeights[i];
+
                 count++;
             }
         }
@@ -645,11 +726,22 @@ public class CarController : MonoBehaviour
     {
         pavementDetected = false;
 
-        Vector3 origin = transform.position + transform.forward * pavementLookAhead;
-        origin.y += probeStartHeight;
+        Vector3 origin =
+            transform.position +
+            transform.forward *
+            pavementLookAhead;
 
-        Debug.DrawRay(origin, Vector3.down * groundProbeDistance, Color.cyan);
+        origin.y +=
+            probeStartHeight;
 
+        Debug.DrawRay(
+            origin,
+            Vector3.down *
+            groundProbeDistance,
+            Color.cyan
+        );
+
+        
         if (Physics.SphereCast(
             origin,
             pavementProbeRadius,
@@ -659,12 +751,25 @@ public class CarController : MonoBehaviour
             groundMask,
             QueryTriggerInteraction.Ignore))
         {
-            float difference = (hit.point.y + groundOffset) - transform.position.y;
+            float difference =
+                (
+                    hit.point.y +
+                    groundOffset
+                ) -
+                transform.position.y;
 
-            if (difference > 0.02f && difference <= maximumStepHeight)
+            if (
+                difference > 0.02f &&
+                difference <=
+                maximumStepHeight)
             {
                 pavementDetected = true;
-                Debug.DrawLine(origin, hit.point, Color.magenta);
+
+                Debug.DrawLine(
+                    origin,
+                    hit.point,
+                    Color.magenta
+                );
             }
         }
     }
@@ -676,16 +781,37 @@ public class CarController : MonoBehaviour
 
     private void ReadInput()
     {
-        if (enableDebugLogs && Time.time - lastDebugTime > debugInterval)
+        bool w =
+            Input.GetKey(KeyCode.W);
+
+        bool a =
+            Input.GetKey(KeyCode.A);
+
+        bool s =
+            Input.GetKey(KeyCode.S);
+
+        bool d =
+            Input.GetKey(KeyCode.D);
+
+        if (
+            enableDebugLogs &&
+            Time.time -
+            lastDebugTime >
+            debugInterval)
         {
             Debug.Log(
                 "[CAR DEBUG] INPUT | " +
-                "Driven=" + isBeingDriven +
-                " | Flying=" + isFlying +
-                " | W=" + Input.GetKey(KeyCode.W) +
-                " | A=" + Input.GetKey(KeyCode.A) +
-                " | S=" + Input.GetKey(KeyCode.S) +
-                " | D=" + Input.GetKey(KeyCode.D));
+                "Driven=" +
+                isBeingDriven +
+                " | W=" +
+                w +
+                " | A=" +
+                a +
+                " | S=" +
+                s +
+                " | D=" +
+                d
+            );
         }
     }
 
@@ -696,33 +822,71 @@ public class CarController : MonoBehaviour
 
     private void HandleSpeed()
     {
-        throttleInput = isBeingDriven && Input.GetKey(KeyCode.W);
-        brakeInput = isBeingDriven && Input.GetKey(KeyCode.S);
+        throttleInput =
+            isBeingDriven &&
+            Input.GetKey(KeyCode.W);
+
+        brakeInput =
+            isBeingDriven &&
+            Input.GetKey(KeyCode.S);
 
         if (!isBeingDriven)
         {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * Time.fixedDeltaTime);
+            currentSpeed =
+                Mathf.MoveTowards(
+                    currentSpeed,
+                    0f,
+                    acceleration *
+                    Time.fixedDeltaTime
+                );
+
             return;
         }
 
         if (throttleInput)
         {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, maxSpeed, acceleration * Time.fixedDeltaTime);
+            currentSpeed =
+                Mathf.MoveTowards(
+                    currentSpeed,
+                    maxSpeed,
+                    acceleration *
+                    Time.fixedDeltaTime
+                );
         }
         else if (brakeInput)
         {
             if (currentSpeed > 0.05f)
             {
-                currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * 2f * Time.fixedDeltaTime);
+                currentSpeed =
+                    Mathf.MoveTowards(
+                        currentSpeed,
+                        0f,
+                        acceleration *
+                        2f *
+                        Time.fixedDeltaTime
+                    );
             }
             else
             {
-                currentSpeed = Mathf.MoveTowards(currentSpeed, -maxReverseSpeed, acceleration * Time.fixedDeltaTime);
+                currentSpeed =
+                    Mathf.MoveTowards(
+                        currentSpeed,
+                        -maxReverseSpeed,
+                        acceleration *
+                        Time.fixedDeltaTime
+                    );
             }
         }
         else
         {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, acceleration * 0.5f * Time.fixedDeltaTime);
+            currentSpeed =
+                Mathf.MoveTowards(
+                    currentSpeed,
+                    0f,
+                    acceleration *
+                    0.5f *
+                    Time.fixedDeltaTime
+                );
         }
     }
 
@@ -737,19 +901,45 @@ public class CarController : MonoBehaviour
 
         if (isBeingDriven)
         {
-            if (Input.GetKey(KeyCode.A)) target = -1f;
-            if (Input.GetKey(KeyCode.D)) target = 1f;
+            if (Input.GetKey(KeyCode.A))
+                target = -1f;
+
+            if (Input.GetKey(KeyCode.D))
+                target = 1f;
         }
 
-        currentSteerInput = Mathf.MoveTowards(currentSteerInput, target, steerResponsiveness * Time.fixedDeltaTime);
+        currentSteerInput =
+            Mathf.MoveTowards(
+                currentSteerInput,
+                target,
+                steerResponsiveness *
+                Time.fixedDeltaTime
+            );
 
-        if (Mathf.Abs(currentSteerInput) < 0.001f)
+        if (
+            Mathf.Abs(
+                currentSteerInput
+            ) < 0.001f)
+        {
             return;
+        }
 
-        float speedFactor = Mathf.Clamp01(Mathf.Abs(currentSpeed) / maxSpeed);
-        speedFactor = Mathf.Max(speedFactor, 0.15f);
+        float speedFactor =
+            Mathf.Clamp01(
+                Mathf.Abs(currentSpeed) /
+                maxSpeed
+            );
 
-        float direction = currentSpeed >= 0f ? 1f : -1f;
+        speedFactor =
+            Mathf.Max(
+                speedFactor,
+                0.15f
+            );
+
+        float direction =
+            currentSpeed >= 0f
+                ? 1f
+                : -1f;
 
         float rotationAmount =
             currentSteerInput *
@@ -758,15 +948,24 @@ public class CarController : MonoBehaviour
             direction *
             Time.fixedDeltaTime;
 
-        Quaternion turn = Quaternion.Euler(0f, rotationAmount, 0f);
+        Quaternion turn =
+            Quaternion.Euler(
+                0f,
+                rotationAmount,
+                0f
+            );
 
-        rb.MoveRotation(rb.rotation * turn);
+        rb.MoveRotation(
+            rb.rotation *
+            turn
+        );
     }
 
 
     // =========================================================
     // HYPER REVERSE TURN
     // =========================================================
+
 
     private void HandleHyperReverseTurn()
     {
@@ -775,7 +974,6 @@ public class CarController : MonoBehaviour
 
         bool activelyReversing =
             isBeingDriven &&
-            !isFlying &&
             grounded &&
             Input.GetKey(KeyCode.S) &&
             currentSpeed < -minReverseSpeedForFlip;
@@ -804,6 +1002,7 @@ public class CarController : MonoBehaviour
         flipStartRotation = rb.rotation;
         flipTargetRotation = rb.rotation * Quaternion.Euler(0f, 180f, 0f);
 
+
         flipCarrySpeed = Mathf.Abs(currentSpeed);
 
         SpawnHyperTurnParticles();
@@ -812,7 +1011,9 @@ public class CarController : MonoBehaviour
         {
             Debug.Log(
                 "[CAR DEBUG] HYPER REVERSE TURN triggered | " +
-                "carrySpeed=" + flipCarrySpeed.ToString("F2"));
+                "carrySpeed=" +
+                flipCarrySpeed.ToString("F2")
+            );
         }
     }
 
@@ -822,10 +1023,12 @@ public class CarController : MonoBehaviour
 
         float t = Mathf.Clamp01(flipTimer / Mathf.Max(0.01f, flipSpinDuration));
 
+
         float eased = 1f - Mathf.Pow(1f - t, 3f);
 
         Quaternion rotationNow = Quaternion.Slerp(flipStartRotation, flipTargetRotation, eased);
         rb.MoveRotation(rotationNow);
+
 
         rb.linearVelocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
@@ -836,6 +1039,7 @@ public class CarController : MonoBehaviour
             currentSpeed = flipCarrySpeed;
         }
     }
+
 
     private void SpawnHyperTurnParticles()
     {
@@ -866,6 +1070,7 @@ public class CarController : MonoBehaviour
         shape.shapeType = ParticleSystemShapeType.Sphere;
         shape.radius = 1.5f;
 
+
         ParticleSystemRenderer psRenderer = fx.GetComponent<ParticleSystemRenderer>();
         Shader fxShader =
             Shader.Find("Particles/Standard Unlit") ??
@@ -887,34 +1092,64 @@ public class CarController : MonoBehaviour
 
     private void MoveCar()
     {
-        Vector3 forward = transform.forward;
+        Vector3 forward =
+            transform.forward;
 
-        // Keep movement completely horizontal.
+        /*
+         * Keep movement completely horizontal.
+         *
+         * The vehicle never physically drives its nose
+         * upward when encountering a slope.
+         */
         forward.y = 0f;
 
-        if (forward.sqrMagnitude < 0.001f)
-            forward = Vector3.forward;
+        if (
+            forward.sqrMagnitude <
+            0.001f)
+        {
+            forward =
+                Vector3.forward;
+        }
 
         forward.Normalize();
 
-        Vector3 targetVelocity = forward * currentSpeed;
+        Vector3 targetVelocity =
+            forward *
+            currentSpeed;
 
-        // No vertical movement through the velocity system.
+        /*
+         * Absolutely no vertical movement through
+         * the velocity system.
+         */
         targetVelocity.y = 0f;
 
-        Vector3 currentVelocity = rb.linearVelocity;
+        Vector3 currentVelocity =
+            rb.linearVelocity;
 
-        float forwardVelocity = Vector3.Dot(currentVelocity, forward);
+        float forwardVelocity =
+            Vector3.Dot(
+                currentVelocity,
+                forward
+            );
 
-        Vector3 sidewaysVelocity = currentVelocity - forward * forwardVelocity;
+        Vector3 sidewaysVelocity =
+            currentVelocity -
+            forward *
+            forwardVelocity;
+
         sidewaysVelocity.y = 0f;
 
-        sidewaysVelocity = Vector3.MoveTowards(
-            sidewaysVelocity,
-            Vector3.zero,
-            tireGrip * Time.fixedDeltaTime);
+        sidewaysVelocity =
+            Vector3.MoveTowards(
+                sidewaysVelocity,
+                Vector3.zero,
+                tireGrip *
+                Time.fixedDeltaTime
+            );
 
-        rb.linearVelocity = targetVelocity + sidewaysVelocity;
+        rb.linearVelocity =
+            targetVelocity +
+            sidewaysVelocity;
     }
 
 
@@ -924,40 +1159,96 @@ public class CarController : MonoBehaviour
 
     private void MoveCarHeight()
     {
-        // No ground underneath: do not allow upward/downward velocity.
+        /*
+         * If the car has no ground underneath it,
+         * do not allow upward/downward velocity.
+         */
         if (!grounded)
         {
-            Vector3 airVelocity = rb.linearVelocity;
+            Vector3 airVelocity =
+                rb.linearVelocity;
+
             airVelocity.y = 0f;
-            rb.linearVelocity = airVelocity;
+
+            rb.linearVelocity =
+                airVelocity;
+
             return;
         }
 
-        float frontHeight = GetFrontHeight();
-        float rearHeight = GetRearHeight();
+        float frontHeight =
+            GetFrontHeight();
 
-        float wheelbase = Mathf.Max(0.01f, frontProbeDistance + rearProbeDistance);
-        float pivotRatio = rearProbeDistance / wheelbase;
+        float rearHeight =
+            GetRearHeight();
 
-        float targetHeight = Mathf.Lerp(rearHeight, frontHeight, pivotRatio);
+       
+        float wheelbase =
+            Mathf.Max(
+                0.01f,
+                frontProbeDistance +
+                rearProbeDistance
+            );
 
-        Vector3 position = rb.position;
+        float pivotRatio =
+            rearProbeDistance /
+            wheelbase;
 
-        bool anticipatingStep = pavementDetected && frontHeight > targetHeight;
+        float targetHeight =
+            Mathf.Lerp(
+                rearHeight,
+                frontHeight,
+                pivotRatio
+            );
 
-        float heightSpeed = groundSnapSpeed;
+        Vector3 position =
+            rb.position;
+
+        float difference =
+            targetHeight -
+            position.y;
+
+        
+        bool anticipatingStep =
+            pavementDetected &&
+            frontHeight >
+            targetHeight;
+
+        float heightSpeed =
+            groundSnapSpeed;
 
         if (climbingPavement || anticipatingStep)
-            heightSpeed = stepClimbSpeed;
+        {
+            heightSpeed =
+                stepClimbSpeed;
+        }
 
-        position.y = Mathf.MoveTowards(position.y, targetHeight, heightSpeed * Time.fixedDeltaTime);
+        
+        float newY =
+            Mathf.MoveTowards(
+                position.y,
+                targetHeight,
+                heightSpeed *
+                Time.fixedDeltaTime
+            );
 
-        rb.MovePosition(position);
+        position.y =
+            newY;
 
-        // Kill any remaining vertical velocity.
-        Vector3 velocity = rb.linearVelocity;
+        rb.MovePosition(
+            position
+        );
+
+        /*
+         * Kill any remaining vertical velocity.
+         */
+        Vector3 velocity =
+            rb.linearVelocity;
+
         velocity.y = 0f;
-        rb.linearVelocity = velocity;
+
+        rb.linearVelocity =
+            velocity;
     }
 
 
@@ -967,15 +1258,24 @@ public class CarController : MonoBehaviour
 
     private void OrientCarBody()
     {
-        Vector3 forward = transform.forward;
+       
+        Vector3 forward =
+            transform.forward;
+
         forward.y = 0f;
 
-        if (forward.sqrMagnitude < 0.001f)
-            forward = Vector3.forward;
+        if (
+            forward.sqrMagnitude <
+            0.001f)
+        {
+            forward =
+                Vector3.forward;
+        }
 
         forward.Normalize();
 
-        Vector3 targetUp = Vector3.up;
+        Vector3 targetUp =
+            Vector3.up;
 
         if (grounded)
         {
@@ -1001,6 +1301,7 @@ public class CarController : MonoBehaviour
                 right.y = 0f;
                 right.Normalize();
 
+                
                 Vector3 forwardAxis =
                     forward * (frontProbeDistance + rearProbeDistance) +
                     Vector3.up * (frontHeight - rearHeight);
@@ -1009,12 +1310,14 @@ public class CarController : MonoBehaviour
                     right * (2f * sideProbeDistance) +
                     Vector3.up * (rightHeight - leftHeight);
 
-                Vector3 computedNormal = Vector3.Cross(forwardAxis, rightAxis).normalized;
+                Vector3 computedNormal =
+                    Vector3.Cross(forwardAxis, rightAxis).normalized;
 
                 if (computedNormal.y < 0f)
                     computedNormal = -computedNormal;
 
-                float tiltAngle = Vector3.Angle(Vector3.up, computedNormal);
+                float tiltAngle =
+                    Vector3.Angle(Vector3.up, computedNormal);
 
                 targetUp =
                     tiltAngle > maxBodyTiltAngle
@@ -1023,7 +1326,11 @@ public class CarController : MonoBehaviour
             }
         }
 
-        Quaternion targetRotation = Quaternion.LookRotation(forward, targetUp);
+        Quaternion targetRotation =
+            Quaternion.LookRotation(
+                forward,
+                targetUp
+            );
 
         float tiltSpeed =
             bodyOrientSpeed *
@@ -1033,305 +1340,10 @@ public class CarController : MonoBehaviour
             Quaternion.Slerp(
                 rb.rotation,
                 targetRotation,
-                tiltSpeed * Time.fixedDeltaTime));
-    }
-
-
-    // =========================================================
-    // FLIGHT MODE
-    // =========================================================
-
-    private void HandleFlightToggleInput()
-    {
-        if (!isBeingDriven || isFlipping)
-            return;
-
-        if (!Input.GetKeyDown(flightToggleKey))
-            return;
-
-        if (isFlying && !isLanding)
-        {
-            BeginLanding();
-        }
-        else if (FlightUnlocked)
-        {
-            BeginFlight();   // also lets you cancel a landing in progress
-        }
-        else if (enableDebugLogs)
-        {
-            Debug.Log("[CAR DEBUG] Flight is locked - repair the DeLorean first.");
-        }
-    }
-
-    private void BeginFlight()
-    {
-        bool haveGround = TryGetGroundBelow(out float groundY);
-        float y = rb.position.y;
-
-        if (!isFlying)
-        {
-            // Fresh take-off: start from the car's current orientation so there's no snap
-            Vector3 e = rb.rotation.eulerAngles;
-            flightHeading = e.y;
-            flightPitch = Mathf.DeltaAngle(0f, e.x);
-            flightRoll = Mathf.DeltaAngle(0f, e.z);
-            flightVerticalVelocity = 0f;
-            flightCeilingY = (haveGround ? groundY : y) + maxFlightHeight;
-            flightTargetY = haveGround ? Mathf.Max(y, groundY + hoverHeight) : y + hoverHeight;
-        }
-        else
-        {
-            flightTargetY = y;   // resuming from an aborted landing
-        }
-
-        isFlying = true;
-        isLanding = false;
-        reverseHoldTimer = 0f;
-
-        if (enableDebugLogs)
-            Debug.Log("[CAR DEBUG] FLIGHT MODE ON");
-    }
-
-    private void BeginLanding()
-    {
-        isLanding = true;
-
-        if (enableDebugLogs)
-            Debug.Log("[CAR DEBUG] FLIGHT MODE OFF - landing");
-    }
-
-    private void EndFlight()
-    {
-        isFlying = false;
-        isLanding = false;
-        flightVerticalVelocity = 0f;
-        currentSpeed = Mathf.Clamp(currentSpeed, -maxReverseSpeed, maxSpeed);
-
-        if (enableDebugLogs)
-            Debug.Log("[CAR DEBUG] Landed.");
-    }
-
-    private void FlightFixedUpdate()
-    {
-        float dt = Time.fixedDeltaTime;
-        float y = rb.position.y;
-
-        // If the driver gets out some other way, bring the car down
-        if (!isBeingDriven && !isLanding)
-            isLanding = true;
-
-        bool haveGround = TryGetGroundBelow(out float groundY);
-
-        // Can't land with nothing below us - go back to hovering
-        if (isLanding && !haveGround)
-        {
-            isLanding = false;
-            flightTargetY = y;
-        }
-
-        // ---------------- VERTICAL ----------------
-        float desiredVy;
-
-        if (isLanding)
-        {
-            flightTargetY = groundY + groundOffset;
-            float diff = flightTargetY - y;
-
-            if (Mathf.Abs(diff) < 0.15f)
-            {
-                EndFlight();
-                return;
-            }
-
-            desiredVy = Mathf.Clamp(diff * flightAltitudeHoldGain, -flightVerticalSpeed, flightVerticalSpeed);
-        }
-        else
-        {
-            float climb = 0f;
-
-            if (isBeingDriven)
-            {
-                if (Input.GetKey(ascendKey)) climb += 1f;
-                if (Input.GetKey(descendKey)) climb -= 1f;
-            }
-
-            if (Mathf.Abs(climb) > 0.01f)
-            {
-                desiredVy = climb * flightVerticalSpeed;
-
-                if (climb > 0f && y >= flightCeilingY)
-                    desiredVy = 0f;
-                if (climb < 0f && haveGround && y <= groundY + minFlightHeight)
-                    desiredVy = 0f;
-
-                flightTargetY = y;   // hold wherever the key was released
-            }
-            else
-            {
-                if (haveGround)
-                    flightTargetY = Mathf.Max(flightTargetY, groundY + minFlightHeight);
-                flightTargetY = Mathf.Min(flightTargetY, flightCeilingY);
-
-                float bob = Mathf.Sin(Time.time * hoverBobSpeed) * hoverBobAmount;
-
-                desiredVy = Mathf.Clamp(
-                    (flightTargetY + bob - y) * flightAltitudeHoldGain,
-                    -flightVerticalSpeed, flightVerticalSpeed);
-            }
-        }
-
-        flightVerticalVelocity =
-            Mathf.MoveTowards(flightVerticalVelocity, desiredVy, flightVerticalAccel * dt);
-
-        // ---------------- HORIZONTAL ----------------
-        HandleFlightSpeed(dt);
-        HandleFlightSteering(dt);
-
-        Vector3 forward = Quaternion.Euler(0f, flightHeading, 0f) * Vector3.forward;
-
-        Vector3 horizontal = rb.linearVelocity;
-        horizontal.y = 0f;
-        horizontal = Vector3.Lerp(
-            horizontal,
-            forward * currentSpeed,
-            1f - Mathf.Exp(-flightGrip * dt));
-
-        rb.linearVelocity = new Vector3(horizontal.x, flightVerticalVelocity, horizontal.z);
-        rb.angularVelocity = Vector3.zero;
-
-        // ---------------- BODY ORIENTATION ----------------
-        float speedRatio = Mathf.Clamp(currentSpeed / Mathf.Max(0.01f, maxFlightSpeed), -1f, 1f);
-        float vertRatio = Mathf.Clamp(flightVerticalVelocity / Mathf.Max(0.01f, flightVerticalSpeed), -1f, 1f);
-
-        float targetPitch = speedRatio * flightForwardPitch - vertRatio * flightClimbPitch;
-        float targetRoll = -currentSteerInput * flightBankAngle * Mathf.Max(0.3f, Mathf.Abs(speedRatio));
-
-        float k = 1f - Mathf.Exp(-flightTiltSpeed * dt);
-        flightPitch = Mathf.Lerp(flightPitch, targetPitch, k);
-        flightRoll = Mathf.Lerp(flightRoll, targetRoll, k);
-
-        rb.MoveRotation(
-            Quaternion.Euler(0f, flightHeading, 0f) *
-            Quaternion.Euler(flightPitch, 0f, flightRoll));
-    }
-
-    private void HandleFlightSpeed(float dt)
-    {
-        throttleInput = isBeingDriven && Input.GetKey(KeyCode.W);
-        brakeInput = isBeingDriven && Input.GetKey(KeyCode.S);
-
-        if (throttleInput)
-        {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, maxFlightSpeed, flightAcceleration * dt);
-        }
-        else if (brakeInput)
-        {
-            if (currentSpeed > 0.05f)
-                currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, flightAcceleration * 2f * dt);
-            else
-                currentSpeed = Mathf.MoveTowards(currentSpeed, -maxFlightReverseSpeed, flightAcceleration * dt);
-        }
-        else
-        {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, flightDrag * dt);
-        }
-    }
-
-    private void HandleFlightSteering(float dt)
-    {
-        float target = 0f;
-
-        if (isBeingDriven)
-        {
-            if (Input.GetKey(KeyCode.A)) target = -1f;
-            if (Input.GetKey(KeyCode.D)) target = 1f;
-        }
-
-        currentSteerInput = Mathf.MoveTowards(currentSteerInput, target, steerResponsiveness * dt);
-
-        // Can still turn while hovering, but turns tighter at speed
-        float speedFactor = Mathf.Clamp(Mathf.Abs(currentSpeed) / Mathf.Max(0.01f, maxFlightSpeed), 0.35f, 1f);
-        float direction = currentSpeed >= 0f ? 1f : -1f;
-
-        flightHeading += currentSteerInput * flightTurnSpeed * speedFactor * direction * dt;
-    }
-
-    /// <summary>
-    /// Raycasts straight down to find the ground below, ignoring the car's own
-    /// colliders and the player's colliders.
-    /// </summary>
-    private bool TryGetGroundBelow(out float groundY)
-    {
-        Vector3 origin = transform.position + Vector3.up * 0.5f;
-
-        int count = Physics.RaycastNonAlloc(
-            origin, Vector3.down, flightHitBuffer,
-            flightGroundRayDistance, groundMask, QueryTriggerInteraction.Ignore);
-
-        float best = float.MaxValue;
-        groundY = 0f;
-        bool found = false;
-
-
-
-        for (int i = 0; i < count; i++)
-        {
-            RaycastHit h = flightHitBuffer[i];
-
-            if (h.collider == null) continue;
-            if (h.collider.transform.IsChildOf(transform)) continue;
-            if (player != null && h.collider.transform.IsChildOf(player)) continue;
-            if (h.distance >= best) continue;
-
-            best = h.distance;
-            groundY = h.point.y;
-            found = true;
-        }
-
-        return found;
-    }
-
-    private bool ShouldShowFlightHint => isBeingDriven && isFlying && !isLanding;
-
-    private void UpdateFlightHint()
-    {
-        if (flightControlsHintUI == null)
-            return;
-
-        bool show = ShouldShowFlightHint;
-
-        if (flightControlsHintUI.activeSelf != show)
-            flightControlsHintUI.SetActive(show);
-    }
-
-    private void DrawFlightHint()
-    {
-        // Skip if a custom UI object is handling it, or the hint is disabled
-        if (!showBuiltInFlightHint || flightControlsHintUI != null || !ShouldShowFlightHint)
-            return;
-
-        if (flightHintStyle == null)
-        {
-            flightHintStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 22,
-                fontStyle = FontStyle.Bold
-            };
-        }
-
-        string text =
-            "Hold " + ascendKey + " to ASCEND   |   Hold " + descendKey + " to DESCEND   |   " +
-            flightToggleKey + " to land";
-
-        Rect rect = new Rect(0f, Screen.height - 80f, Screen.width, 40f);
-
-        // Drop shadow so it's readable on any background
-        flightHintStyle.normal.textColor = Color.black;
-        GUI.Label(new Rect(rect.x + 2f, rect.y + 2f, rect.width, rect.height), text, flightHintStyle);
-
-        flightHintStyle.normal.textColor = Color.white;
-        GUI.Label(rect, text, flightHintStyle);
+                tiltSpeed *
+                Time.fixedDeltaTime
+            )
+        );
     }
 
 
@@ -1381,6 +1393,7 @@ public class CarController : MonoBehaviour
         }
     }
 
+   
     private void UpdateWheelVisuals()
     {
         if (wheels == null || wheels.Length == 0)
@@ -1388,13 +1401,9 @@ public class CarController : MonoBehaviour
 
         float dt = Time.deltaTime;
 
-        // Fold wheels while flying, unfold when landing / grounded
-        float blendTarget = (isFlying && !isLanding) ? 1f : 0f;
-        flightBlend = Mathf.MoveTowards(flightBlend, blendTarget, dt / Mathf.Max(0.01f, wheelFoldDuration));
-        float fold = Mathf.SmoothStep(0f, 1f, flightBlend);
-        float groundFactor = 1f - fold;
-
-        float targetSteerAngle = currentSteerInput * maxSteerVisualAngle;
+        float targetSteerAngle =
+            currentSteerInput *
+            maxSteerVisualAngle;
 
         foreach (WheelVisual wheel in wheels)
         {
@@ -1408,9 +1417,12 @@ public class CarController : MonoBehaviour
                 wheel.isSetup = true;
             }
 
-            // Spin stops as the wheels fold away in flight
-            float circumference = 2f * Mathf.PI * Mathf.Max(0.01f, wheel.wheelRadius);
-            float spinDegreesPerSecond = (currentSpeed / circumference) * 360f * groundFactor;
+            
+            float circumference =
+                2f * Mathf.PI * Mathf.Max(0.01f, wheel.wheelRadius);
+
+            float spinDegreesPerSecond =
+                (currentSpeed / circumference) * 360f;
 
             wheel.currentSpinAngle =
                 Mathf.Repeat(wheel.currentSpinAngle + spinDegreesPerSecond * dt, 360f);
@@ -1419,32 +1431,41 @@ public class CarController : MonoBehaviour
                 wheel.corner == WheelCorner.FrontLeft ||
                 wheel.corner == WheelCorner.FrontRight;
 
-            float steerAngle = isFrontWheel ? targetSteerAngle * groundFactor : 0f;
+            float steerAngle =
+                isFrontWheel ? targetSteerAngle : 0f;
 
             wheel.wheelTransform.localRotation =
-                Quaternion.AngleAxis(fold * flightWheelAngleY, Vector3.up) *
                 Quaternion.AngleAxis(steerAngle, Vector3.up) *
                 Quaternion.AngleAxis(wheel.currentSpinAngle, wheel.spinAxis);
 
+            
             int probeIndex = GetProbeIndexForCorner(wheel.corner);
             float targetLocalY = wheel.restLocalPosition.y;
 
             if (probeIndex >= 0 && rawGroundHeights != null && !float.IsNaN(rawGroundHeights[probeIndex]))
             {
-                float desiredWorldY = rawGroundHeights[probeIndex] + wheel.wheelRadius;
-                float desiredLocalY = desiredWorldY - transform.position.y;
+                float desiredWorldY =
+                    rawGroundHeights[probeIndex] +
+                    wheel.wheelRadius;
 
-                targetLocalY = Mathf.Clamp(
-                    desiredLocalY,
-                    wheel.restLocalPosition.y - maxWheelSuspensionTravel,
-                    wheel.restLocalPosition.y + maxWheelSuspensionTravel);
+                float desiredLocalY =
+                    desiredWorldY -
+                    transform.position.y;
+
+                targetLocalY =
+                    Mathf.Clamp(
+                        desiredLocalY,
+                        wheel.restLocalPosition.y - maxWheelSuspensionTravel,
+                        wheel.restLocalPosition.y + maxWheelSuspensionTravel
+                    );
             }
 
-            // In flight the wheels hang at their rest height
-            targetLocalY = Mathf.Lerp(targetLocalY, wheel.restLocalPosition.y, fold);
-
             wheel.currentLocalY =
-                Mathf.MoveTowards(wheel.currentLocalY, targetLocalY, wheelSuspensionSpeed * dt);
+                Mathf.MoveTowards(
+                    wheel.currentLocalY,
+                    targetLocalY,
+                    wheelSuspensionSpeed * dt
+                );
 
             Vector3 localPos = wheel.wheelTransform.localPosition;
             localPos.x = wheel.restLocalPosition.x;
@@ -1468,7 +1489,8 @@ public class CarController : MonoBehaviour
         {
             Debug.LogWarning(
                 "[CAR DEBUG] Tire smoke needs rear wheel references - " +
-                "assign Rear Left/Right Smoke Point, or add rear wheels to the Wheels list.");
+                "assign Rear Left/Right Smoke Point, or add rear wheels to the Wheels list."
+            );
         }
 
         rearLeftSmoke = CreateSmokeSystem("RearLeftTireSmoke", rl);
@@ -1525,7 +1547,8 @@ public class CarController : MonoBehaviour
             {
                 new GradientAlphaKey(tireSmokeColor.a, 0f),
                 new GradientAlphaKey(0f, 1f)
-            });
+            }
+        );
         colorOverLifetime.color = gradient;
 
         ParticleSystemRenderer psRenderer = smokeObj.GetComponent<ParticleSystemRenderer>();
@@ -1549,13 +1572,14 @@ public class CarController : MonoBehaviour
 
         float targetRate = 0f;
 
-        // No smoke while flying
-        if (isBeingDriven && grounded && !isFlying)
+        if (isBeingDriven && grounded)
         {
+            
             bool wheelSpinSmoke =
                 throttleInput &&
                 Mathf.Abs(currentSpeed) < maxSpeed * accelSmokeSpeedThreshold;
 
+           
             bool skidSmoke =
                 brakeInput &&
                 currentSpeed > brakeSmokeMinSpeed;
@@ -1564,10 +1588,12 @@ public class CarController : MonoBehaviour
                 targetRate = maxSmokeEmissionRate;
         }
 
-        currentSmokeRate = Mathf.Lerp(
-            currentSmokeRate,
-            targetRate,
-            1f - Mathf.Exp(-smokeResponseSpeed * Time.fixedDeltaTime));
+        currentSmokeRate =
+            Mathf.Lerp(
+                currentSmokeRate,
+                targetRate,
+                1f - Mathf.Exp(-smokeResponseSpeed * Time.fixedDeltaTime)
+            );
 
         if (rearLeftSmoke != null)
         {
@@ -1589,12 +1615,20 @@ public class CarController : MonoBehaviour
 
     private void PreventPhysicsRotation()
     {
-        // No vertical bouncing velocity.
-        Vector3 velocity = rb.linearVelocity;
-        velocity.y = 0f;
-        rb.linearVelocity = velocity;
+        /*
+         * No vertical bouncing velocity.
+         */
+        Vector3 velocity =
+            rb.linearVelocity;
 
-        rb.angularVelocity = Vector3.zero;
+        velocity.y = 0f;
+
+        rb.linearVelocity =
+            velocity;
+
+        
+        rb.angularVelocity =
+            Vector3.zero;
     }
 
 
@@ -1607,31 +1641,73 @@ public class CarController : MonoBehaviour
         if (!enableDebugLogs)
             return;
 
-        if (Time.time - lastDebugTime < debugInterval)
+        if (
+            Time.time -
+            lastDebugTime <
+            debugInterval)
+        {
             return;
+        }
 
-        lastDebugTime = Time.time;
+        lastDebugTime =
+            Time.time;
 
         Debug.Log(
             "========== CAR DEBUG ==========\n" +
-            "Driven: " + isBeingDriven +
-            "\nFlying: " + isFlying + (isLanding ? " (landing)" : "") +
-            "\nGrounded: " + grounded +
-            "\nPavement Detected: " + pavementDetected +
-            "\nClimbing Pavement: " + climbingPavement +
-            "\nGround Height: " + groundHeight.ToString("F3") +
-            "\nCar Height: " + transform.position.y.ToString("F3") +
-            "\nHeight Difference: " + (groundHeight - transform.position.y).ToString("F3") +
-            "\nGround Distance: " + groundDistance.ToString("F3") +
-            "\nGround Angle: " + groundAngle.ToString("F2") +
-            "°\nGround Normal: " + groundNormal +
-            "\nGround Point: " + groundPoint +
-            "\nSpeed: " + currentSpeed.ToString("F2") +
-            "\nSteering: " + currentSteerInput.ToString("F2") +
-            "\nVelocity: " + rb.linearVelocity +
-            "\nAngular Velocity: " + rb.angularVelocity +
-            "\nRotation: " + transform.eulerAngles +
-            "\n================================");
+
+            "Driven: " +
+            isBeingDriven +
+
+            "\nGrounded: " +
+            grounded +
+
+            "\nPavement Detected: " +
+            pavementDetected +
+
+            "\nClimbing Pavement: " +
+            climbingPavement +
+
+            "\nGround Height: " +
+            groundHeight.ToString("F3") +
+
+            "\nCar Height: " +
+            transform.position.y.ToString("F3") +
+
+            "\nHeight Difference: " +
+            (
+                groundHeight -
+                transform.position.y
+            ).ToString("F3") +
+
+            "\nGround Distance: " +
+            groundDistance.ToString("F3") +
+
+            "\nGround Angle: " +
+            groundAngle.ToString("F2") +
+
+            "°\nGround Normal: " +
+            groundNormal +
+
+            "\nGround Point: " +
+            groundPoint +
+
+            "\nSpeed: " +
+            currentSpeed.ToString("F2") +
+
+            "\nSteering: " +
+            currentSteerInput.ToString("F2") +
+
+            "\nVelocity: " +
+            rb.linearVelocity +
+
+            "\nAngular Velocity: " +
+            rb.angularVelocity +
+
+            "\nRotation: " +
+            transform.eulerAngles +
+
+            "\n================================"
+        );
     }
 
 
@@ -1639,12 +1715,11 @@ public class CarController : MonoBehaviour
     // INTERACT PROMPT / ENTER-EXIT
     // =========================================================
 
+    
     private void Update()
     {
         UpdateInteractPrompt();
         HandleEnterExitInput();
-        HandleFlightToggleInput();
-        UpdateFlightHint();
         UpdateWheelVisuals();
     }
 
@@ -1675,7 +1750,7 @@ public class CarController : MonoBehaviour
             if (dist <= driveInteractRange)
                 EnterCar();
         }
-        else if (!isFlying)   // can't hop out mid-air
+        else
         {
             ExitCar();
         }
@@ -1711,7 +1786,8 @@ public class CarController : MonoBehaviour
     // COLLISION DAMAGE
     // =========================================================
 
-    private void OnCollisionEnter(Collision collision)
+    private void OnCollisionEnter(
+        Collision collision)
     {
         if (!isBeingDriven)
             return;
@@ -1719,33 +1795,68 @@ public class CarController : MonoBehaviour
         if (driverHealth == null)
             return;
 
-        if (Time.time - lastDamageTime < damageCooldown)
-            return;
-
-        foreach (ContactPoint contact in collision.contacts)
+        if (
+            Time.time -
+            lastDamageTime <
+            damageCooldown)
         {
-            float groundDot = Mathf.Abs(Vector3.Dot(contact.normal, Vector3.up));
+            return;
+        }
 
-            // Ignore ground and pavement contacts.
-            if (groundDot > groundNormalThreshold)
+        foreach (
+            ContactPoint contact
+            in collision.contacts)
+        {
+            float groundDot =
+                Mathf.Abs(
+                    Vector3.Dot(
+                        contact.normal,
+                        Vector3.up
+                    )
+                );
+
+            /*
+             * Ignore ground and pavement contacts.
+             */
+            if (
+                groundDot >
+                groundNormalThreshold)
+            {
                 continue;
+            }
 
-            float impactSpeed = Mathf.Abs(Vector3.Dot(collision.relativeVelocity, contact.normal));
+            float impactSpeed =
+                Mathf.Abs(
+                    Vector3.Dot(
+                        collision.relativeVelocity,
+                        contact.normal
+                    )
+                );
 
-            if (impactSpeed < minImpactSpeedForDamage)
+            if (
+                impactSpeed <
+                minImpactSpeedForDamage)
+            {
                 continue;
+            }
 
             if (enableDebugLogs)
             {
                 Debug.Log(
                     "[CAR DEBUG] DAMAGE | " +
-                    "Impact Speed = " + impactSpeed.ToString("F2") +
-                    " | Object = " + collision.gameObject.name);
+                    "Impact Speed = " +
+                    impactSpeed.ToString("F2") +
+                    " | Object = " +
+                    collision.gameObject.name
+                );
             }
 
-            driverHealth.DamagePlayer(wallDamageAmount);
+            driverHealth.DamagePlayer(
+                wallDamageAmount
+            );
 
-            lastDamageTime = Time.time;
+            lastDamageTime =
+                Time.time;
 
             break;
         }
@@ -1758,51 +1869,208 @@ public class CarController : MonoBehaviour
 
     private void OnGUI()
     {
-        DrawFlightHint();
-
-        if (!enableDebugGUI || rb == null)
-            return;
-        if (!enableDebugGUI || rb == null)
+        if (!enableDebugGUI)
             return;
 
-        GUI.Box(new Rect(10, 10, 400, 420), "");
+        GUI.Box(
+            new Rect(
+                10,
+                10,
+                400,
+                350
+            ),
+            ""
+        );
 
-        GUI.Label(new Rect(20, 20, 380, 25), "CAR DEBUG");
+        GUI.Label(
+            new Rect(
+                20,
+                20,
+                380,
+                25
+            ),
+            "CAR DEBUG"
+        );
 
-        GUI.Label(new Rect(20, 50, 380, 20), "Grounded: " + grounded);
-        GUI.Label(new Rect(20, 70, 380, 20), "Pavement: " + pavementDetected);
-        GUI.Label(new Rect(20, 90, 380, 20), "Climbing: " + climbingPavement);
-        GUI.Label(new Rect(20, 110, 380, 20), "Ground Height: " + groundHeight.ToString("F2"));
-        GUI.Label(new Rect(20, 130, 380, 20), "Car Height: " + transform.position.y.ToString("F2"));
-        GUI.Label(new Rect(20, 150, 380, 20), "Ground Distance: " + groundDistance.ToString("F2"));
-        GUI.Label(new Rect(20, 170, 380, 20), "Ground Angle: " + groundAngle.ToString("F1") + "°");
-        GUI.Label(new Rect(20, 190, 380, 20), "Speed: " + currentSpeed.ToString("F2"));
-        GUI.Label(new Rect(20, 210, 380, 20), "Steering: " + currentSteerInput.ToString("F2"));
-        GUI.Label(new Rect(20, 230, 380, 20), "Velocity: " + rb.linearVelocity.ToString("F2"));
-        GUI.Label(new Rect(20, 250, 380, 20), "Angular: " + rb.angularVelocity.ToString("F2"));
-        GUI.Label(new Rect(20, 270, 380, 20), "Rotation: " + transform.eulerAngles.ToString("F1"));
-        GUI.Label(new Rect(20, 290, 380, 20), "Normal: " + groundNormal.ToString());
+        GUI.Label(
+            new Rect(
+                20,
+                50,
+                380,
+                20
+            ),
+            "Grounded: " +
+            grounded
+        );
 
-        GUI.Label(new Rect(20, 315, 380, 20),
-            "A/D: " + (Input.GetKey(KeyCode.A) ? "LEFT" : Input.GetKey(KeyCode.D) ? "RIGHT" : "NONE"));
+        GUI.Label(
+            new Rect(
+                20,
+                70,
+                380,
+                20
+            ),
+            "Pavement: " +
+            pavementDetected
+        );
 
-        GUI.Label(new Rect(20, 335, 380, 20),
-            "W/S: " + (Input.GetKey(KeyCode.W) ? "FORWARD" : Input.GetKey(KeyCode.S) ? "BRAKE/REVERSE" : "NONE"));
+        GUI.Label(
+            new Rect(
+                20,
+                90,
+                380,
+                20
+            ),
+            "Climbing: " +
+            climbingPavement
+        );
 
-        string flightState = isFlying ? (isLanding ? "LANDING" : "FLYING") : "GROUND";
+        GUI.Label(
+            new Rect(
+                20,
+                110,
+                380,
+                20
+            ),
+            "Ground Height: " +
+            groundHeight.ToString("F2")
+        );
 
-        GUI.Label(new Rect(20, 360, 380, 20),
-            "Flight: " + flightState + "  |  Unlocked: " + FlightUnlocked);
+        GUI.Label(
+            new Rect(
+                20,
+                130,
+                380,
+                20
+            ),
+            "Car Height: " +
+            transform.position.y.ToString("F2")
+        );
 
-        GUI.Label(new Rect(20, 380, 380, 20),
-            "Climb: " + ascendKey + " up / " + descendKey + " down  |  " + flightToggleKey + " toggles flight");
+        GUI.Label(
+            new Rect(
+                20,
+                150,
+                380,
+                20
+            ),
+            "Ground Distance: " +
+            groundDistance.ToString("F2")
+        );
 
-        if (isFlying)
-        {
-            GUI.Label(new Rect(20, 400, 380, 20),
-                "Target Y: " + flightTargetY.ToString("F1") +
-                "  |  Vert Vel: " + flightVerticalVelocity.ToString("F1"));
-        }
+        GUI.Label(
+            new Rect(
+                20,
+                170,
+                380,
+                20
+            ),
+            "Ground Angle: " +
+            groundAngle.ToString("F1") +
+            "°"
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                190,
+                380,
+                20
+            ),
+            "Speed: " +
+            currentSpeed.ToString("F2")
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                210,
+                380,
+                20
+            ),
+            "Steering: " +
+            currentSteerInput.ToString("F2")
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                230,
+                380,
+                20
+            ),
+            "Velocity: " +
+            rb.linearVelocity.ToString("F2")
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                250,
+                380,
+                20
+            ),
+            "Angular: " +
+            rb.angularVelocity.ToString("F2")
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                270,
+                380,
+                20
+            ),
+            "Rotation: " +
+            transform.eulerAngles.ToString("F1")
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                290,
+                380,
+                20
+            ),
+            "Normal: " +
+            groundNormal.ToString()
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                315,
+                380,
+                20
+            ),
+            "A/D: " +
+            (
+                Input.GetKey(KeyCode.A)
+                    ? "LEFT"
+                    :
+                Input.GetKey(KeyCode.D)
+                    ? "RIGHT"
+                    : "NONE"
+            )
+        );
+
+        GUI.Label(
+            new Rect(
+                20,
+                335,
+                380,
+                20
+            ),
+            "W/S: " +
+            (
+                Input.GetKey(KeyCode.W)
+                    ? "FORWARD"
+                    :
+                Input.GetKey(KeyCode.S)
+                    ? "BRAKE/REVERSE"
+                    : "NONE"
+            )
+        );
     }
 
 
@@ -1814,44 +2082,129 @@ public class CarController : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        // Ground probes.
+        /*
+         * Ground probes.
+         */
         if (drawGroundProbes)
         {
-            Gizmos.color = Color.yellow;
+            Gizmos.color =
+                Color.yellow;
 
-            for (int i = 0; i < 5; i++)
+            Vector3[] positions =
             {
-                Vector3 world = transform.TransformPoint(GetProbeLocalPosition(i));
+                new Vector3(
+                    -sideProbeDistance,
+                    probeStartHeight,
+                    frontProbeDistance
+                ),
 
-                Gizmos.DrawLine(world, world + Vector3.down * groundProbeDistance);
-                Gizmos.DrawSphere(world, 0.06f);
+                new Vector3(
+                    0f,
+                    probeStartHeight,
+                    frontProbeDistance
+                ),
+
+                new Vector3(
+                    sideProbeDistance,
+                    probeStartHeight,
+                    frontProbeDistance
+                ),
+
+                new Vector3(
+                    -sideProbeDistance,
+                    probeStartHeight,
+                    -rearProbeDistance
+                ),
+
+                new Vector3(
+                    sideProbeDistance,
+                    probeStartHeight,
+                    -rearProbeDistance
+                )
+            };
+
+            foreach (
+                Vector3 localPosition
+                in positions)
+            {
+                Vector3 world =
+                    transform.TransformPoint(
+                        localPosition
+                    );
+
+                Gizmos.DrawLine(
+                    world,
+                    world +
+                    Vector3.down *
+                    groundProbeDistance
+                );
+
+                Gizmos.DrawSphere(
+                    world,
+                    0.06f
+                );
             }
         }
 
-        // Pavement probe.
+        /*
+         * Pavement probe.
+         */
         if (drawPavementProbe)
         {
-            Gizmos.color = Color.magenta;
+            Gizmos.color =
+                Color.magenta;
 
-            Vector3 origin = transform.position + transform.forward * pavementLookAhead;
-            origin.y += probeStartHeight;
+            Vector3 origin =
+                transform.position +
+                transform.forward *
+                pavementLookAhead;
 
-            Gizmos.DrawWireSphere(origin, pavementProbeRadius);
-            Gizmos.DrawLine(origin, origin + Vector3.down * groundProbeDistance);
+            origin.y +=
+                probeStartHeight;
+
+            Gizmos.DrawWireSphere(
+                origin,
+                pavementProbeRadius
+            );
+
+            Gizmos.DrawLine(
+                origin,
+                origin +
+                Vector3.down *
+                groundProbeDistance
+            );
         }
 
-        // Car forward.
+        /*
+         * Car forward.
+         */
         if (drawForward)
         {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(transform.position, transform.position + transform.forward * 2f);
+            Gizmos.color =
+                Color.blue;
+
+            Gizmos.DrawLine(
+                transform.position,
+                transform.position +
+                transform.forward *
+                2f
+            );
         }
 
-        // Ground point.
-        if (drawGroundPoint && grounded)
+        /*
+         * Ground point.
+         */
+        if (
+            drawGroundPoint &&
+            grounded)
         {
-            Gizmos.color = Color.green;
-            Gizmos.DrawSphere(groundPoint, 0.12f);
+            Gizmos.color =
+                Color.green;
+
+            Gizmos.DrawSphere(
+                groundPoint,
+                0.12f
+            );
         }
     }
 
