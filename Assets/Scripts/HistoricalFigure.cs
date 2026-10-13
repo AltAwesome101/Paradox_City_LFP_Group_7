@@ -26,9 +26,6 @@ public class HistoricalFigure : MonoBehaviour
     public float leaveSpeed = 2f;
     public float leaveDistance = 8f;
 
-    [Header("Level Completion")]
-    public WrongBeerLevelCompletion levelCompletion;
-
     private bool hasOrdered = false;
     private bool hasBeenServed = false;
     private bool receivedWrongBeer = false;
@@ -257,11 +254,6 @@ public class HistoricalFigure : MonoBehaviour
         leaveDirection.Normalize();
 
         leaving = true;
-
-        if (levelCompletion != null)
-            levelCompletion.CorrectBeerGiven();
-        else
-            Debug.LogWarning("HistoricalFigure: no WrongBeerLevelCompletion assigned.");
     }
 
     private void LeaveBar()

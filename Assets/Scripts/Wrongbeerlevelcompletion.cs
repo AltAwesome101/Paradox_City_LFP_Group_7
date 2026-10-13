@@ -23,7 +23,7 @@ public class WrongBeerLevelCompletion : MonoBehaviour
     private bool _completed;
 
     
-    public void CorrectBeerGiven()
+    public void WrongBeerGiven()
     {
         if (_completed) return;
         _completed = true;
@@ -60,6 +60,6 @@ public class WrongBeerLevelCompletion : MonoBehaviour
     [ContextMenu("TEST: Complete Wrong Beer level")]
     private void TestComplete()
     {
-        CorrectBeerGiven();
+        WrongBeerGiven();
     }
 }
