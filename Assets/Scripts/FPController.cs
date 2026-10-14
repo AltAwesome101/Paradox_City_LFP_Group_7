@@ -16,13 +16,15 @@ public class FPController : MonoBehaviour
     public Transform beerHoldPoint;
     public float interactionRange = 3f;
 
+    [Header("Beer Preparation")]
+    public PreparationMinigame preparationMinigame;
+
     private CharacterController controller;
 
     private Vector2 moveInput;
     private Vector2 lookInput;
 
     private Vector3 velocity;
-
     private float verticalRotation = 0f;
 
     private Beer carriedBeer;
@@ -58,16 +60,18 @@ public class FPController : MonoBehaviour
 
     public void OnInteract(InputAction.CallbackContext context)
     {
-        if (context.started)
+        if (!context.started)
         {
-            if (carriedBeer != null)
-            {
-                TryServeBeer();
-            }
-            else
-            {
-                TryPickUpBeer();
-            }
+            return;
+        }
+
+        if (carriedBeer != null)
+        {
+            TryServeBeer();
+        }
+        else
+        {
+            TryPickUpBeer();
         }
     }
 
@@ -77,6 +81,11 @@ public class FPController : MonoBehaviour
 
     private void HandleMovement()
     {
+        if (controller == null || !controller.enabled)
+        {
+            return;
+        }
+
         Vector3 forward = cameraTransform.forward;
         Vector3 right = cameraTransform.right;
 
@@ -96,9 +105,7 @@ public class FPController : MonoBehaviour
         }
 
         controller.Move(
-            movement *
-            moveSpeed *
-            Time.deltaTime
+            movement * moveSpeed * Time.deltaTime
         );
     }
 
@@ -108,34 +115,26 @@ public class FPController : MonoBehaviour
 
     private void HandleLook()
     {
-        float mouseX =
-            lookInput.x *
-            lookSensitivity;
+        if (cameraTransform == null)
+        {
+            return;
+        }
 
-        float mouseY =
-            lookInput.y *
-            lookSensitivity;
+        float mouseX = lookInput.x * lookSensitivity;
+        float mouseY = lookInput.y * lookSensitivity;
 
         verticalRotation -= mouseY;
 
-        verticalRotation =
-            Mathf.Clamp(
-                verticalRotation,
-                -verticalLookLimit,
-                verticalLookLimit
-            );
+        verticalRotation = Mathf.Clamp(
+            verticalRotation,
+            -verticalLookLimit,
+            verticalLookLimit
+        );
 
         cameraTransform.localRotation =
-            Quaternion.Euler(
-                verticalRotation,
-                0f,
-                0f
-            );
+            Quaternion.Euler(verticalRotation, 0f, 0f);
 
-        transform.Rotate(
-            Vector3.up *
-            mouseX
-        );
+        transform.Rotate(Vector3.up * mouseX);
     }
 
     // =========================
@@ -144,20 +143,19 @@ public class FPController : MonoBehaviour
 
     private void HandleGravity()
     {
-        if (controller.isGrounded &&
-            velocity.y < 0f)
+        if (controller == null || !controller.enabled)
+        {
+            return;
+        }
+
+        if (controller.isGrounded && velocity.y < 0f)
         {
             velocity.y = -2f;
         }
 
-        velocity.y +=
-            gravity *
-            Time.deltaTime;
+        velocity.y += gravity * Time.deltaTime;
 
-        controller.Move(
-            velocity *
-            Time.deltaTime
-        );
+        controller.Move(velocity * Time.deltaTime);
     }
 
     // =========================
@@ -171,32 +169,44 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        Camera cam =
-            cameraTransform.GetComponent<Camera>();
-
-        if (cam == null)
+        // The player must complete preparation first.
+        if (preparationMinigame == null ||
+            !preparationMinigame.IsPreparationComplete())
         {
+            Debug.Log("Prepare the beer before picking one up.");
             return;
         }
 
-        Ray ray =
-            cam.ViewportPointToRay(
-                new Vector3(0.5f, 0.5f, 0f)
-            );
+        Camera cam = cameraTransform.GetComponent<Camera>();
 
-        RaycastHit hit;
-
-        if (Physics.Raycast(
-            ray,
-            out hit,
-            interactionRange
-        ))
+        if (cam == null)
         {
-            Beer beer =
-                hit.collider.GetComponent<Beer>();
+            Debug.LogError(
+                "FPController: No Camera component on cameraTransform."
+            );
+            return;
+        }
+
+        Ray ray = cam.ViewportPointToRay(
+            new Vector3(0.5f, 0.5f, 0f)
+        );
+
+        if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
+        {
+            Beer beer = hit.collider.GetComponentInParent<Beer>();
 
             if (beer != null)
             {
+                // Only the beer assigned by the minigame is allowed.
+                if (!preparationMinigame.CanPickUpBeer(beer))
+                {
+                    Debug.Log(
+                        "That beer is not assigned to you. " +
+                        "Find the assigned beer."
+                    );
+                    return;
+                }
+
                 PickUpBeer(beer);
             }
         }
@@ -206,35 +216,25 @@ public class FPController : MonoBehaviour
     {
         if (beerHoldPoint == null)
         {
-            Debug.LogError(
-                "Beer Hold Point is not assigned!"
-            );
-
+            Debug.LogError("Beer Hold Point is not assigned!");
             return;
         }
 
         carriedBeer = beer;
 
-        beer.transform.SetParent(
-            beerHoldPoint
-        );
+        beer.transform.SetParent(beerHoldPoint);
+        beer.transform.localPosition = Vector3.zero;
+        beer.transform.localRotation = Quaternion.identity;
 
-        beer.transform.localPosition =
-            Vector3.zero;
+        Collider[] beerColliders =
+            beer.GetComponentsInChildren<Collider>();
 
-        beer.transform.localRotation =
-            Quaternion.identity;
-
-        Collider beerCollider =
-            beer.GetComponent<Collider>();
-
-        if (beerCollider != null)
+        foreach (Collider beerCollider in beerColliders)
         {
             beerCollider.enabled = false;
         }
 
-        Rigidbody beerRigidbody =
-            beer.GetComponent<Rigidbody>();
+        Rigidbody beerRigidbody = beer.GetComponent<Rigidbody>();
 
         if (beerRigidbody != null)
         {
@@ -242,10 +242,7 @@ public class FPController : MonoBehaviour
             beerRigidbody.useGravity = false;
         }
 
-        Debug.Log(
-            "Picked up: " +
-            beer.beerName
-        );
+        Debug.Log("Picked up: " + beer.beerName);
     }
 
     // =========================
@@ -259,37 +256,27 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        Camera cam =
-            cameraTransform.GetComponent<Camera>();
+        Camera cam = cameraTransform.GetComponent<Camera>();
 
         if (cam == null)
         {
             return;
         }
 
-        Ray ray =
-            cam.ViewportPointToRay(
-                new Vector3(0.5f, 0.5f, 0f)
-            );
+        Ray ray = cam.ViewportPointToRay(
+            new Vector3(0.5f, 0.5f, 0f)
+        );
 
-        RaycastHit hit;
-
-        if (Physics.Raycast(
-            ray,
-            out hit,
-            interactionRange
-        ))
+        if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
         {
             HistoricalFigure npc =
-                hit.collider.GetComponent<HistoricalFigure>();
+                hit.collider.GetComponentInParent<HistoricalFigure>();
 
-            if (npc != null &&
-                npc.HasOrdered())
+            if (npc != null && npc.HasOrdered())
             {
                 npc.ServeBeer(carriedBeer);
 
                 carriedBeer.gameObject.SetActive(false);
-
                 carriedBeer = null;
             }
         }

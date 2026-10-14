@@ -9,6 +9,9 @@ public class PauseMenu : MonoBehaviour
     [Header("Player")]
     public PlayerScript player;
 
+    [Header("Preparation Minigame")]
+    public PreparationMinigame preparationMinigame;
+
     [Header("Future Scene")]
     public string futureSceneName = "FutureScene";
 
@@ -25,18 +28,43 @@ public class PauseMenu : MonoBehaviour
         if (pauseMenu != null)
             pauseMenu.SetActive(false);
 
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        UpdateCursorState();
     }
 
     private void Update()
     {
+        // Keep the cursor state correct even if another script
+        // changes it while the preparation panel is open.
+        UpdateCursorState();
+
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (isPaused)
                 ResumeGame();
             else
                 PauseGame();
+        }
+    }
+
+    private bool IsPreparationActive()
+    {
+        return preparationMinigame != null &&
+               !preparationMinigame.IsPreparationComplete();
+    }
+
+    private void UpdateCursorState()
+    {
+        // The pause menu and preparation minigame both need
+        // a visible, unlocked cursor.
+        if (isPaused || IsPreparationActive())
+        {
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+        }
+        else
+        {
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
         }
     }
 
@@ -48,8 +76,7 @@ public class PauseMenu : MonoBehaviour
         if (pauseMenu != null)
             pauseMenu.SetActive(true);
 
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
+        UpdateCursorState();
 
         if (player != null)
             player.SetControl(false);
@@ -66,8 +93,7 @@ public class PauseMenu : MonoBehaviour
         if (pauseMenu != null)
             pauseMenu.SetActive(false);
 
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        UpdateCursorState();
 
         if (player != null)
             player.SetControl(true);
@@ -87,7 +113,6 @@ public class PauseMenu : MonoBehaviour
         string currentScene =
             SceneManager.GetActiveScene().name;
 
-        // Reset all level progress before restarting.
         if (LevelProgressManager.Instance != null)
         {
             LevelProgressManager.Instance.ResetAllProgress();
@@ -117,9 +142,6 @@ public class PauseMenu : MonoBehaviour
         Time.timeScale = 1f;
         isPaused = false;
 
-        Cursor.visible = true;
-        Cursor.lockState = CursorLockMode.None;
-
         if (string.IsNullOrEmpty(futureSceneName))
         {
             Debug.LogError(
@@ -137,6 +159,9 @@ public class PauseMenu : MonoBehaviour
             );
             return;
         }
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
 
         SceneManager.LoadScene(futureSceneName);
     }
