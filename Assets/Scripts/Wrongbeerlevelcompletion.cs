@@ -7,50 +7,40 @@ using UnityEngine.SceneManagement;
 public class WrongBeerLevelCompletion : MonoBehaviour
 {
     [Header("Game Win Scene")]
-    [Tooltip("Exact name of the Game Win scene in Build Settings.")]
     [SerializeField] private string gameWinSceneName = "GameWin";
-
-    [Tooltip("How long the Game Win scene is displayed before returning.")]
     [SerializeField] private float gameWinDisplayDuration = 3f;
 
     [Header("Future Scene")]
-    [Tooltip("Exact name of the future scene in Build Settings.")]
     [SerializeField] private string futureSceneName = "FutureScene";
 
     [Header("Progress")]
-    [Tooltip("Must match the playable level ID.")]
     [SerializeField] private string levelProgressId = "WrongBeerLevel";
 
     [Header("Events")]
-    [Tooltip("Runs once when the wrong beer causes the NPC to miss the meeting.")]
     [SerializeField] private UnityEvent onLevelCompleted;
 
     private bool completed;
 
     public void WrongBeerGiven()
     {
-        if (completed)
-            return;
+        if (completed) return;
 
         completed = true;
 
-        Debug.Log(
-            "[WrongBeerLevelCompletion] Wrong beer outcome confirmed. Game Win!"
-        );
+        // Keep this object alive when Unity loads the Game Win scene.
+        DontDestroyOnLoad(gameObject);
 
-        // Mark the level as completed so the future hub can show
-        // the consequences of the player's actions.
+        Debug.Log("[WrongBeerLevelCompletion] Wrong beer outcome confirmed. Game Win!");
+
         if (WorldStateManager.Instance != null)
         {
             WorldStateManager.Instance.SetLevelCompleted(
-                LevelId.WrongBeer, true
-            );
+                LevelId.WrongBeer, true);
         }
         else
         {
             Debug.LogWarning(
-                "[WrongBeerLevelCompletion] No WorldStateManager found."
-            );
+                "[WrongBeerLevelCompletion] No WorldStateManager found.");
         }
 
         if (LevelProgressManager.Instance != null)
@@ -60,8 +50,7 @@ public class WrongBeerLevelCompletion : MonoBehaviour
         else
         {
             Debug.LogWarning(
-                "[WrongBeerLevelCompletion] No LevelProgressManager found."
-            );
+                "[WrongBeerLevelCompletion] No LevelProgressManager found.");
         }
 
         onLevelCompleted?.Invoke();
@@ -73,40 +62,41 @@ public class WrongBeerLevelCompletion : MonoBehaviour
     {
         Time.timeScale = 1f;
 
+        // Check both scenes before beginning the transition.
         if (!Application.CanStreamedLevelBeLoaded(gameWinSceneName))
         {
             Debug.LogError(
                 "[WrongBeerLevelCompletion] Game Win scene '" +
-                gameWinSceneName +
-                "' cannot be loaded. Check Build Settings."
-            );
+                gameWinSceneName + "' cannot be loaded. Check its name " +
+                "and add it to Build Profiles.");
 
+            Destroy(gameObject);
             yield break;
-        }
-
-        // Show the Game Win scene first.
-        SceneManager.LoadScene(gameWinSceneName);
-
-        // Allow the player to see the ending before returning to the hub.
-        if (gameWinDisplayDuration > 0f)
-        {
-            yield return new WaitForSecondsRealtime(
-                gameWinDisplayDuration
-            );
         }
 
         if (!Application.CanStreamedLevelBeLoaded(futureSceneName))
         {
             Debug.LogError(
                 "[WrongBeerLevelCompletion] Future scene '" +
-                futureSceneName +
-                "' cannot be loaded. Check Build Settings."
-            );
+                futureSceneName + "' cannot be loaded. Check its name " +
+                "and add it to Build Profiles.");
 
+            Destroy(gameObject);
             yield break;
         }
 
+        Debug.Log("[WrongBeerLevelCompletion] Loading Game Win scene.");
+
+        SceneManager.LoadScene(gameWinSceneName);
+
+        yield return new WaitForSecondsRealtime(gameWinDisplayDuration);
+
+        Debug.Log("[WrongBeerLevelCompletion] Returning to FutureScene.");
+
         SceneManager.LoadScene(futureSceneName);
+
+        // Clean up this persistent object after returning to the hub.
+        Destroy(gameObject);
     }
 
     [ContextMenu("TEST: Wrong Beer Game Win")]

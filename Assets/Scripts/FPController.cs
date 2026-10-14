@@ -33,15 +33,46 @@ public class FPController : MonoBehaviour
     {
         controller = GetComponent<CharacterController>();
 
+        if (cameraTransform != null)
+        {
+            verticalRotation =
+                cameraTransform.localEulerAngles.x;
+
+            if (verticalRotation > 180f)
+            {
+                verticalRotation -= 360f;
+            }
+        }
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
 
     private void Update()
     {
+        // Keep the player stationary during preparation.
+        if (IsPreparationActive())
+        {
+            moveInput = Vector2.zero;
+            lookInput = Vector2.zero;
+            velocity.x = 0f;
+            velocity.z = 0f;
+            return;
+        }
+
         HandleMovement();
         HandleLook();
         HandleGravity();
+    }
+
+    // =========================
+    // PREPARATION STATE
+    // =========================
+
+    private bool IsPreparationActive()
+    {
+        return preparationMinigame != null &&
+               !preparationMinigame.IsPreparationComplete();
     }
 
     // =========================
@@ -50,16 +81,33 @@ public class FPController : MonoBehaviour
 
     public void OnMove(InputAction.CallbackContext context)
     {
+        if (IsPreparationActive())
+        {
+            moveInput = Vector2.zero;
+            return;
+        }
+
         moveInput = context.ReadValue<Vector2>();
     }
 
     public void OnLook(InputAction.CallbackContext context)
     {
+        if (IsPreparationActive())
+        {
+            lookInput = Vector2.zero;
+            return;
+        }
+
         lookInput = context.ReadValue<Vector2>();
     }
 
     public void OnInteract(InputAction.CallbackContext context)
     {
+        if (IsPreparationActive())
+        {
+            return;
+        }
+
         if (!context.started)
         {
             return;
@@ -82,6 +130,11 @@ public class FPController : MonoBehaviour
     private void HandleMovement()
     {
         if (controller == null || !controller.enabled)
+        {
+            return;
+        }
+
+        if (cameraTransform == null)
         {
             return;
         }
@@ -169,7 +222,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // The player must complete preparation first.
         if (preparationMinigame == null ||
             !preparationMinigame.IsPreparationComplete())
         {
@@ -177,7 +229,9 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        Camera cam = cameraTransform.GetComponent<Camera>();
+        Camera cam = cameraTransform != null
+            ? cameraTransform.GetComponent<Camera>()
+            : null;
 
         if (cam == null)
         {
@@ -197,7 +251,6 @@ public class FPController : MonoBehaviour
 
             if (beer != null)
             {
-                // Only the beer assigned by the minigame is allowed.
                 if (!preparationMinigame.CanPickUpBeer(beer))
                 {
                     Debug.Log(
@@ -251,7 +304,7 @@ public class FPController : MonoBehaviour
 
     private void TryServeBeer()
     {
-        if (carriedBeer == null)
+        if (carriedBeer == null || cameraTransform == null)
         {
             return;
         }
