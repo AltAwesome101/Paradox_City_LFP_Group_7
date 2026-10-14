@@ -17,6 +17,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Artist_Hitler/Scenes/Artist_Hitler_Level.unity
     guid: e7e8f886c14f9f347ad77dd7ec98d15c
+  - enabled: 1
+    path: Assets/Scenes/GameOver.unity
+    guid: 730cb493c0af0384c81ed33be7f62268
+  - enabled: 1
+    path: Assets/Scenes/GameWin.unity
+    guid: aefafff67c575b147a0fd0e9c855d5e6
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f,
       type: 2}
