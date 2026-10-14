@@ -56,10 +56,11 @@ public class LevelProgressManager : MonoBehaviour
 
     private void InitializeFirstLaunch()
     {
-        // Initialise progress only once.
-        // Never clear progress on every game or scene restart.
+        // Clear old test progress only once.
         if (PlayerPrefs.GetInt(FirstLaunchKey, 0) == 1)
+        {
             return;
+        }
 
         foreach (string level in playableLevels)
         {
@@ -70,7 +71,8 @@ public class LevelProgressManager : MonoBehaviour
         PlayerPrefs.Save();
 
         Debug.Log(
-            "[LevelProgressManager] Initial progress setup complete."
+            "[LevelProgressManager] First launch initialized. " +
+            "All levels start unplayed."
         );
     }
 
@@ -89,7 +91,9 @@ public class LevelProgressManager : MonoBehaviour
         foreach (string level in playableLevels)
         {
             if (level == sceneName)
+            {
                 return true;
+            }
         }
 
         return false;
@@ -99,10 +103,7 @@ public class LevelProgressManager : MonoBehaviour
     {
         if (!IsPlayableLevel(sceneName))
         {
-            Debug.Log(
-                "[LevelProgressManager] Not a playable level: " +
-                sceneName
-            );
+            Debug.Log("Not a playable level: " + sceneName);
             return;
         }
 
@@ -123,26 +124,16 @@ public class LevelProgressManager : MonoBehaviour
     {
         if (!IsPlayableLevel(levelID))
         {
-            Debug.LogWarning(
-                "[LevelProgressManager] Unknown level: " + levelID
-            );
+            Debug.LogWarning("Unknown level: " + levelID);
             return;
         }
 
-        LevelState currentState = GetLevelState(levelID);
-
-        // Never downgrade a completed level.
-        if (currentState == LevelState.Completed)
+        if (GetLevelState(levelID) == LevelState.Completed)
         {
             OnLevelProgressChanged?.Invoke(levelID);
-            Debug.Log(
-                "[LevelProgressManager] Completed level preserved: " +
-                levelID
-            );
             return;
         }
 
-        // Mark this level active without changing any other level.
         PlayerPrefs.SetInt(
             "ParadoxCity_" + levelID,
             (int)LevelState.Active
@@ -152,18 +143,14 @@ public class LevelProgressManager : MonoBehaviour
 
         OnLevelProgressChanged?.Invoke(levelID);
 
-        Debug.Log(
-            "[LevelProgressManager] Level active: " + levelID
-        );
+        Debug.Log("Level Active: " + levelID);
     }
 
     public void CompleteLevel(string levelID)
     {
         if (!IsPlayableLevel(levelID))
         {
-            Debug.LogWarning(
-                "[LevelProgressManager] Unknown level: " + levelID
-            );
+            Debug.LogWarning("Unknown level: " + levelID);
             return;
         }
 
@@ -176,19 +163,14 @@ public class LevelProgressManager : MonoBehaviour
 
         OnLevelProgressChanged?.Invoke(levelID);
 
-        Debug.Log(
-            "[LevelProgressManager] Level completed: " + levelID
-        );
+        Debug.Log("Level Completed: " + levelID);
     }
 
-    // Use this only when you intentionally want to reset ONE level.
     public void ResetLevel(string levelID)
     {
         if (!IsPlayableLevel(levelID))
         {
-            Debug.LogWarning(
-                "[LevelProgressManager] Unknown level: " + levelID
-            );
+            Debug.LogWarning("Unknown level: " + levelID);
             return;
         }
 
@@ -197,12 +179,9 @@ public class LevelProgressManager : MonoBehaviour
 
         OnLevelProgressChanged?.Invoke(levelID);
 
-        Debug.Log(
-            "[LevelProgressManager] Level progress reset: " + levelID
-        );
+        Debug.Log("Level Reset: " + levelID);
     }
 
-    // Reserve this for an intentional full keychain reset.
     public void ResetAllProgress()
     {
         foreach (string level in playableLevels)
@@ -213,8 +192,6 @@ public class LevelProgressManager : MonoBehaviour
 
         PlayerPrefs.Save();
 
-        Debug.Log(
-            "[LevelProgressManager] All level progress reset."
-        );
+        Debug.Log("All Paradox City level progress reset.");
     }
 }

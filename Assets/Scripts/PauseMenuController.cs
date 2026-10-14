@@ -4,37 +4,46 @@ using UnityEngine.SceneManagement;
 public class PauseMenuController : MonoBehaviour
 {
     [Header("UI References")]
-    [Tooltip("The root GameObject of the pause menu panel.")]
+    [Tooltip("The root GameObject of the pause menu panel (buttons, dimmer background, etc.)")]
     public GameObject pauseMenuPanel;
 
-    [Tooltip("The Main Menu panel. Escape is ignored while it is open.")]
+    [Tooltip("The Main Menu panel (same one assigned in UIMENUMANAGER). " +
+             "While it is open, Escape is ignored and the cursor stays visible.")]
     public GameObject mainMenuPanel;
 
-    [Header("Level Scene Names")]
-    public string level1SceneName = "Artist_Hitler_Level";
+    [Header("Level Scene Names (edit these to match Build Settings)")]
+    [Tooltip("Exact scene name for Level 1 - Artist Hitler")]
+    public string level1SceneName = "ArtistHitler";
+
+    [Tooltip("Exact scene name for Level 2 - Apple Forest")]
     public string level2SceneName = "Forest_Scene";
-    public string level3SceneName = "WrongBeerLevel";
+
+    [Tooltip("Exact scene name for Level 3 - The Wrong Beer")]
+    public string level3SceneName = "TheWrongBeer";
 
     [Header("Background Camera (optional)")]
+    [Tooltip("Camera that shows the moving city background behind the pause menu. " +
+             "Leave empty if you're not using this feature.")]
     public Camera pauseBackgroundCamera;
 
     public bool IsPaused { get; private set; }
 
-    private bool MainMenuOpen =>
-        mainMenuPanel != null && mainMenuPanel.activeSelf;
+    private bool MainMenuOpen => mainMenuPanel != null && mainMenuPanel.activeSelf;
 
-    private void Start()
+    void Start()
     {
         SetPaused(false);
     }
 
-    private void Update()
+    void Update()
     {
-        if (MainMenuOpen)
-            return;
+        // Don't open the pause menu on top of the main menu
+        if (MainMenuOpen) return;
 
         if (Input.GetKeyDown(KeyCode.Escape))
+        {
             TogglePause();
+        }
     }
 
     public void TogglePause()
@@ -52,36 +61,17 @@ public class PauseMenuController : MonoBehaviour
         if (pauseBackgroundCamera != null)
             pauseBackgroundCamera.gameObject.SetActive(paused);
 
+        //Time.timeScale = paused ? 0f : 1f;
+
+        // Cursor is only visible in the pause menu or the main menu
         bool showCursor = paused || MainMenuOpen;
-
-        Cursor.lockState = showCursor
-            ? CursorLockMode.None
-            : CursorLockMode.Locked;
-
+        Cursor.lockState = showCursor ? CursorLockMode.None : CursorLockMode.Locked;
         Cursor.visible = showCursor;
     }
 
     public void OnResumeButton()
     {
         SetPaused(false);
-        Time.timeScale = 1f;
-    }
-
-    // RESTART ONLY THE CURRENT GAME SCENE.
-    // Do not reset LevelProgressManager or PlayerPrefs here.
-    public void OnRestartButton()
-    {
-        string currentSceneName =
-            SceneManager.GetActiveScene().name;
-
-        Debug.Log(
-            "[PauseMenuController] Restarting current scene: " +
-            currentSceneName
-        );
-
-        Time.timeScale = 1f;
-
-        SceneManager.LoadScene(currentSceneName);
     }
 
     public void OnQuitButton()
@@ -90,6 +80,7 @@ public class PauseMenuController : MonoBehaviour
         Application.Quit();
 
 #if UNITY_EDITOR
+        // Application.Quit() does nothing in the Editor, so this stops Play Mode instead.
         UnityEditor.EditorApplication.isPlaying = false;
 #endif
     }
@@ -101,7 +92,7 @@ public class PauseMenuController : MonoBehaviour
 
     public void OnLevel2Button()
     {
-        LoadLevel(level2SceneName);
+        LoadLevel("Forest_Scene");
     }
 
     public void OnLevel3Button()
@@ -113,14 +104,11 @@ public class PauseMenuController : MonoBehaviour
     {
         if (string.IsNullOrEmpty(sceneName))
         {
-            Debug.LogWarning(
-                "Scene name is empty. Check PauseMenuController " +
-                "in the Inspector."
-            );
+            Debug.LogWarning("Scene name is empty - set it in the Inspector on PauseMenuController.");
             return;
         }
 
-        Time.timeScale = 1f;
+        //Time.timeScale = 1f;
         SceneManager.LoadScene(sceneName);
     }
 }
