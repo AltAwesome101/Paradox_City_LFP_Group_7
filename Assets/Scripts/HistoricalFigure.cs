@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class HistoricalFigure : MonoBehaviour
 {
@@ -22,12 +23,19 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Cinematic Camera")]
     public CinematicCameraFocus cinematicCamera;
 
+    [Header("Wrong Beer Completion")]
+    public WrongBeerLevelCompletion wrongBeerCompletion;
+
+    [Header("Game Over")]
+    [Tooltip("Exact Game Over scene name from Build Settings.")]
+    public string gameOverSceneName = "GameOver";
+
+    [Tooltip("Seconds to display the result before loading Game Over.")]
+    public float gameOverDelay = 3f;
+
     [Header("Leaving")]
     public float leaveSpeed = 2f;
     public float leaveDistance = 8f;
-
-    [Header("Level Completion")]
-    public WrongBeerLevelCompletion levelCompletion;
 
     private bool hasOrdered = false;
     private bool hasBeenServed = false;
@@ -36,8 +44,10 @@ public class HistoricalFigure : MonoBehaviour
     private bool meetingAttended = false;
     private bool leaving = false;
     private bool resultShown = false;
+    private bool endingTriggered = false;
 
     private Vector3 leaveDirection;
+    private Vector3 leaveStartPosition;
 
     public bool HasOrdered()
     {
@@ -47,37 +57,6 @@ public class HistoricalFigure : MonoBehaviour
     public string GetRequestedBeer()
     {
         return requestedBeer;
-    }
-
-    public void PlaceOrder()
-    {
-        if (hasOrdered)
-        {
-            return;
-        }
-
-        hasOrdered = true;
-
-        Debug.Log(
-            "Historical Figure ordered: " +
-            requestedBeer
-        );
-
-        if (orderText != null)
-        {
-            orderText.text =
-                "Customer: I'll have a beer, please.";
-
-            orderText.gameObject.SetActive(true);
-        }
-
-        // Do NOT start the meeting timer here.
-        // The timer now starts when the beer is served.
-
-        if (meetingResultText != null)
-        {
-            meetingResultText.gameObject.SetActive(false);
-        }
     }
 
     public bool HasBeenServed()
@@ -100,216 +79,224 @@ public class HistoricalFigure : MonoBehaviour
         return meetingAttended;
     }
 
+    public void PlaceOrder()
+    {
+        if (hasOrdered)
+            return;
+
+        hasOrdered = true;
+
+        Debug.Log(
+            "[HistoricalFigure] Ordered: " + requestedBeer
+        );
+
+        if (orderText != null)
+        {
+            orderText.text = "Customer: I'll have a beer, please.";
+            orderText.gameObject.SetActive(true);
+        }
+
+        if (meetingResultText != null)
+            meetingResultText.gameObject.SetActive(false);
+    }
+
     public void ServeBeer(Beer beer)
     {
-        if (!hasOrdered)
-        {
+        if (!hasOrdered || hasBeenServed || beer == null)
             return;
-        }
-
-        if (hasBeenServed)
-        {
-            return;
-        }
 
         hasBeenServed = true;
+        receivedWrongBeer = beer.IsWrongBeer();
 
-        receivedWrongBeer =
-            beer.IsWrongBeer();
-
-        // Start the meeting timer ONLY after
-        // the NPC receives the beer.
+        // The meeting timer starts only when the beer is served.
         if (meetingTimer != null)
-        {
             meetingTimer.StartMeetingTimer();
-        }
 
-        // Start drinking.
         if (npcDrinking != null)
-        {
-            npcDrinking.StartDrinking(
-                receivedWrongBeer
-            );
-        }
+            npcDrinking.StartDrinking(receivedWrongBeer);
 
-        // Start the cinematic camera.
+        // Lock the camera on the NPC during drinking.
         if (cinematicCamera != null)
-        {
-            cinematicCamera.FocusOnNPC(
-                transform
-            );
-        }
+            cinematicCamera.FocusOnNPC(transform);
 
         if (receivedWrongBeer)
         {
-            Debug.Log(
-                "WRONG BEER SERVED!"
-            );
-
-            Debug.Log(
-                "The NPC does not know the beer is wrong."
-            );
-
-            if (orderText != null)
-            {
-                orderText.text =
-                    "Customer: Thanks.";
-            }
+            Debug.Log("[HistoricalFigure] WRONG BEER SERVED.");
+            Debug.Log("[HistoricalFigure] NPC is unaware of the mistake.");
         }
         else
         {
-            Debug.Log(
-                "CORRECT BEER SERVED!"
-            );
-
-            if (orderText != null)
-            {
-                orderText.text =
-                    "Customer: Thanks.";
-            }
+            Debug.Log("[HistoricalFigure] CORRECT BEER SERVED.");
         }
+
+        if (orderText != null)
+            orderText.text = "Customer: Thanks.";
     }
 
     private void Update()
     {
-        // Do not process gameplay after the game
-        // has been paused by the missed meeting.
-        if (Time.timeScale == 0f)
-        {
+        if (endingTriggered)
             return;
-        }
 
+        // Check whether the deadline has expired first.
         if (meetingTimer != null &&
             meetingTimer.IsMeetingMissed() &&
             !meetingMissed)
         {
-            meetingMissed = true;
-
-            ShowMeetingMissed();
-
-            if (cinematicCamera != null)
-            {
-                cinematicCamera.ReturnToPlayer();
-            }
-
+            HandleMeetingMissed();
             return;
         }
 
-        // Correct beer:
-        // once the NPC finishes drinking, they leave.
+        // Correct beer: finishing before the deadline means
+        // the NPC attends the meeting and Game Over follows.
         if (!receivedWrongBeer &&
             npcDrinking != null &&
             npcDrinking.HasFinishedDrinking() &&
             !meetingAttended &&
-            !leaving)
+            !meetingMissed)
         {
-            AttendMeeting();
+            bool stillInTime =
+                meetingTimer == null ||
+                (!meetingTimer.IsMeetingMissed() &&
+                 meetingTimer.GetRemainingTime() > 0f);
+
+            if (stillInTime)
+                AttendMeeting();
         }
 
         if (leaving)
-        {
             LeaveBar();
-        }
     }
 
     private void AttendMeeting()
     {
-        if (meetingAttended)
-        {
+        if (meetingAttended || endingTriggered)
             return;
-        }
 
         meetingAttended = true;
+        endingTriggered = true;
 
         Debug.Log(
-            "HISTORICAL FIGURE FINISHED THE BEER " +
-            "AND IS LEAVING FOR THE MEETING!"
+            "[HistoricalFigure] Correct beer finished in time. " +
+            "NPC attends the meeting. GAME OVER."
         );
 
         if (meetingResultText != null)
         {
-            meetingResultText.text =
-                "HEADING TO MEETING";
-
+            meetingResultText.text = "HEADING TO MEETING";
             meetingResultText.gameObject.SetActive(true);
-
-            StartCoroutine(
-                HideMeetingResult()
-            );
         }
 
         if (cinematicCamera != null)
-        {
             cinematicCamera.ReturnToPlayer();
-        }
 
-        // Move away from the table/bar.
-        leaveDirection =
-            -transform.forward;
-
+        leaveDirection = -transform.forward;
         leaveDirection.y = 0f;
 
         if (leaveDirection.sqrMagnitude < 0.01f)
-        {
             leaveDirection = Vector3.forward;
-        }
 
         leaveDirection.Normalize();
-
+        leaveStartPosition = transform.position;
         leaving = true;
 
-        if (levelCompletion != null)
-            levelCompletion.CorrectBeerGiven();
+        StartCoroutine(LoadGameOver());
+    }
+
+    private void HandleMeetingMissed()
+    {
+        meetingMissed = true;
+
+        Debug.Log("[HistoricalFigure] MEETING MISSED.");
+
+        if (cinematicCamera != null)
+            cinematicCamera.ReturnToPlayer();
+
+        ShowMeetingMissed();
+
+        // Only the wrong-beer outcome completes the level
+        // through the Game Win -> FutureScene sequence.
+        if (receivedWrongBeer)
+        {
+            endingTriggered = true;
+
+            Debug.Log(
+                "[HistoricalFigure] Wrong beer caused the missed meeting. " +
+                "Triggering Game Win."
+            );
+
+            if (wrongBeerCompletion != null)
+            {
+                wrongBeerCompletion.WrongBeerGiven();
+            }
+            else
+            {
+                Debug.LogError(
+                    "[HistoricalFigure] WrongBeerLevelCompletion is not assigned. " +
+                    "Assign it in the Inspector."
+                );
+            }
+        }
         else
-            Debug.LogWarning("HistoricalFigure: no WrongBeerLevelCompletion assigned.");
+        {
+            Debug.Log(
+                "[HistoricalFigure] The correct-beer NPC missed the deadline. " +
+                "The specified Game Over condition was not met."
+            );
+        }
+    }
+
+    private IEnumerator LoadGameOver()
+    {
+        if (gameOverDelay > 0f)
+            yield return new WaitForSecondsRealtime(gameOverDelay);
+
+        if (!Application.CanStreamedLevelBeLoaded(gameOverSceneName))
+        {
+            Debug.LogError(
+                "[HistoricalFigure] Game Over scene '" +
+                gameOverSceneName +
+                "' cannot be loaded. Check the exact scene name and Build Settings."
+            );
+
+            yield break;
+        }
+
+        Time.timeScale = 1f;
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+
+        Debug.Log("[HistoricalFigure] Loading Game Over scene.");
+
+        SceneManager.LoadScene(gameOverSceneName);
     }
 
     private void LeaveBar()
     {
         transform.position +=
-            leaveDirection *
-            leaveSpeed *
-            Time.deltaTime;
+            leaveDirection * leaveSpeed * Time.deltaTime;
 
         float distanceTravelled =
-            Vector3.Distance(
-                transform.position,
-                transform.position +
-                leaveDirection *
-                leaveDistance
-            );
+            Vector3.Distance(leaveStartPosition, transform.position);
 
-        // Simple visual departure.
-        // Stop after moving for enough time.
-        if (distanceTravelled <= 0f)
-        {
+        if (distanceTravelled >= leaveDistance)
             leaving = false;
-        }
     }
 
     private void ShowMeetingMissed()
     {
         if (resultShown)
-        {
             return;
-        }
 
         resultShown = true;
 
-        Debug.Log(
-            "HISTORICAL FIGURE MISSED THE MEETING!"
-        );
-
         if (meetingResultText != null)
         {
-            meetingResultText.text =
-                "MEETING MISSED";
-
+            meetingResultText.text = "MEETING MISSED";
             meetingResultText.gameObject.SetActive(true);
 
-            StartCoroutine(
-                HideMeetingResult()
-            );
+            StartCoroutine(HideMeetingResult());
         }
     }
 
@@ -318,17 +305,12 @@ public class HistoricalFigure : MonoBehaviour
         yield return new WaitForSecondsRealtime(5f);
 
         if (meetingResultText != null)
-        {
             meetingResultText.gameObject.SetActive(false);
-        }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.layer ==
-            LayerMask.NameToLayer("Player"))
-        {
+        if (other.gameObject.layer == LayerMask.NameToLayer("Player"))
             PlaceOrder();
-        }
     }
 }

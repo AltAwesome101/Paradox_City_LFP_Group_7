@@ -78,6 +78,8 @@ public class PaintingCanvas : MonoBehaviour
     public bool IsComplete { get; private set; }
     public int CorrectionsCompleted => corrected.Count;
     public int CorrectionsRequired => flaws.Count;
+    public static bool AnyInteracting { get; private set; }
+    public static int LastExitFrame { get; private set; } = -1;
 
     public bool CanInteract =>
         !IsComplete && !IsInteracting && PlayerInRange() &&
@@ -522,6 +524,7 @@ public class PaintingCanvas : MonoBehaviour
     private void EnterInteraction()
     {
         IsInteracting = true;
+        AnyInteracting = true;
 
         if (thirdPersonController != null) thirdPersonController.enabled = false;
         if (characterController != null) characterController.enabled = false;
@@ -546,6 +549,8 @@ public class PaintingCanvas : MonoBehaviour
     private void ExitInteraction()
     {
         IsInteracting = false;
+        AnyInteracting = false;
+        LastExitFrame = Time.frameCount;
 
         if (thirdPersonController != null) thirdPersonController.enabled = true;
         if (characterController != null) characterController.enabled = true;
@@ -624,5 +629,13 @@ public class PaintingCanvas : MonoBehaviour
         ExitInteraction();
         if (debugLogging) Debug.Log("[PaintingCanvas] Painting complete!");
         OnPaintingComplete?.Invoke();
+    }
+
+    private void OnDestroy()
+    {
+        // Static state survives scene reloads, so clear it
+        if (IsInteracting) AnyInteracting = false;
+        if (hitlerVision != null)
+            hitlerVision.OnTargetSpotted -= HandleHitlerSpottedPlayer;
     }
 }
