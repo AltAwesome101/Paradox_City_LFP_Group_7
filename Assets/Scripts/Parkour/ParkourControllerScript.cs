@@ -7,7 +7,7 @@ public class ParkourControllerScript : MonoBehaviour
     public EnvironmentChecker environmentChecker;
     bool playerInAction;
     public Animator animator;
-    public PlayerScript playerScript;
+    public ArtistLevelPlayer playerScript;
     [SerializeField] NewParkourAction jumpDownParkourAction;
     float autoJumpHeightLimit = 2;
 
