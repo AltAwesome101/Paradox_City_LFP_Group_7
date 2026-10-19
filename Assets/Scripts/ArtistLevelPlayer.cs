@@ -116,7 +116,7 @@ public static class WeaponModelFactory
     // --------------------------------------------------------------- helpers
     static void Tube(Transform parent, string name, Vector3 center, float length, float diameter, Color color)
     {
-        // Unity's cylinder is 2 units tall along Y -> rotate to Z and scale length/2
+        
         Part(parent, PrimitiveType.Cylinder, name, center,
              new Vector3(diameter, length * 0.5f, diameter), new Vector3(90f, 0f, 0f), color, 0.4f, 0.4f);
     }
@@ -148,7 +148,7 @@ public static class WeaponModelFactory
 
         if (baseMaterial == null)
         {
-            // borrow the render pipeline's default material (works for Built-in, URP and HDRP)
+            
             GameObject tmp = GameObject.CreatePrimitive(PrimitiveType.Cube);
             baseMaterial = tmp.GetComponent<Renderer>().sharedMaterial;
             Object.DestroyImmediate(tmp);
@@ -172,10 +172,10 @@ public static class WeaponModelFactory
 [System.Serializable]
 public class StanceRules
 {
-    public List<string> boolNames = new List<string>();     // bool params that must keep a value so the controller doesn't exit the stance
+    public List<string> boolNames = new List<string>();     
     public List<bool> boolHold = new List<bool>();
-    public List<string> floatForward = new List<string>();  // blend-tree floats driven by movement
-    public List<string> floatSide = new List<string>();     // 2D blend-tree X floats (kept at 0)
+    public List<string> floatForward = new List<string>();  
+    public List<string> floatSide = new List<string>();     
 
     [System.NonSerialized] public List<int> boolHashes = new List<int>();
     [System.NonSerialized] public List<bool> boolValues = new List<bool>();
@@ -235,12 +235,12 @@ public class WeaponSlot
     public bool UsesClip { get { return clipSize > 0 && !infiniteAmmo; } }
 }
 
-[DefaultExecutionOrder(200)]   // run after the camera controller so the shoulder offset is applied last
+[DefaultExecutionOrder(200)]   
 [DisallowMultipleComponent]
 [RequireComponent(typeof(CharacterController))]
 public class ArtistLevelPlayer : MonoBehaviour
 {
-    // ------------------------------------------------------------------ Health & Energy
+    
     [Header("Player Health & Energy")]
     private float playerHealth = 200f;
     public float presentHealth;
@@ -319,7 +319,7 @@ public class ArtistLevelPlayer : MonoBehaviour
     public Vector3 shoulderOffset = new Vector3(0.65f, 0.15f, 0.9f);
     public float shoulderLerpSpeed = 9f;
 
-    // Filled automatically by the Editor scan of your Animator Controller (also used in builds)
+    
     [SerializeField, HideInInspector] string[] discoveredStates;
     [SerializeField, HideInInspector] StanceRules rifleRules = new StanceRules();
     [SerializeField, HideInInspector] StanceRules bazookaRules = new StanceRules();
@@ -832,10 +832,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         camShiftValid = true;
     }
 
-    /// <summary>
-    /// Where the camera really is on screen this frame (shoulder offset included), so the crosshair ray
-    /// matches what the player sees no matter in which order the camera controller moved the camera.
-    /// </summary>
+   
     Vector3 AimOrigin()
     {
         Vector3 p = cam.transform.position;
@@ -980,7 +977,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         }
     }
 
-    /// <summary>Turns the stored rule names into hashes (only params that really exist in the controller).</summary>
+    
     void PrepareRules(StanceRules r)
     {
         if (r == null) return;
@@ -992,7 +989,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         for (int i = 0; i < r.boolNames.Count && i < r.boolHold.Count; i++)
         {
             string lower = r.boolNames[i].ToLowerInvariant();
-            // aim / shoot / reload bools are driven by what the player is doing - never pin them
+            
             if (System.Array.IndexOf(AimFlags, lower) >= 0 || System.Array.IndexOf(ShootFlags, lower) >= 0
                 || System.Array.IndexOf(ReloadFlags, lower) >= 0) continue;
 
@@ -1030,7 +1027,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         return null;
     }
 
-    /// <summary>Feeds the blend-tree floats of the equipped stance so the walk cycle plays while moving.</summary>
+    
     void FeedStanceFloats()
     {
         StanceRules r = CurrentRules();
@@ -1217,10 +1214,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// Safety net: if the controller's own transitions pulled the animator out of the weapon stance,
-    /// put it back. Inside the weapon's own states we are patient; outside them we react fast.
-    /// </summary>
+    
     void CorrectDrift(AnimSet s, int target)
     {
         if (Time.time < lastAnimPlayTime + 0.3f || animator.IsInTransition(animationLayer))
@@ -1269,7 +1263,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         SetFlags(ShootFlags, gun && attacking);
         SetFlags(ReloadFlags, isReloading);
 
-        // parameters found by the controller scan that keep the stance from being exited
+        
         ApplyBoolRules(rifleRules, w.type == WeaponType.Rifle);
         ApplyBoolRules(bazookaRules, w.type == WeaponType.Bazooka);
     }
@@ -1337,7 +1331,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, target, 1f - Mathf.Exp(-aimLerpSpeed * Time.deltaTime));
     }
 
-    /// <summary>Ray through the crosshair (screen centre, shoulder offset included). Ignores the player.</summary>
+    
     bool AimRaycast(float range, out RaycastHit best)
     {
         best = default(RaycastHit);
@@ -1656,7 +1650,7 @@ public class ArtistLevelPlayer : MonoBehaviour
             return transform;
         }
 
-        // our own socket, a child of the hand bone, sitting in the middle of the palm
+        
         Transform socket = bone.Find(AutoSocketName);
         if (socket == null)
         {
@@ -1684,10 +1678,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         return Vector3.zero;
     }
 
-    /// <summary>
-    /// Finds the right-hand bone that REALLY moves the visible character:
-    /// humanoid avatar bone, then name search, always preferring a bone that is part of a SkinnedMeshRenderer.
-    /// </summary>
+    
     Transform FindRealHandBone()
     {
         List<Transform> candidates = new List<Transform>();
@@ -1707,12 +1698,12 @@ public class ArtistLevelPlayer : MonoBehaviour
 
         SkinnedMeshRenderer[] skins = GetComponentsInChildren<SkinnedMeshRenderer>(true);
 
-        // 1) a candidate that actually deforms the mesh
+        
         foreach (Transform c in candidates)
             foreach (SkinnedMeshRenderer smr in skins)
                 if (System.Array.IndexOf(smr.bones, c) >= 0) return c;
 
-        // 2) any skinned bone that looks like the right hand
+       
         foreach (SkinnedMeshRenderer smr in skins)
             foreach (Transform b in smr.bones)
                 if (b != null && IsRightHandName(b.name)) return b;
@@ -1746,10 +1737,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         return null;
     }
 
-    /// <summary>
-    /// Self-test: if the player has been walking for a few seconds and the hand never moved,
-    /// the Animator isn't driving this bone - say so instead of failing silently.
-    /// </summary>
+    
     void MonitorHandMotion()
     {
         if (handMonitorDone || autoSocket == null) return;
@@ -1762,7 +1750,7 @@ public class ArtistLevelPlayer : MonoBehaviour
             return;
         }
 
-        if ((local - handFirstLocal).sqrMagnitude > 0.0025f)   // moved more than 5 cm relative to the player
+        if ((local - handFirstLocal).sqrMagnitude > 0.0025f)   
         {
             handMoved = true;
             handMonitorDone = true;
@@ -1788,7 +1776,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         return WeaponModelFactory.Build(w.type, w.displayName + "_Model");
     }
 
-    /// <summary>Centre of the palm in the hand bone's local space (halfway to the knuckles when the rig is Humanoid).</summary>
+    
     Vector3 PalmLocalOffset(Transform socket)
     {
         if (animator != null && animator.isHuman)
@@ -1800,17 +1788,14 @@ public class ArtistLevelPlayer : MonoBehaviour
         return Vector3.zero;
     }
 
-    /// <summary>
-    /// Local rotation (relative to the hand bone) that makes the weapon's +Z point where it should
-    /// in the player's CURRENT pose. Calibrating in the aim pose means the weapon matches the animation.
-    /// </summary>
+
     Quaternion GripRotation(WeaponSlot w, Transform socket)
     {
         Vector3 fwd = transform.forward;
         Vector3 up = transform.up;
         Vector3 dir = fwd;
 
-        if (w.type == WeaponType.Fist)   // bat: relaxed carry, angled up and forward
+        if (w.type == WeaponType.Fist)   
             dir = (fwd * 0.35f + up * 0.9f).normalized;
 
         Quaternion world = Quaternion.LookRotation(dir, up) * Quaternion.Euler(w.holdEuler);
@@ -1825,7 +1810,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         rt.localPosition = PalmLocalOffset(socket);
         rt.localRotation = GripRotation(w, socket);
 
-        // cancel bone scale so the weapon is in real-world metres
+        
         Vector3 ls = socket.lossyScale;
         rt.localScale = new Vector3(SafeInv(ls.x), SafeInv(ls.y), SafeInv(ls.z));
 
@@ -1857,10 +1842,7 @@ public class ArtistLevelPlayer : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Refines the weapon's rotation once the animation has settled:
-    /// guns are calibrated in the AIM pose (gun definitely points forward there), others in the idle pose.
-    /// </summary>
+
     void UpdateHeldCalibration()
     {
         WeaponSlot w = CurrentWeapon;
@@ -1882,7 +1864,7 @@ public class ArtistLevelPlayer : MonoBehaviour
             }
             else if (!w.calibratedIdle)
             {
-                // temporary alignment from the carry pose until the player aims for the first time
+                
                 w.held.transform.localRotation = GripRotation(w, socket);
                 w.calibratedIdle = true;
             }
