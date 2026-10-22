@@ -53,3 +53,12 @@ public class WakeManager : Singleton<WakeManager>,
         GameEventBus.Raise(new WakeMeterFullEvent());
     }
 }
+
+public struct WakeMeterChangeEvent: IGameplayEvent
+{
+    public readonly int Amount;
+    public WakeMeterChangeEvent(int amount)
+    {
+        Amount = amount;
+    }
+}

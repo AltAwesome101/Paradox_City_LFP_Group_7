@@ -144,7 +144,7 @@ public class AppleDeployManager : Singleton<AppleDeployManager>,
     {
         var apple = applePool.Get();
         apple.transform.position = deployer.transform.position;
-        apple.StartFalling(deployer);
+        // apple.StartFalling(deployer);
         deployer.MarkFree();
     }
 
@@ -203,33 +203,3 @@ public readonly struct InteractPromptEvent : IGameplayEvent    // manager -> UIM
     }
 }
 
-public readonly struct DeploySessionStartedEvent : IGameplayEvent
-{
-    public readonly DeployZone Zone;
-    public DeploySessionStartedEvent(DeployZone z) { 
-        Zone = z; 
-
-        //Raising Camera type change = Objective
-        GameEventBus.Raise<CameraTrackTargetEvent>(new CameraTrackTargetEvent(z.CameraAnchor));
-        GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.InGame));
-        GameEventBus.Raise<PlayerLocationEvent>(new PlayerLocationEvent(z.PlayerSpawn.position)); 
-
-        // Raise Game State event
-        GameEventBus.Raise<InGameGameStateEvent>(new InGameGameStateEvent());
-
-    }
-}
-public readonly struct DeploySessionEndedEvent : IGameplayEvent
-{
-    public readonly DeployZone Zone; 
-    public readonly bool Won;
-    public DeploySessionEndedEvent(DeployZone z, bool won) { 
-        Zone = z; 
-        Won = won;
-
-        //Raising Camera type change = Explorative
-        GameEventBus.Raise<CameraChangeEvent>(new CameraChangeEvent(Forestlevel.CameraType.FreeLook)); 
-        // Raise Game State event
-        GameEventBus.Raise<ExplorationGameStateEvent>(new ExplorationGameStateEvent());
-    }
-}
