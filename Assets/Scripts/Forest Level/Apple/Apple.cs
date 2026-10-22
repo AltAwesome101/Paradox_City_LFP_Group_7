@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using BetterEventBus;
 using BetterPooling;
@@ -68,67 +67,4 @@ public class Apple : MonoBehaviour
         _rb.angularVelocity = Vector3.zero;
     }
 
-}
-
-[CreateAssetMenu(fileName ="AppleDefinition",menuName ="Apples/ Apple Definition")]
-public class AppleDefinitionSO : ScriptableObject
-{
-    public Apple Prefab;
-    public int ProgressValue = 1;
-    public Color AppleColor;
-    public AppleEffect[] CaughtEffects;
-    public AppleEffect[] MissedEffects;
-
-
-}
-
-public abstract class AppleEffect: ScriptableObject
-{
-    public abstract void Apply(in AppleContext context);
-}
-
-public readonly  struct AppleContext
-{
-    public readonly Apple Apple;
-    public readonly Vector3 Position;
-    public AppleContext(Apple apple, Vector3 position){
-        Apple = apple;
-        Position = position;
-    }
-}
-
-[CreateAssetMenu(fileName ="AppleWakeMeterEffect",menuName = "Apples/Effects/Wake Meter")]
-public class AppleWakeMeterEffect : AppleEffect
-{
-    [SerializeField] int amount = 30;
-    public override void Apply(in AppleContext context)
-        => GameEventBus.Raise<WakeMeterChangeEvent>(new WakeMeterChangeEvent(amount));
-}
-
-[Serializable]
-public struct AppleSpawnEntry
-{
-    public AppleDefinitionSO Apple;
-    public float Weight;
-    public float UnlockAfterSeconds;   // difficulty ramp inside the session
-}
-
-[CreateAssetMenu(fileName ="AppleSpawnTable",menuName = "Apples/Spawn Table")]
-public class AppleSpawnTable : ScriptableObject
-{
-    [SerializeField] AppleSpawnEntry[] entries;
-
-    public AppleDefinitionSO Pick(float sessionTime)
-    {
-        float total = 0f;
-        foreach (var e in entries) if (sessionTime >= e.UnlockAfterSeconds) total += e.Weight;
-
-        float roll = UnityEngine.Random.value * total;
-        foreach (var e in entries)
-        {
-            if (sessionTime < e.UnlockAfterSeconds) continue;
-            if ((roll -= e.Weight) <= 0f) return e.Apple;
-        }
-        return entries[0].Apple; // fallback
-    }
 }

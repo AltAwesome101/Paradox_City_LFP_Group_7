@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::AppleDefinitionSO
   Prefab: {fileID: 6081591495760655397, guid: 64b4f1423865fca45983b1a5e3d707aa, type: 3}
   ProgressValue: 1
-  AppleColor: {r: 0.85660374, g: 0.108287625, b: 0.108287625, a: 0}
+  AppleColor: {r: 1, g: 0.066037595, b: 0.066037595, a: 0}
   CaughtEffects: []
   MissedEffects:
   - {fileID: 11400000, guid: 3c2934a40c48abc4d8e7f34ef0d6a908, type: 2}
