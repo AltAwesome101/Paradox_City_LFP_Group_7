@@ -18,8 +18,13 @@ public class PreparationMinigame : MonoBehaviour
     public Beer correctBeer;
     public Beer wrongBeer;
 
+    [Header("Player Detection")]
+    public Transform player;
+    public float detectionDistance = 3f;
+
     [Header("Minigame Settings")]
-    public int requiredClicks = 4;
+    public int requiredClicks = 3;
+    public float preparationStartDelay = 5f;
     public float dotVisibleTime = 1.5f;
     public float resultMessageDuration = 3f;
     public float screenPadding = 40f;
@@ -28,12 +33,22 @@ public class PreparationMinigame : MonoBehaviour
     private bool preparationComplete;
     private bool waitingForClick;
     private bool preparationSuccessful;
+    private bool preparationStarted;
+    private bool minigameRunning;
+
     private Beer assignedBeer;
     private Coroutine dotRoutine;
 
     public bool IsPreparationComplete()
     {
         return preparationComplete;
+    }
+
+    // Used by FPController to stop movement only
+    // while the preparation sequence is running.
+    public bool IsMinigameRunning()
+    {
+        return minigameRunning;
     }
 
     public bool WasPreparationSuccessful()
@@ -73,10 +88,12 @@ public class PreparationMinigame : MonoBehaviour
             redDotButton == null ||
             instructionText == null ||
             correctBeer == null ||
-            wrongBeer == null)
+            wrongBeer == null ||
+            player == null)
         {
             Debug.LogError(
-                "PreparationMinigame: Assign the panel, UI, and beer references in the Inspector."
+                "PreparationMinigame: Assign the panel, UI, " +
+                "both beers, and Player in the Inspector."
             );
 
             enabled = false;
@@ -103,39 +120,83 @@ public class PreparationMinigame : MonoBehaviour
         if (minigameArea == null || canvasRect == null)
         {
             Debug.LogError(
-                "PreparationMinigame: Assign Minigame Area and Canvas Rect."
+                "PreparationMinigame: Assign Minigame Area " +
+                "and Canvas Rect."
             );
 
             enabled = false;
             return;
         }
 
-        BeginPreparation();
+        preparationPanel.SetActive(false);
+        redDotButton.gameObject.SetActive(false);
+        instructionText.gameObject.SetActive(false);
+
+        preparationComplete = false;
+        preparationStarted = false;
+        minigameRunning = false;
+    }
+
+    private void Update()
+    {
+        if (preparationComplete || preparationStarted)
+        {
+            return;
+        }
+
+        if (PlayerIsNearBothBeers())
+        {
+            BeginPreparation();
+        }
+    }
+
+    private bool PlayerIsNearBothBeers()
+    {
+        if (player == null ||
+            correctBeer == null ||
+            wrongBeer == null)
+        {
+            return false;
+        }
+
+        float distanceToCorrectBeer =
+            Vector3.Distance(
+                player.position,
+                correctBeer.transform.position
+            );
+
+        float distanceToWrongBeer =
+            Vector3.Distance(
+                player.position,
+                wrongBeer.transform.position
+            );
+
+        return distanceToCorrectBeer <= detectionDistance &&
+               distanceToWrongBeer <= detectionDistance;
     }
 
     public void BeginPreparation()
     {
-        if (preparationComplete)
-            return;
-
-        successfulClicks = 0;
-        waitingForClick = false;
-
-        // Show the preparation panel.
-        if (preparationPanel != null)
+        if (preparationComplete || preparationStarted)
         {
-            preparationPanel.SetActive(true);
+            return;
         }
 
-        // Show and unlock the cursor so the player can click the dots.
+        preparationStarted = true;
+        minigameRunning = true;
+        successfulClicks = 0;
+        waitingForClick = false;
+        assignedBeer = null;
+
+        preparationPanel.SetActive(true);
+
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
-        instructionText.text =
-            "Prepare the beer! Click the red dot before it disappears. (0/" +
-            requiredClicks + ")";
-
         instructionText.gameObject.SetActive(true);
+        instructionText.text =
+            "Prepare the beer! Get ready to click the red dot. " +
+            "(0/" + requiredClicks + ")";
 
         if (dotRoutine != null)
         {
@@ -147,6 +208,9 @@ public class PreparationMinigame : MonoBehaviour
 
     private IEnumerator RunMinigame()
     {
+        // Wait 10 seconds after showing the panel.
+        yield return new WaitForSeconds(preparationStartDelay);
+
         while (successfulClicks < requiredClicks)
         {
             PositionRedDot();
@@ -169,20 +233,22 @@ public class PreparationMinigame : MonoBehaviour
                 successfulClicks++;
 
                 instructionText.text =
-                    "Prepare the beer! Click the red dot before it disappears. (" +
-                    successfulClicks + "/" + requiredClicks + ")";
+                    "Prepare the beer! " +
+                    "" +
+                    "" +
+                    "Click the red dot before " +
+                    "it disappears. (" + successfulClicks +
+                    "/" + requiredClicks + ")";
 
                 yield return new WaitForSeconds(0.25f);
             }
             else
             {
-                // Missing a dot means preparation fails.
                 FinishPreparation(false);
                 yield break;
             }
         }
 
-        // Clicking all required dots means preparation succeeds.
         FinishPreparation(true);
     }
 
@@ -209,17 +275,26 @@ public class PreparationMinigame : MonoBehaviour
         float yMax =
             halfHeight - screenPadding - dotHalfHeight;
 
-        // Keep the dot within the panel's rectangular area.
+        if (xMin > xMax || yMin > yMax)
+        {
+            Debug.LogWarning(
+                "PreparationMinigame: The minigame area is too " +
+                "small for the red dot and screen padding."
+            );
+        }
+
         dotRect.anchoredPosition = new Vector2(
-            Random.Range(xMin, xMax),
-            Random.Range(yMin, yMax)
+            Random.Range(Mathf.Min(xMin, xMax), Mathf.Max(xMin, xMax)),
+            Random.Range(Mathf.Min(yMin, yMax), Mathf.Max(yMin, yMax))
         );
     }
 
     private void OnRedDotClicked()
     {
         if (!waitingForClick || preparationComplete)
+        {
             return;
+        }
 
         waitingForClick = false;
     }
@@ -229,31 +304,31 @@ public class PreparationMinigame : MonoBehaviour
         preparationComplete = true;
         preparationSuccessful = succeeded;
         waitingForClick = false;
+        minigameRunning = false;
 
         if (redDotButton != null)
         {
             redDotButton.gameObject.SetActive(false);
         }
 
-        // Hide and lock the cursor after preparation ends.
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
 
         if (succeeded)
         {
-            // Successful preparation assigns the wrong beer.
             assignedBeer = wrongBeer;
 
             instructionText.text =
-                "PREPARATION SUCCESSFUL!\nPick up the assigned beer.";
+                "PREPARATION SUCCESSFUL!\n" +
+                "Pick up the assigned beer.";
         }
         else
         {
-            // Failed preparation assigns the correct beer.
             assignedBeer = correctBeer;
 
             instructionText.text =
-                "PREPARATION FAILED!\nPick up the assigned beer.";
+                "PREPARATION FAILED!\n" +
+                "Pick up the assigned beer.";
         }
 
         Debug.Log(

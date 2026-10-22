@@ -17,6 +17,12 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Order UI")]
     public TextMeshProUGUI orderText;
 
+    [Tooltip("Time before the order or thank-you message disappears.")]
+    public float orderTextDuration = 5f;
+
+    [Tooltip("Maximum distance from the NPC before the message disappears.")]
+    public float orderTextDistance = 3f;
+
     [Header("Meeting Result UI")]
     public TextMeshProUGUI meetingResultText;
 
@@ -45,6 +51,9 @@ public class HistoricalFigure : MonoBehaviour
     private bool leaving = false;
     private bool resultShown = false;
     private bool endingTriggered = false;
+
+    private Transform playerTransform;
+    private Coroutine orderTextCoroutine;
 
     private Vector3 leaveDirection;
     private Vector3 leaveStartPosition;
@@ -90,55 +99,75 @@ public class HistoricalFigure : MonoBehaviour
             "[HistoricalFigure] Ordered: " + requestedBeer
         );
 
-        if (orderText != null)
-        {
-            orderText.text = "Customer: I'll have a beer, please.";
-            orderText.gameObject.SetActive(true);
-        }
+        ShowOrderMessage(
+            "Customer: I'll have a beer, please."
+        );
 
         if (meetingResultText != null)
             meetingResultText.gameObject.SetActive(false);
     }
 
-    public void ServeBeer(Beer beer)
+    private void ShowOrderMessage(string message)
     {
-        if (!hasOrdered || hasBeenServed || beer == null)
+        if (orderText == null)
             return;
 
-        hasBeenServed = true;
-        receivedWrongBeer = beer.IsWrongBeer();
-
-        // The meeting timer starts only when the beer is served.
-        if (meetingTimer != null)
-            meetingTimer.StartMeetingTimer();
-
-        if (npcDrinking != null)
-            npcDrinking.StartDrinking(receivedWrongBeer);
-
-        // Lock the camera on the NPC during drinking.
-        if (cinematicCamera != null)
-            cinematicCamera.FocusOnNPC(transform);
-
-        if (receivedWrongBeer)
+        // Restart the timer whenever the message changes.
+        if (orderTextCoroutine != null)
         {
-            Debug.Log("[HistoricalFigure] WRONG BEER SERVED.");
-            Debug.Log("[HistoricalFigure] NPC is unaware of the mistake.");
-        }
-        else
-        {
-            Debug.Log("[HistoricalFigure] CORRECT BEER SERVED.");
+            StopCoroutine(orderTextCoroutine);
+            orderTextCoroutine = null;
         }
 
+        orderText.text = message;
+        orderText.gameObject.SetActive(true);
+
+        orderTextCoroutine =
+            StartCoroutine(HideOrderTextAfterDelay());
+    }
+
+    private IEnumerator HideOrderTextAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(
+            orderTextDuration
+        );
+
+        HideOrderText();
+    }
+
+    private void HideOrderText()
+    {
         if (orderText != null)
-            orderText.text = "Customer: Thanks.";
+            orderText.gameObject.SetActive(false);
+
+        if (orderTextCoroutine != null)
+        {
+            StopCoroutine(orderTextCoroutine);
+            orderTextCoroutine = null;
+        }
     }
 
     private void Update()
     {
+        // Hide the order or thank-you message immediately
+        // when the player walks beyond the configured distance.
+        if (orderText != null &&
+            orderText.gameObject.activeSelf &&
+            playerTransform != null)
+        {
+            float distance = Vector3.Distance(
+                playerTransform.position,
+                transform.position
+            );
+
+            if (distance > orderTextDistance)
+                HideOrderText();
+        }
+
         if (endingTriggered)
             return;
 
-        // Check whether the deadline has expired first.
+        // Check whether the meeting deadline has expired.
         if (meetingTimer != null &&
             meetingTimer.IsMeetingMissed() &&
             !meetingMissed)
@@ -168,6 +197,40 @@ public class HistoricalFigure : MonoBehaviour
             LeaveBar();
     }
 
+    public void ServeBeer(Beer beer)
+    {
+        if (!hasOrdered || hasBeenServed || beer == null)
+            return;
+
+        hasBeenServed = true;
+        receivedWrongBeer = beer.IsWrongBeer();
+
+        // Replace the order with the thank-you message.
+        // This starts a fresh 10-second timer.
+        ShowOrderMessage("Customer: Thank you.");
+
+        // The meeting timer starts only when the beer is served.
+        if (meetingTimer != null)
+            meetingTimer.StartMeetingTimer();
+
+        if (npcDrinking != null)
+            npcDrinking.StartDrinking(receivedWrongBeer);
+
+        // Lock the camera on the NPC during drinking.
+        if (cinematicCamera != null)
+            cinematicCamera.FocusOnNPC(transform);
+
+        if (receivedWrongBeer)
+        {
+            Debug.Log("[HistoricalFigure] WRONG BEER SERVED.");
+            Debug.Log("[HistoricalFigure] NPC is unaware of the mistake.");
+        }
+        else
+        {
+            Debug.Log("[HistoricalFigure] CORRECT BEER SERVED.");
+        }
+    }
+
     private void AttendMeeting()
     {
         if (meetingAttended || endingTriggered)
@@ -175,6 +238,8 @@ public class HistoricalFigure : MonoBehaviour
 
         meetingAttended = true;
         endingTriggered = true;
+
+        HideOrderText();
 
         Debug.Log(
             "[HistoricalFigure] Correct beer finished in time. " +
@@ -206,6 +271,8 @@ public class HistoricalFigure : MonoBehaviour
     private void HandleMeetingMissed()
     {
         meetingMissed = true;
+
+        HideOrderText();
 
         Debug.Log("[HistoricalFigure] MEETING MISSED.");
 
@@ -278,7 +345,10 @@ public class HistoricalFigure : MonoBehaviour
             leaveDirection * leaveSpeed * Time.deltaTime;
 
         float distanceTravelled =
-            Vector3.Distance(leaveStartPosition, transform.position);
+            Vector3.Distance(
+                leaveStartPosition,
+                transform.position
+            );
 
         if (distanceTravelled >= leaveDistance)
             leaving = false;
@@ -310,7 +380,33 @@ public class HistoricalFigure : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.layer == LayerMask.NameToLayer("Player"))
+        if (other.gameObject.layer ==
+            LayerMask.NameToLayer("Player"))
+        {
+            playerTransform = other.transform;
             PlaceOrder();
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.gameObject.layer ==
+            LayerMask.NameToLayer("Player"))
+        {
+            if (playerTransform == other.transform)
+            {
+                HideOrderText();
+                playerTransform = null;
+            }
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (orderTextCoroutine != null)
+        {
+            StopCoroutine(orderTextCoroutine);
+            orderTextCoroutine = null;
+        }
     }
 }
