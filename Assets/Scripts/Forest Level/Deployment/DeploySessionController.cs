@@ -4,25 +4,36 @@ using BetterPooling;
 using Forestlevel;
 using UnityEngine;
 
-public class DeploySessionController : MonoBehaviour,
+public class DeploySessionController : IDeployModule,
     IGamePlayEventListener<DeploySessionRequestedEvent>,
     IGamePlayEventListener<AppleCollectedEvent>,
     IGamePlayEventListener<WakeMeterFullEvent>
 {
-    [SerializeField] int poolCapacity = 10;
-    [Header("Pacing")]
-    [SerializeField] int maxConcurrent = 2;
-    [SerializeField] float minSpawnInterval = 1.5f;
-    [SerializeField] float warningDuration = 3f;
-
-    AppleSpawner spawner;
+    readonly AppleSpawner spawner;
+    readonly DeploySettings settings;
     AppleDeployScheduler scheduler;
     DeployZone zone;
     int progress;
 
-    void Awake()  => spawner = new AppleSpawner(poolCapacity);
-    void Update() => scheduler?.Tick(Time.deltaTime);
-    // OnEnable/OnDisable: register the 3 listeners
+    public DeploySessionController(AppleSpawner spawner, DeploySettings settings)
+    { this.spawner = spawner; this.settings = settings; }
+
+    public void Enable()
+    {
+        GameEventBus.Register<DeploySessionRequestedEvent>(this);
+        GameEventBus.Register<AppleCollectedEvent>(this);
+        GameEventBus.Register<WakeMeterFullEvent>(this);
+    }
+
+    public void Disable()
+    {
+        GameEventBus.Unregister<DeploySessionRequestedEvent>(this);
+        GameEventBus.Unregister<AppleCollectedEvent>(this);
+        GameEventBus.Unregister<WakeMeterFullEvent>(this);
+        Abort();
+    }
+
+    public void Tick(float dt) => scheduler?.Tick(dt);
 
     public void OnGamePlayEvent(DeploySessionRequestedEvent e)
     {
@@ -30,8 +41,8 @@ public class DeploySessionController : MonoBehaviour,
         zone = e.Zone;
         progress = 0;
 
-        var pacer = new ApplePacer(zone, maxConcurrent, minSpawnInterval);
-        scheduler = new AppleDeployScheduler(pacer, spawner, zone.SpawnTable, warningDuration);
+        var pacer = new ApplePacer(zone, settings.MaxConcurrent, settings.MinSpawnInterval);
+        scheduler = new AppleDeployScheduler(pacer, spawner, zone.SpawnTable, settings.WarningDuration);
 
         zone.SetSessionActive(true);
         GameEventBus.Raise(new DeploySessionStartedEvent(zone));
@@ -41,7 +52,7 @@ public class DeploySessionController : MonoBehaviour,
     public void OnGamePlayEvent(AppleCollectedEvent e)
     {
         if (zone == null) return;
-        progress += e.Apple.Definition.ProgressValue;   // adjust to your event's field name
+        progress += e.Apple.Definition.ProgressValue;
         GameEventBus.Raise(new DeployProgressEvent(progress, zone.CompletionRequirement));
         if (progress >= zone.CompletionRequirement) End(won: true);
     }
@@ -60,6 +71,16 @@ public class DeploySessionController : MonoBehaviour,
         if (won) finished.IsCompleted = true;
         finished.SetSessionActive(false);
         GameEventBus.Raise(new DeploySessionEndedEvent(finished, won));
+    }
+
+    // Used when the module is switched off mid-session: tidy up without announcing a result.
+    void Abort()
+    {
+        if (zone == null) return;
+        scheduler.Stop();
+        scheduler = null;
+        zone.SetSessionActive(false);
+        zone = null;
     }
 }
 
@@ -161,7 +182,7 @@ public class AppleSpawner : IAppleOwner
             pools[def] = pool = new SingleObjectPool<Apple>(prefab: def.Prefab, parent: null, defaultCapacity: capacity, maxSize: capacity);
 
         var apple = pool.Get();
-        apple.Init(def, pools[def]);
+        apple.Init(def, this);
         apple.transform.position = position;
         active.Add(apple);
         apple.Drop();
@@ -181,74 +202,6 @@ public class AppleSpawner : IAppleOwner
     }
 }
 
-public class DeploySessionDirector : MonoBehaviour,
-    IGamePlayEventListener<DeploySessionStartedEvent>,
-    IGamePlayEventListener<DeploySessionEndedEvent>
-{
-    // Register/Unregister in OnEnable/OnDisable as usual
-
-    public void OnGamePlayEvent(DeploySessionStartedEvent e)
-    {
-        GameEventBus.Raise(new CameraTrackTargetEvent(e.Zone.CameraAnchor));
-        GameEventBus.Raise(new CameraChangeEvent(Forestlevel.CameraType.InGame));
-        GameEventBus.Raise(new PlayerLocationEvent(e.Zone.PlayerSpawn.position));
-        GameEventBus.Raise(new InGameGameStateEvent());
-    }
-
-    public void OnGamePlayEvent(DeploySessionEndedEvent e)
-    {
-        GameEventBus.Raise(new CameraChangeEvent(Forestlevel.CameraType.FreeLook));
-        GameEventBus.Raise(new ExplorationGameStateEvent());
-    }
-}
-
-public class DeployZonePrompt : MonoBehaviour,
-    IGamePlayEventListener<DeployZoneRangeEvent>,
-    IGamePlayEventListener<DeploySessionStartedEvent>,
-    IGamePlayEventListener<DeploySessionEndedEvent>
-{
-    [SerializeField] InputReaderSO input;
-    DeployZone inRangeZone;
-    bool sessionActive;
-
-    // OnEnable/OnDisable: register the listeners, input.Interact += OnInteract
-
-    bool CanStart => !sessionActive && inRangeZone != null && !inRangeZone.IsCompleted;
-
-    public void OnGamePlayEvent(DeployZoneRangeEvent e)
-    {
-        if (e.InRange) inRangeZone = e.Zone;
-        else if (inRangeZone == e.Zone) inRangeZone = null;
-        Refresh();
-    }
-    public void OnGamePlayEvent(DeploySessionStartedEvent e) { sessionActive = true;  Refresh(); }
-    public void OnGamePlayEvent(DeploySessionEndedEvent e)   { sessionActive = false; Refresh(); }
-
-    void Refresh() => GameEventBus.Raise(new InteractPromptEvent(CanStart, CanStart ? inRangeZone.PromptText : ""));
-
-    void OnInteract()
-    {
-        if (CanStart) GameEventBus.Raise(new DeploySessionRequestedEvent(inRangeZone));
-    }
-}
-
-public class DeployHudPresenter : MonoBehaviour,
-    IGamePlayEventListener<NextWarningEvent>,
-    IGamePlayEventListener<NextWarningClearedEvent>,
-    IGamePlayEventListener<DeployProgressEvent>
-{
-    [SerializeField] UIManager ui;   // serialized reference instead of .Instance
-
-    public void OnGamePlayEvent(NextWarningEvent e)
-    {
-        ui.WarningCounter.UpdateDisplay(e.Remaining);
-        ui.Indicator.PointAt(e.Deployer);
-        // e.Apple.AppleColor is available if you want to tint the warning
-    }
-    public void OnGamePlayEvent(NextWarningClearedEvent e) { ui.WarningCounter.Clear(); ui.Indicator.Clear(); }
-    public void OnGamePlayEvent(DeployProgressEvent e) => ui.Collection.UpdateDisplay($"{e.Caught}/{e.Required} Apples Caught");
-}
-
 public readonly struct DeploySessionRequestedEvent : IGameplayEvent { public readonly DeployZone Zone; public DeploySessionRequestedEvent(DeployZone z) { Zone = z; } }
 public readonly struct DeploySessionStartedEvent   : IGameplayEvent { public readonly DeployZone Zone; public DeploySessionStartedEvent(DeployZone z) { Zone = z; } }
 public readonly struct DeploySessionEndedEvent     : IGameplayEvent { public readonly DeployZone Zone; public readonly bool Won; public DeploySessionEndedEvent(DeployZone z, bool won) { Zone = z; Won = won; } }
@@ -256,3 +209,19 @@ public readonly struct DeployProgressEvent         : IGameplayEvent { public rea
 public readonly struct NextWarningEvent            : IGameplayEvent { public readonly AppleDeployer Deployer; public readonly AppleDefinitionSO Apple; public readonly float Remaining; public NextWarningEvent(AppleDeployer d, AppleDefinitionSO a, float r) { Deployer = d; Apple = a; Remaining = r; } }
 public readonly struct NextWarningClearedEvent     : IGameplayEvent { }
 
+public readonly struct DeployZoneRangeEvent : IGameplayEvent   // zone -> manager
+{
+    public readonly DeployZone Zone; 
+    public readonly bool InRange;
+    public DeployZoneRangeEvent(DeployZone z, bool inRange) { Zone = z; InRange = inRange; }
+}
+
+public readonly struct InteractPromptEvent : IGameplayEvent    // manager -> UIManager
+{
+    public readonly bool Visible; 
+    public readonly string Text;
+    public InteractPromptEvent(bool v, string t) { 
+        Visible = v; 
+        Text = t; 
+    }
+}

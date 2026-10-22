@@ -7,12 +7,10 @@ using System.Collections.Generic;
 [RequireComponent(typeof(Rigidbody))]
 public class Apple : MonoBehaviour
 {
-    [SerializeField] AppleDefinitionSO definition;
     public LayerMask groundMask;
     public LayerMask playerMask;
-    public AppleDefinitionSO Definition => definition;
-
-    ISingleObjectPool<Apple> pool;
+    public AppleDefinitionSO Definition {get; private set;}
+    IAppleOwner owner;
 
 
     bool resolved, isAirborne;
@@ -24,9 +22,9 @@ public class Apple : MonoBehaviour
         _rb.useGravity = false;
     }
 
-    public void Init(AppleDefinitionSO def, ISingleObjectPool<Apple> owner){
-        definition = def;
-        pool = owner;
+    public void Init(AppleDefinitionSO def, IAppleOwner owner){
+        Definition = def;
+        this.owner = owner;
     }
 
     void OnTriggerEnter(Collider other)
@@ -45,11 +43,13 @@ public class Apple : MonoBehaviour
         isAirborne = false;
 
         var ctx = new AppleContext(this, transform.position);
-        foreach(var effect in caught? definition.CaughtEffects : definition.MissedEffects)
+        foreach(var effect in caught? Definition.CaughtEffects : Definition.MissedEffects)
             effect.Apply(ctx);
         
-        GameEventBus.Raise<IGameplayEvent>(caught? new AppleCollectedEvent(this): new AppleDroppedEvent(this));
-        pool.Release(this);
+        if (caught) GameEventBus.Raise(new AppleCollectedEvent(this));
+        else        GameEventBus.Raise(new AppleDroppedEvent(this));
+
+        owner.Release(this);   // last, so effects and listeners still see a live apple
     }
 
     public void Drop()
@@ -70,7 +70,7 @@ public class Apple : MonoBehaviour
 
 }
 
-[CreateAssetMenu(menuName ="Apples/ Apple Definition")]
+[CreateAssetMenu(fileName ="AppleDefinition",menuName ="Apples/ Apple Definition")]
 public class AppleDefinitionSO : ScriptableObject
 {
     public Apple Prefab;
@@ -97,8 +97,8 @@ public readonly  struct AppleContext
     }
 }
 
-[CreateAssetMenu(menuName = "Apples/Effects/Wake Meter")]
-public class WakeMeterEffect : AppleEffect
+[CreateAssetMenu(fileName ="AppleWakeMeterEffect",menuName = "Apples/Effects/Wake Meter")]
+public class AppleWakeMeterEffect : AppleEffect
 {
     [SerializeField] int amount = 30;
     public override void Apply(in AppleContext context)
@@ -113,7 +113,7 @@ public struct AppleSpawnEntry
     public float UnlockAfterSeconds;   // difficulty ramp inside the session
 }
 
-[CreateAssetMenu(menuName = "Apples/Spawn Table")]
+[CreateAssetMenu(fileName ="AppleSpawnTable",menuName = "Apples/Spawn Table")]
 public class AppleSpawnTable : ScriptableObject
 {
     [SerializeField] AppleSpawnEntry[] entries;

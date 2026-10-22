@@ -11,7 +11,6 @@ public class ForestPlayerController : MonoBehaviour, IMovementOwner,
     IGamePlayEventListener<ExplorationGameStateEvent>,
     IGamePlayEventListener<TutorialGameStateEvent>,
     IGamePlayEventListener<InGameGameStateEvent>,
-    IGamePlayEventListener<LevelWonEvent>,
     IGamePlayEventListener<PlayerLocationEvent>
 {
     [Header("References")]
@@ -224,11 +223,7 @@ public class ForestPlayerController : MonoBehaviour, IMovementOwner,
         }
     }
 
-    void CatchApple(Apple apple)
-    {
-        GameEventBus.Raise<AppleCollectedEvent>(new AppleCollectedEvent(apple));
-        AppleDeployManager.Instance.ReturnToPool(apple);
-    }
+    void CatchApple(Apple apple) => GameEventBus.Raise<AppleCollectedEvent>(new AppleCollectedEvent(apple));
 
     // ---------------- events ----------------
 
@@ -244,18 +239,8 @@ public class ForestPlayerController : MonoBehaviour, IMovementOwner,
     public void OnGamePlayEvent(TutorialGameStateEvent e) => catchingEnabled = false;
     public void OnGamePlayEvent(InGameGameStateEvent e) => catchingEnabled = true;
 
-    // ForestGameStateManager's LevelWonEvent handler doesn't raise an IdleMovement
-    // strategy - it just logs. Without this, whatever strategy was active (usually
-    // InGameMovement) would keep driving the player around after winning.
-    public void OnGamePlayEvent(LevelWonEvent e)
-    {
-        movementLocked = true;
-        catchingEnabled = false;
-    }
 
-    // teleports (exploration spot / play area). CharacterController must be off while
-    // setting position. Also clears currentHorizontalVelocity so TraversalMovement's
-    // camera-lock threshold doesn't mis-fire off stale pre-teleport speed.
+
     public void OnGamePlayEvent(PlayerLocationEvent e)
     {
         bool ccWasEnabled = CC.enabled;
