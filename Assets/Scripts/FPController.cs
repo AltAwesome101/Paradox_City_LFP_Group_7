@@ -20,13 +20,10 @@ public class FPController : MonoBehaviour
     public PreparationMinigame preparationMinigame;
 
     private CharacterController controller;
-
     private Vector2 moveInput;
     private Vector2 lookInput;
-
     private Vector3 velocity;
     private float verticalRotation = 0f;
-
     private Beer carriedBeer;
 
     private void Awake()
@@ -35,8 +32,7 @@ public class FPController : MonoBehaviour
 
         if (cameraTransform != null)
         {
-            verticalRotation =
-                cameraTransform.localEulerAngles.x;
+            verticalRotation = cameraTransform.localEulerAngles.x;
 
             if (verticalRotation > 180f)
             {
@@ -50,7 +46,6 @@ public class FPController : MonoBehaviour
 
     private void Update()
     {
-        // Keep the player stationary during preparation.
         if (IsPreparationActive())
         {
             moveInput = Vector2.zero;
@@ -65,19 +60,11 @@ public class FPController : MonoBehaviour
         HandleGravity();
     }
 
-    // =========================
-    // PREPARATION STATE
-    // =========================
-
     private bool IsPreparationActive()
     {
         return preparationMinigame != null &&
-               !preparationMinigame.IsPreparationComplete();
+               preparationMinigame.IsMinigameRunning();
     }
-
-    // =========================
-    // INPUT
-    // =========================
 
     public void OnMove(InputAction.CallbackContext context)
     {
@@ -103,12 +90,7 @@ public class FPController : MonoBehaviour
 
     public void OnInteract(InputAction.CallbackContext context)
     {
-        if (IsPreparationActive())
-        {
-            return;
-        }
-
-        if (!context.started)
+        if (IsPreparationActive() || !context.started)
         {
             return;
         }
@@ -123,18 +105,10 @@ public class FPController : MonoBehaviour
         }
     }
 
-    // =========================
-    // MOVEMENT
-    // =========================
-
     private void HandleMovement()
     {
-        if (controller == null || !controller.enabled)
-        {
-            return;
-        }
-
-        if (cameraTransform == null)
+        if (controller == null || !controller.enabled ||
+            cameraTransform == null)
         {
             return;
         }
@@ -149,22 +123,15 @@ public class FPController : MonoBehaviour
         right.Normalize();
 
         Vector3 movement =
-            forward * moveInput.y +
-            right * moveInput.x;
+            forward * moveInput.y + right * moveInput.x;
 
         if (movement.magnitude > 1f)
         {
             movement.Normalize();
         }
 
-        controller.Move(
-            movement * moveSpeed * Time.deltaTime
-        );
+        controller.Move(movement * moveSpeed * Time.deltaTime);
     }
-
-    // =========================
-    // LOOK
-    // =========================
 
     private void HandleLook()
     {
@@ -177,7 +144,6 @@ public class FPController : MonoBehaviour
         float mouseY = lookInput.y * lookSensitivity;
 
         verticalRotation -= mouseY;
-
         verticalRotation = Mathf.Clamp(
             verticalRotation,
             -verticalLookLimit,
@@ -189,10 +155,6 @@ public class FPController : MonoBehaviour
 
         transform.Rotate(Vector3.up * mouseX);
     }
-
-    // =========================
-    // GRAVITY
-    // =========================
 
     private void HandleGravity()
     {
@@ -207,13 +169,8 @@ public class FPController : MonoBehaviour
         }
 
         velocity.y += gravity * Time.deltaTime;
-
         controller.Move(velocity * Time.deltaTime);
     }
-
-    // =========================
-    // BEER PICKUP
-    // =========================
 
     private void TryPickUpBeer()
     {
@@ -274,7 +231,6 @@ public class FPController : MonoBehaviour
         }
 
         carriedBeer = beer;
-
         beer.transform.SetParent(beerHoldPoint);
         beer.transform.localPosition = Vector3.zero;
         beer.transform.localRotation = Quaternion.identity;
@@ -297,10 +253,6 @@ public class FPController : MonoBehaviour
 
         Debug.Log("Picked up: " + beer.beerName);
     }
-
-    // =========================
-    // SERVE BEER
-    // =========================
 
     private void TryServeBeer()
     {
@@ -328,16 +280,11 @@ public class FPController : MonoBehaviour
             if (npc != null && npc.HasOrdered())
             {
                 npc.ServeBeer(carriedBeer);
-
                 carriedBeer.gameObject.SetActive(false);
                 carriedBeer = null;
             }
         }
     }
-
-    // =========================
-    // BEER INFORMATION
-    // =========================
 
     public bool IsCarryingBeer()
     {

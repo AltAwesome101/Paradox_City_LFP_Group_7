@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,6 +10,9 @@ public class NPCDrinking : MonoBehaviour
 
     [Header("UI")]
     public Slider drinkingBar;
+
+    [Tooltip("Text that displays the drinking percentage.")]
+    public TextMeshProUGUI drinkingPercentageText;
 
     [Header("Drunk State")]
     public float drunkThreshold = 0.6f;
@@ -24,6 +28,25 @@ public class NPCDrinking : MonoBehaviour
     private bool isDrunk = false;
     private bool receivedWrongBeer = false;
 
+    private void Start()
+    {
+        // Make sure the percentage text and bar
+        // start hidden before the NPC receives beer.
+        if (drinkingBar != null)
+        {
+            drinkingBar.minValue = 0f;
+            drinkingBar.maxValue = 1f;
+            drinkingBar.value = 0f;
+            drinkingBar.gameObject.SetActive(false);
+        }
+
+        if (drinkingPercentageText != null)
+        {
+            drinkingPercentageText.text = "0%";
+            drinkingPercentageText.gameObject.SetActive(false);
+        }
+    }
+
     private void Update()
     {
         if (!isDrinking)
@@ -31,16 +54,29 @@ public class NPCDrinking : MonoBehaviour
             return;
         }
 
+        // Update drinking progress over time.
         drinkingProgress +=
             Time.deltaTime / currentDrinkingTime;
 
         drinkingProgress =
             Mathf.Clamp01(drinkingProgress);
 
+        // Update the slider.
         if (drinkingBar != null)
         {
-            drinkingBar.value =
-                drinkingProgress;
+            drinkingBar.value = drinkingProgress;
+        }
+
+        // Convert progress into a percentage.
+        int percentage = Mathf.RoundToInt(
+            drinkingProgress * 100f
+        );
+
+        // Update the percentage text.
+        if (drinkingPercentageText != null)
+        {
+            drinkingPercentageText.text =
+                percentage + "%";
         }
 
         // The NPC becomes drunk after drinking
@@ -52,6 +88,7 @@ public class NPCDrinking : MonoBehaviour
             BecomeDrunk();
         }
 
+        // Finish when the bar reaches 100%.
         if (drinkingProgress >= 1f)
         {
             FinishDrinking();
@@ -70,7 +107,7 @@ public class NPCDrinking : MonoBehaviour
         receivedWrongBeer = wrongBeer;
         isDrunk = false;
 
-        // Correct beer is consumed normally.
+        // Choose the drinking duration.
         if (receivedWrongBeer)
         {
             currentDrinkingTime =
@@ -82,20 +119,25 @@ public class NPCDrinking : MonoBehaviour
                 normalDrinkingTime;
         }
 
+        // Reset and display the slider.
         if (drinkingBar != null)
         {
+            drinkingBar.minValue = 0f;
+            drinkingBar.maxValue = 1f;
             drinkingBar.value = 0f;
             drinkingBar.gameObject.SetActive(true);
         }
 
-        Debug.Log(
-            "NPC started drinking."
-        );
+        // Reset and display the percentage.
+        if (drinkingPercentageText != null)
+        {
+            drinkingPercentageText.text = "0%";
+            drinkingPercentageText.gameObject.SetActive(true);
+        }
 
-        // WRONG BEER:
-        // Manipulate time immediately when the NPC
-        // starts drinking instead of waiting for
-        // the drunk threshold.
+        Debug.Log("NPC started drinking.");
+
+        // Wrong beer speeds up the meeting timer.
         if (receivedWrongBeer &&
             meetingTimer != null)
         {
@@ -111,9 +153,7 @@ public class NPCDrinking : MonoBehaviour
     {
         isDrunk = true;
 
-        Debug.Log(
-            "NPC IS NOW DRUNK!"
-        );
+        Debug.Log("NPC IS NOW DRUNK!");
 
         Debug.Log(
             "NPC has reached the drunk threshold."
@@ -124,7 +164,6 @@ public class NPCDrinking : MonoBehaviour
     {
         isDrinking = false;
         finishedDrinking = true;
-
         drinkingProgress = 1f;
 
         if (drinkingBar != null)
@@ -132,9 +171,12 @@ public class NPCDrinking : MonoBehaviour
             drinkingBar.value = 1f;
         }
 
-        Debug.Log(
-            "NPC finished drinking."
-        );
+        if (drinkingPercentageText != null)
+        {
+            drinkingPercentageText.text = "100%";
+        }
+
+        Debug.Log("NPC finished drinking.");
 
         if (isDrunk)
         {
