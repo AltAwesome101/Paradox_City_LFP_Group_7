@@ -14,7 +14,6 @@ public abstract class ExamTarget : MonoBehaviour, IDamageable
     float lastWrong = -10f;
     Collider cachedCol;
 
-    
     public void TakeDamage(float amount)
     {
         if (!Accepts) return;
@@ -81,7 +80,7 @@ public class ExamMarbleBlock : ExamTarget
         mb.block = block.transform;
         mb.restPos = block.transform.localPosition;
         mb.baseScale = block.transform.localScale;
-        mb.blockMat = block.GetComponent<Renderer>().material;   
+        mb.blockMat = block.GetComponent<Renderer>().material;
         mb.marker = ExamMarker.Create(root.transform, new Vector3(0f, 3.3f, 0f), ExamUtil.WeaponColor(WeaponType.Fist), false);
 
         ExamInteractable it = root.AddComponent<ExamInteractable>();
@@ -107,7 +106,6 @@ public class ExamMarbleBlock : ExamTarget
         Hits++;
         float t = Mathf.Clamp01(Hits / (float)hitsNeeded);
 
-        
         block.localScale = new Vector3(baseScale.x * (1f - 0.45f * t), baseScale.y * (1f - 0.4f * t), baseScale.z * (1f - 0.45f * t));
         restPos = new Vector3(restPos.x, 0.6f + block.localScale.y * 0.5f, restPos.z);
         block.localPosition = restPos;
@@ -132,7 +130,6 @@ public class ExamMarbleBlock : ExamTarget
         ExamLabel.Pop(block.position + Vector3.up * 1.4f, "SCULPTED!", new Color(0.4f, 1f, 0.5f));
         Destroy(block.gameObject);
 
-        
         GameObject s = new GameObject("Statue");
         statue = s.transform;
         statue.SetParent(transform, false);
@@ -190,8 +187,10 @@ public class ExamRival : ExamTarget
     static readonly float[] Turns = { 0f, 45f, -45f, 90f, -90f, 135f, -135f };
 
     Transform target, visual, stars;
+    Transform starsAnchor;      // position + tilt of the stars (set from ExamAIConfig)
+    float downTime;             // when the rival was knocked down (drives the sink animation)
     NavMeshAgent agent;
-    ExamActorAnim actor;        
+    ExamActorAnim actor;
     ExamMarker marker;
     float bodyHeight = 1.95f;
     Color paint;
@@ -200,9 +199,8 @@ public class ExamRival : ExamTarget
     float retreatUntil, nextSabotageOk, dodgeUntil;
     bool moving;
 
-    
-    const float StuckLimit = 3f;        
-    const float MinProgress = 0.15f;    
+    const float StuckLimit = 3f;
+    const float MinProgress = 0.15f;
     Vector3 lastCheckPos;
     float nextStuckCheck, stuckTime;
 
@@ -228,7 +226,6 @@ public class ExamRival : ExamTarget
         }
         else
         {
-            
             Color shirt = Shirts[variant % Shirts.Length];
             ExamUtil.Prim(PrimitiveType.Capsule, "Body", vt, new Vector3(0f, 0.85f, 0f), new Vector3(0.6f, 0.85f, 0.6f), shirt, Vector3.zero, false);
             ExamUtil.Prim(PrimitiveType.Sphere, "Head", vt, new Vector3(0f, 1.78f, 0f), new Vector3(0.28f, 0.3f, 0.28f), new Color(0.9f, 0.75f, 0.62f), Vector3.zero, false);
@@ -258,7 +255,6 @@ public class ExamRival : ExamTarget
 
     void Start()
     {
-        
         TryCreateAgent();
 
         lastCheckPos = transform.position;
@@ -267,7 +263,6 @@ public class ExamRival : ExamTarget
         if (actor != null) actor.Idle();
     }
 
-    
     void TryCreateAgent()
     {
         if (agent != null) return;
@@ -286,8 +281,16 @@ public class ExamRival : ExamTarget
 
     void Update()
     {
-        if (stars != null) stars.Rotate(0f, 360f * Time.deltaTime, 0f);
-        if (state == State.Down) return;
+        if (state == State.Down)
+        {
+            ApplyDeathPose();
+            if (stars != null)
+            {
+                ExamAIConfig c = ArtExamDirector.AI;
+                stars.Rotate(0f, (c != null ? c.starsSpinSpeed : 360f) * Time.deltaTime, 0f);
+            }
+            return;
+        }
         if (target == null) return;
 
         moving = false;
@@ -311,7 +314,25 @@ public class ExamRival : ExamTarget
         Animate();
     }
 
-   
+    // Runs every frame while down, so the values on ArtExamDirector > Ai can be tuned live in Play mode.
+    void ApplyDeathPose()
+    {
+        ExamAIConfig cfg = ArtExamDirector.AI;
+        if (cfg == null) return;
+
+        if (actor != null)
+        {
+            float k = cfg.deathSinkTime > 0.01f ? Mathf.Clamp01((Time.time - downTime) / cfg.deathSinkTime) : 1f;
+            visual.localPosition = new Vector3(0f, -cfg.deathYOffset * Mathf.SmoothStep(0f, 1f, k), 0f);
+        }
+
+        if (starsAnchor != null)
+        {
+            starsAnchor.localPosition = actor != null ? cfg.starsOffset : new Vector3(0f, 0.35f, 1.7f);
+            starsAnchor.localRotation = Quaternion.Euler(cfg.starsRotation);
+        }
+    }
+
     void Watchdog()
     {
         if (Time.time < nextStuckCheck) return;
@@ -323,7 +344,6 @@ public class ExamRival : ExamTarget
         Vector3 flatToTarget = tp - p;
         flatToTarget.y = 0f;
 
-        
         bool lost = p.y < tp.y - 12f || p.y > tp.y + 25f || flatToTarget.magnitude > 90f;
         if (!lost && agent != null && agent.enabled && !agent.isOnNavMesh) lost = true;
 
@@ -333,7 +353,6 @@ public class ExamRival : ExamTarget
             return;
         }
 
-        
         Vector3 moved = p - lastCheckPos;
         moved.y = 0f;
         lastCheckPos = p;
@@ -353,7 +372,6 @@ public class ExamRival : ExamTarget
         if (stuckTime >= StuckLimit) Respawn("stuck");
     }
 
-    
     void Respawn(string reason)
     {
         Vector3 c = target.position;
@@ -368,7 +386,7 @@ public class ExamRival : ExamTarget
         if (agent != null && agent.enabled) warped = agent.Warp(spot);
         if (!warped) transform.position = spot;
 
-        if (agent == null) TryCreateAgent();                     
+        if (agent == null) TryCreateAgent();
         if (agent != null && agent.enabled && agent.isOnNavMesh) agent.ResetPath();
 
         state = State.Approach;
@@ -426,7 +444,6 @@ public class ExamRival : ExamTarget
             return;
         }
 
-        
         float bob = moving ? Mathf.Abs(Mathf.Sin(Time.time * 10f)) * 0.07f : 0f;
         float hop = 0f;
         if (Time.time < dodgeUntil)
@@ -446,7 +463,6 @@ public class ExamRival : ExamTarget
 
         nextSabotageOk = Time.time + 3f;
 
-        
         Vector3 rp;
         if (!ExamUtil.FindNavSpot(target.position, 20f, 30f, target.position.y, out rp))
             rp = ExamUtil.FindSpot(target.position, 20f, 30f, 0.6f, target.position.y);
@@ -479,27 +495,31 @@ public class ExamRival : ExamTarget
         ExamAudio.Play(ExamAudio.Splat(), point, 1f);
         ExamLabel.Pop(point + Vector3.up * 1f, "DISQUALIFIED", new Color(1f, 0.85f, 0.25f));
 
+        // anchor = position + tilt (from ExamAIConfig), stars = the spinning part
+        GameObject ag = new GameObject("StarsAnchor");
+        starsAnchor = ag.transform;
+        starsAnchor.SetParent(transform, false);
+
         GameObject sg = new GameObject("Stars");
         stars = sg.transform;
-        stars.SetParent(transform, false);
+        stars.SetParent(starsAnchor, false);
+        downTime = Time.time;
 
         if (actor != null)
         {
-            actor.Die();                                              
-            stars.localPosition = new Vector3(0f, 0.6f, -0.9f * Mathf.Max(1f, bodyHeight / 1.9f));
+            actor.Die();
         }
         else
         {
-            
             for (int i = 0; i < 7; i++)
             {
                 Vector2 c = Random.insideUnitCircle.normalized * 0.3f;
                 ExamUtil.Prim(PrimitiveType.Sphere, "Splat", visual, new Vector3(c.x, Random.Range(0.6f, 1.5f), c.y),
                               new Vector3(0.2f, 0.2f, 0.2f) * Random.Range(0.7f, 1.2f), paint, Vector3.zero, false);
             }
-            stars.localPosition = new Vector3(0f, 0.35f, 1.7f);
             StartCoroutine(Fall());
         }
+        ApplyDeathPose();
 
         for (int i = 0; i < 3; i++)
         {
@@ -573,7 +593,6 @@ public class ExamRejectionWall : ExamTarget
             }
         }
 
-        
         Color stone = new Color(0.35f, 0.34f, 0.33f);
         float half = cols * 0.5f + 0.4f;
         ExamUtil.Prim(PrimitiveType.Cylinder, "PillarL", root.transform, new Vector3(-half, 2.2f, 0f), new Vector3(0.8f, 2.2f, 0.8f), stone, Vector3.zero, true);
@@ -619,7 +638,7 @@ public class ExamRejectionWall : ExamTarget
         if (marker != null) marker.Remove();
 
         Collider playerCol = ArtExamDirector.PlayerCollider;
-        Vector3 src = transform.position + transform.forward * 1.5f + Vector3.up * 1f;   
+        Vector3 src = transform.position + transform.forward * 1.5f + Vector3.up * 1f;
 
         foreach (Transform b in bricks)
         {
@@ -692,7 +711,6 @@ public class ExamGong : ExamTarget
 
         ExamUtil.Prim(PrimitiveType.Cylinder, "Rope", pv.transform, new Vector3(0f, -0.45f, 0f), new Vector3(0.03f, 0.45f, 0.03f), new Color(0.6f, 0.5f, 0.35f), Vector3.zero, false);
 
-        
         GameObject disc = ExamUtil.Prim(PrimitiveType.Cylinder, "GongDisc", pv.transform, new Vector3(0f, -1.25f, 0f),
                                         new Vector3(1.4f, 0.05f, 1.4f), Dull, new Vector3(90f, 0f, 0f), true, 0.85f, 0.7f);
 
@@ -708,7 +726,6 @@ public class ExamGong : ExamTarget
         return g;
     }
 
-    
     public void SetCurrent(bool current)
     {
         if (discMat != null) discMat.color = current ? Brass : Dull;
@@ -768,7 +785,6 @@ public class ExamDesk : MonoBehaviour
         ExamUtil.Prim(PrimitiveType.Cube, "Papers", root.transform, new Vector3(0.4f, 0.93f, 0f), new Vector3(0.5f, 0.05f, 0.7f), new Color(0.95f, 0.95f, 0.9f), new Vector3(0f, 12f, 0f), false);
         ExamUtil.Prim(PrimitiveType.Cylinder, "InkWell", root.transform, new Vector3(-0.6f, 0.95f, 0.1f), new Vector3(0.12f, 0.05f, 0.12f), new Color(0.05f, 0.05f, 0.12f), Vector3.zero, false);
 
-        
         const float clerkZ = -1.0f;
         float head = 1.95f;
         ExamAIConfig cfg = ArtExamDirector.AI;
@@ -817,12 +833,11 @@ public class ExamDesk : MonoBehaviour
     }
 }
 
-
 public class ExamStoneCourse : MonoBehaviour
 {
     public ExamGong[] gongs = new ExamGong[3];
     public ExamDesk desk;
-    public int Step { get; private set; }          
+    public int Step { get; private set; }
     public System.Action<int> OnProgress;
     public System.Action OnDone;
 
@@ -905,10 +920,10 @@ public class ExamStoneCourse : MonoBehaviour
             return;
         }
 
-        NoiseSystem.Emit(p, 35f);   
+        NoiseSystem.Emit(p, 35f);
 
         walking = true;
-        Vector3 dest = Step < 2 ? g.StandPoint : desk.StandPoint;   
+        Vector3 dest = Step < 2 ? g.StandPoint : desk.StandPoint;
 
         if (lure != null)
         {
@@ -933,7 +948,6 @@ public class ExamStoneCourse : MonoBehaviour
         if (Step >= 3 && OnDone != null) OnDone();
     }
 }
-
 
 public class ExamHitlerLure : MonoBehaviour
 {
@@ -989,7 +1003,7 @@ public class ExamHitlerLure : MonoBehaviour
         if (!active && brain != null)
         {
             brainWasOn = brain.enabled;
-            brain.enabled = false;     
+            brain.enabled = false;
         }
 
         active = true;
@@ -1024,7 +1038,7 @@ public class ExamHitlerLure : MonoBehaviour
 
         if (Time.time - startTime > Timeout)
         {
-            Warp();       
+            Warp();
             Finish();
             return;
         }
@@ -1091,7 +1105,6 @@ public class ExamHitlerLure : MonoBehaviour
         for (int i = 0; i < boolParams.Count; i++) anim.SetBool(boolParams[i], norm > 0.1f);
     }
 }
-
 
 public class ExamCrate : MonoBehaviour
 {
