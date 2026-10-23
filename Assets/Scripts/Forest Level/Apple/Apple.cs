@@ -45,8 +45,8 @@ public class Apple : MonoBehaviour
         foreach(var effect in caught? Definition.CaughtEffects : Definition.MissedEffects)
             effect.Apply(ctx);
         
-        if (caught) GameEventBus.Raise(new AppleCollectedEvent(this));
-        else        GameEventBus.Raise(new AppleDroppedEvent(this));
+        // if (caught) GameEventBus.Raise(new AppleCollectedEvent(this));
+        // else        GameEventBus.Raise(new AppleDroppedEvent(this));
 
         owner.Release(this);   // last, so effects and listeners still see a live apple
     }
