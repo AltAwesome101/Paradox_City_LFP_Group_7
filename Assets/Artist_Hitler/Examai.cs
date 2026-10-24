@@ -41,6 +41,18 @@ public class ExamAIConfig
     public float attackTime = 0.9f;
     public float hitTime = 0.7f;
 
+    [Header("Defeated rival")]
+    [Tooltip("How far (metres) the model is lowered once knocked down, to stop it floating above the ground.")]
+    public float deathYOffset = 0.35f;
+    [Tooltip("Seconds it takes to sink down to that offset. Match it to the length of your death animation.")]
+    public float deathSinkTime = 0.6f;
+    [Tooltip("Where the stars float, relative to the rival's root (x, y, z).")]
+    public Vector3 starsOffset = new Vector3(0f, 0.6f, -0.9f);
+    [Tooltip("Tilt of the stars' orbit in degrees (Euler). 0,0,0 = flat circle.")]
+    public Vector3 starsRotation = Vector3.zero;
+    [Tooltip("Degrees per second the stars spin.")]
+    public float starsSpinSpeed = 360f;
+
     // filled automatically by the Editor scan of the controller
     [HideInInspector] public ExamParamValue[] idleHold = new ExamParamValue[0];
     [HideInInspector] public ExamParamValue[] runHold = new ExamParamValue[0];
@@ -507,7 +519,7 @@ public class ExamActorAnim : MonoBehaviour
             return;
         }
 
-        // no scan data: guess from parameter names (speed / move / run ...)
+        
         float v = m == Mode.Run ? 1f : 0f;
         for (int i = 0; i < heurFloats.Count; i++) animator.SetFloat(heurFloats[i], v);
         for (int i = 0; i < heurBools.Count; i++) animator.SetBool(heurBools[i], m == Mode.Run);

@@ -135,10 +135,64 @@ public static class ExamUtil
         return FindSpotInternal(center, minR, maxR, clear, refY, false, Vector3.zero);
     }
 
-    
+
     public static Vector3 FindSpotLos(Vector3 center, float minR, float maxR, float clear, float refY, Vector3 losFrom)
     {
         return FindSpotInternal(center, minR, maxR, clear, refY, true, losFrom);
+    }
+
+    public static bool FindStationSpot(Vector3 center, float minR, float maxR, float halfWidth, float halfDepth,
+                                   float height, float refY, LayerMask avoid, bool faceCenter, out Vector3 result)
+    {
+        const float lift = 0.7f;        // ignore the lowest 70 cm so the ground itself never counts as an obstacle
+        const float slopeTol = 0.45f;   // max height difference between footprint corners
+        float boxHalfH = Mathf.Max(0.1f, (height - lift) * 0.5f);
+
+        for (int pass = 0; pass < 4; pass++)
+        {
+            float maxPass = maxR + pass * 8f;   // widen the search ring if the level is crowded
+            for (int i = 0; i < 60; i++)
+            {
+                float ang = Random.value * Mathf.PI * 2f;
+                float r = Random.Range(minR, maxPass);
+                Vector3 p = center + new Vector3(Mathf.Cos(ang), 0f, Mathf.Sin(ang)) * r;
+
+                Vector3 g;
+                if (!Ground(p, refY, out g)) continue;
+
+                Quaternion rot = Quaternion.identity;
+                if (faceCenter)
+                {
+                    Vector3 f = center - g;
+                    f.y = 0f;
+                    if (f.sqrMagnitude > 0.01f) rot = Quaternion.LookRotation(f.normalized);
+                }
+
+                // flat enough?
+                bool flat = true;
+                for (int sx = -1; sx <= 1 && flat; sx += 2)
+                {
+                    for (int sz = -1; sz <= 1; sz += 2)
+                    {
+                        Vector3 corner = g + rot * new Vector3(sx * halfWidth, 0f, sz * halfDepth);
+                        Vector3 cg;
+                        if (!Ground(corner, refY, out cg) || Mathf.Abs(cg.y - g.y) > slopeTol) { flat = false; break; }
+                    }
+                }
+                if (!flat) continue;
+
+                // anything solid on the avoided layers inside the whole footprint?
+                Vector3 boxCenter = g + Vector3.up * (lift + boxHalfH);
+                if (Physics.CheckBox(boxCenter, new Vector3(halfWidth, boxHalfH, halfDepth), rot,
+                                     avoid, QueryTriggerInteraction.Ignore)) continue;
+
+                result = g;
+                return true;
+            }
+        }
+
+        result = Vector3.zero;
+        return false;
     }
 
     static Vector3 FindSpotInternal(Vector3 center, float minR, float maxR, float clear, float refY, bool los, Vector3 losFrom)

@@ -9,21 +9,47 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class ArtExamDirector : MonoBehaviour
 {
-   
+
     [Header("AI character (rivals + registration clerk)")]
     public ExamAIConfig ai = new ExamAIConfig();
 
-   
+    [Header("Level intro")]
+    [Tooltip("Play the cinematic tour (needs a LevelIntroSequence in the scene).")]
+    public bool playIntro = true;
+    [Tooltip("Replay the intro after the exam is failed and the scene reloads.")]
+    public bool playIntroOnRetry = false;
+
+
     [Header("HUD layout")]
     [Tooltip("How far below the top of the screen the message text sits (in 1920x1080 reference pixels). Bigger = lower.")]
     public float toastYOffset = 230f;
     [Tooltip("Font size of the message text at the top.")]
     public int toastFontSize = 30;
 
-    
+    [Header("Rivals")]
+    [Tooltip("Rivals start spawning once this many paintings are corrected.")]
+    public int paintingsBeforeRivals = 1;
+    [Tooltip("Seconds between that painting being finished and the first rival spawning.")]
+    public float rivalDelayAfterPainting = 4f;
+
+    [Header("Station placement")]
+    [Tooltip("The marble block and Rejection Wall are never placed where anything on these layers is in the way. Default = buildings/props.")]
+    public LayerMask avoidLayers = 1;
+
+    [Header("Manual station placement (optional)")]
+    [Tooltip("Empties where the marble block can spawn. One is picked. Leave empty to use automatic placement.")]
+    public Transform[] marbleSpawnPoints;
+    [Tooltip("Empties where the Rejection Wall can spawn. One is picked. Leave empty to use automatic placement.")]
+    public Transform[] wallSpawnPoints;
+    [Tooltip("If several empties are listed, pick one at random. Off = always use the first.")]
+    public bool randomPointFromList = true;
+    [Tooltip("Drop each empty down onto the ground below it.")]
+    public bool snapSpawnsToGround = true;
+
+
     static ArtistLevelPlayer cachedPlayer;
 
-    
+
     public static ExamAIConfig AI { get; private set; }
     static System.Reflection.FieldInfo uiDirtyField;
 
@@ -41,7 +67,7 @@ public class ArtExamDirector : MonoBehaviour
         get { ArtistLevelPlayer p = Player; return p != null ? p.CC : null; }
     }
 
-    
+
     public static WeaponType CurrentWeaponType
     {
         get
@@ -70,11 +96,114 @@ public class ArtExamDirector : MonoBehaviour
         foreach (WeaponSlot w in p.weapons)
             if (w.type == type) w.reserveAmmo += amount;
 
-        
+
         if (uiDirtyField == null)
             uiDirtyField = typeof(ArtistLevelPlayer).GetField("uiDirty",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         if (uiDirtyField != null) uiDirtyField.SetValue(p, true);
+    }
+
+    public class IntroInfo
+    {
+        public Transform marble;
+        public int marbleHits;
+        public Transform[] gongs;
+        public Transform desk;
+        public Transform wall;
+        public int rivalCount;
+        public int paintingsBeforeRivals;
+    }
+
+    public static IntroInfo Intro { get; private set; }
+    public static bool IntroReady { get; private set; }
+
+    public static bool IntroAllowed
+    {
+        get
+        {
+            ArtExamDirector d = instance;
+            if (d == null) return true;
+            if (!d.playIntro) return false;
+            if (d.isRetry && !d.playIntroOnRetry) return false;
+            return true;
+        }
+    }
+
+    public static void SetHudVisible(bool visible)
+    {
+        ArtExamDirector d = instance;
+        if (d == null) return;
+
+        d.hudVisible = visible;
+        if (d.canvas != null) d.canvas.enabled = visible;
+
+        // the opening toast was held back until the intro finished
+        if (visible && d.pendingStartToast)
+        {
+            d.pendingStartToast = false;
+            d.ShowStartToast();
+        }
+    }
+
+    static bool retryPending;          // survives the scene reload after a fail
+    bool isRetry, hudVisible = true, pendingStartToast;
+
+    void ShowStartToast()
+    {
+        Toast("ENTRANCE EXAM - get Hitler into the Academy!   Scroll / keys 1-4 switch tools, E inspects.",
+              new Color(1f, 0.92f, 0.5f), 7f);
+    }
+
+    void BuildIntroInfo()
+    {
+        IntroInfo info = new IntroInfo();
+
+        info.marble = marble != null ? marble.transform : null;
+        info.marbleHits = marble != null ? marble.hitsNeeded : 0;
+        info.wall = wall != null ? wall.transform : null;
+
+        if (course != null && course.gongs != null)
+        {
+            info.gongs = new Transform[course.gongs.Length];   // if gongs is a List, use .Count
+            for (int i = 0; i < info.gongs.Length; i++)
+                info.gongs[i] = course.gongs[i] != null ? course.gongs[i].transform : null;
+        }
+
+        info.desk = FindDesk();
+        info.rivalCount = RivalCount;
+        info.paintingsBeforeRivals = paintingsBeforeRivals;
+
+        Intro = info;
+    }
+
+    // I haven't seen ExamStoneCourse, so this guesses. If it has a real desk field, replace the body with: return course.yourDeskField.transform;
+    Transform FindDesk()
+    {
+        if (course != null)
+        {
+            foreach (System.Reflection.FieldInfo f in course.GetType().GetFields(
+                         System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance))
+            {
+                if (!f.Name.ToLower().Contains("desk")) continue;
+                Transform t = AsTransform(f.GetValue(course));
+                if (t != null) return t;
+            }
+        }
+
+        foreach (Transform t in Object.FindObjectsOfType<Transform>())
+        {
+            string n = t.name.ToLower();
+            if (n.Contains("desk") || n.Contains("registration")) return t;
+        }
+        return null;
+    }
+
+    static Transform AsTransform(object o)
+    {
+        Transform t = o as Transform; if (t != null) return t;
+        Component c = o as Component; if (c != null) return c.transform;
+        GameObject g = o as GameObject; if (g != null) return g.transform;
+        return null;
     }
 
     // ------------------------------------------------------------------ bootstrap
@@ -96,12 +225,58 @@ public class ArtExamDirector : MonoBehaviour
         TryCreate();
     }
 
+    Transform PickPoint(Transform[] list, string namePrefix)
+    {
+        List<Transform> valid = new List<Transform>();
+        if (list != null)
+            foreach (Transform t in list)
+                if (t != null) valid.Add(t);
+
+        if (valid.Count == 0)
+            foreach (Transform t in Object.FindObjectsOfType<Transform>())
+                if (t.name.StartsWith(namePrefix)) valid.Add(t);
+
+        if (valid.Count == 0) return null;
+        return randomPointFromList ? valid[Random.Range(0, valid.Count)] : valid[0];
+    }
+
+    Vector3 SpawnGround(Transform t)
+    {
+        Vector3 g;
+        if (snapSpawnsToGround && ExamUtil.Ground(t.position, t.position.y, out g)) return g;
+        return t.position;
+    }
+
+    // Draws the footprint of each station in the Scene view so you can see what will fit.
+    void OnDrawGizmos()
+    {
+        DrawSpawnGizmos(marbleSpawnPoints, new Color(0.75f, 0.45f, 1f), new Vector3(1.8f, 2.4f, 1.8f));
+        DrawSpawnGizmos(wallSpawnPoints, new Color(1f, 0.35f, 0.28f), new Vector3(8.8f, 4.8f, 1.2f));
+    }
+
+    static void DrawSpawnGizmos(Transform[] points, Color c, Vector3 size)
+    {
+        if (points == null) return;
+        Gizmos.color = c;
+
+        foreach (Transform t in points)
+        {
+            if (t == null) continue;
+
+            Gizmos.matrix = Matrix4x4.TRS(t.position + Vector3.up * size.y * 0.5f,
+                                          Quaternion.Euler(0f, t.eulerAngles.y, 0f), Vector3.one);
+            Gizmos.DrawWireCube(Vector3.zero, size);
+            Gizmos.DrawLine(Vector3.zero, Vector3.forward * (size.z * 0.5f + 1.5f));   // facing direction
+        }
+        Gizmos.matrix = Matrix4x4.identity;
+    }
+
     static void TryCreate()
     {
         if (Object.FindObjectOfType<ArtExamDirector>() != null) return;
-        if (Object.FindObjectOfType<ArtistLevelPlayer>() == null) return;   
+        if (Object.FindObjectOfType<ArtistLevelPlayer>() == null) return;
 
-       
+
         Level1ObjectiveTracker t = Object.FindObjectOfType<Level1ObjectiveTracker>();
         if (t != null) t.enabled = false;
 
@@ -131,6 +306,7 @@ public class ArtExamDirector : MonoBehaviour
     HitlerNPC hitler;
     readonly List<PaintingCanvas> paintings = new List<PaintingCanvas>();
     int paintingsDone, paintingsTotal;
+    readonly HashSet<PaintingCanvas> donePaintings = new HashSet<PaintingCanvas>();
 
     ExamMarbleBlock marble;
     ExamRejectionWall wall;
@@ -159,7 +335,7 @@ public class ArtExamDirector : MonoBehaviour
     Text bannerTitle, bannerSub;
     const float BarWidth = 340f;
 
-   
+
     Text promptText;
     Image thoughtBg;
     Text thoughtText;
@@ -169,6 +345,12 @@ public class ArtExamDirector : MonoBehaviour
     void Awake()
     {
         AI = ai;
+
+        instance = this;
+        Intro = null;
+        IntroReady = false;          // statics survive scene reloads, so reset them
+        isRetry = retryPending;
+        retryPending = false;
 
         tracker = Object.FindObjectOfType<Level1ObjectiveTracker>();
         if (tracker != null)
@@ -193,9 +375,8 @@ public class ArtExamDirector : MonoBehaviour
     void Start()
     {
         player = Player;
-        if (player == null) return;
+        if (player == null) { IntroReady = true; return; }
 
-        
         foreach (WeaponSlot w in player.weapons)
         {
             if (w.effectPrefab != null) continue;
@@ -205,7 +386,8 @@ public class ArtExamDirector : MonoBehaviour
 
         foreach (PaintingCanvas p in paintings)
         {
-            p.OnPaintingComplete += OnPaintingDone;
+            PaintingCanvas captured = p;
+            p.OnPaintingComplete += () => OnPaintingDone(captured);
             paintingsTotal++;
         }
 
@@ -214,16 +396,24 @@ public class ArtExamDirector : MonoBehaviour
         BuildHUD();
         UpdateTrackerText();
 
-        if (tracker != null && hitler != null) hitler.BeginWalkingToEasel();   
+        // if an intro will run, IT starts Hitler walking (and the toast) when it finishes
+        bool introWillPlay = IntroAllowed && Object.FindObjectOfType<LevelIntroSequence>() != null;
 
-        Toast("ENTRANCE EXAM - get Hitler into the Academy!   Scroll / keys 1-4 switch tools, E inspects.", new Color(1f, 0.92f, 0.5f), 7f);
+        if (tracker != null && hitler != null && !introWillPlay) hitler.BeginWalkingToEasel();
+
+        if (introWillPlay) pendingStartToast = true;
+        else ShowStartToast();
+
+        BuildIntroInfo();
+        IntroReady = true;      // the intro script is waiting for this
+
         StartCoroutine(RivalWave());
     }
 
     void OnDestroy()
     {
-        foreach (PaintingCanvas p in paintings)
-            if (p != null) p.OnPaintingComplete -= OnPaintingDone;
+        //foreach (PaintingCanvas p in paintings)
+        //    if (p != null) p.OnPaintingComplete -= OnPaintingDone;
 
         if (canvas != null) Destroy(canvas.gameObject);
     }
@@ -234,14 +424,38 @@ public class ArtExamDirector : MonoBehaviour
         float refY = pPos.y;
 
         // BAT
-        Vector3 mSpot = ExamUtil.FindSpot(pPos, 7f, 13f, 1.6f, refY);
-        marble = ExamMarbleBlock.Create(mSpot, Random.Range(0f, 360f));
+        Vector3 mSpot = Vector3.zero;
+        float mYaw = Random.Range(0f, 360f);
+        Transform mPoint = PickPoint(marbleSpawnPoints, "MarbleSpawn");
+        if (mPoint != null)
+        {
+            mSpot = SpawnGround(mPoint);
+            mYaw = mPoint.eulerAngles.y;
+        }
+        else if (!ExamUtil.FindStationSpot(pPos, 7f, 13f, 1.4f, 1.4f, 3.2f, refY, avoidLayers, false, out mSpot))
+        {
+            Debug.LogWarning("[ArtExam] No clear spot for the marble block - using the old placement.");
+            mSpot = ExamUtil.FindSpot(pPos, 7f, 13f, 1.6f, refY);
+        }
+        marble = ExamMarbleBlock.Create(mSpot, mYaw);
         marble.OnProgress += OnMarbleProgress;
         marbleBeacon = ExamBeacon.Create(mSpot, ExamUtil.WeaponColor(WeaponType.Fist), "MARBLE\nBAT 1");
 
         // BAZOOKA
-        Vector3 wSpot = ExamUtil.FindSpot(pPos, 20f, 32f, 4.5f, refY);
-        wall = ExamRejectionWall.Create(wSpot, pPos);
+        Vector3 wSpot = Vector3.zero;
+        Vector3 wLook = pPos;
+        Transform wPoint = PickPoint(wallSpawnPoints, "WallSpawn");
+        if (wPoint != null)
+        {
+            wSpot = SpawnGround(wPoint);
+            wLook = wSpot + wPoint.forward;
+        }
+        else if (!ExamUtil.FindStationSpot(pPos, 20f, 32f, 5.2f, 2.5f, 5.6f, refY, avoidLayers, true, out wSpot))
+        {
+            Debug.LogWarning("[ArtExam] No clear spot for the rejection wall - using the old placement.");
+            wSpot = ExamUtil.FindSpot(pPos, 20f, 32f, 4.5f, refY);
+        }
+        wall = ExamRejectionWall.Create(wSpot, wLook);
         wall.OnCleared += OnWallCleared;
         wallBeacon = ExamBeacon.Create(wSpot, ExamUtil.WeaponColor(WeaponType.Bazooka), "REJECTION WALL\nBAZOOKA 3");
 
@@ -337,7 +551,10 @@ public class ArtExamDirector : MonoBehaviour
     // ====================================================================== RIVALS
     IEnumerator RivalWave()
     {
-        yield return new WaitForSeconds(6f);
+        int needed = Mathf.Min(paintingsBeforeRivals, paintingsTotal);
+        while (paintingsDone < needed && !finished && !failed) yield return null;
+
+        yield return new WaitForSeconds(rivalDelayAfterPainting);
 
         while (rivalsSpawned < RivalCount && !finished && !failed)
         {
@@ -351,7 +568,7 @@ public class ArtExamDirector : MonoBehaviour
         Transform target = hitler != null ? hitler.transform : player.transform;
         Vector3 center = target.position;
 
-        
+
         Vector3 spot;
         if (!ExamUtil.FindNavSpot(center, 26f, 38f, center.y, out spot))
             spot = ExamUtil.FindSpot(center, 26f, 38f, 0.8f, center.y);
@@ -383,7 +600,7 @@ public class ArtExamDirector : MonoBehaviour
         rivalsDown++;
         oRifle.cur = rivalsDown;
 
-        
+
         Vector3 want = r.transform.position + r.transform.forward * 2f;
         Vector3 g;
         if (!ExamUtil.Ground(want, r.transform.position.y, out g)) g = r.transform.position;
@@ -431,9 +648,12 @@ public class ArtExamDirector : MonoBehaviour
         CheckComplete();
     }
 
-    void OnPaintingDone()
+    void OnPaintingDone(PaintingCanvas p)
     {
-        paintingsDone++;
+        if (this == null) return;
+        if (!donePaintings.Add(p)) return;      // ignore duplicate events
+
+        paintingsDone = donePaintings.Count;
         if (oPaint != null) oPaint.cur = paintingsDone;
         UpdateTrackerText();
         CheckComplete();
@@ -463,7 +683,7 @@ public class ArtExamDirector : MonoBehaviour
         ExamAudio.Play(ExamAudio.Fanfare(), player.transform.position, 1f);
 
         if (WorldStateManager.Instance != null)
-            WorldStateManager.Instance.SetLevelCompleted(LevelId.ArtistHitler);  
+            WorldStateManager.Instance.SetLevelCompleted(LevelId.ArtistHitler);
 
         if (hitler != null) hitler.Celebrate();
 
@@ -490,7 +710,7 @@ public class ArtExamDirector : MonoBehaviour
     {
         if (player == null) return;
 
-        
+
         if (toastText != null && toastText.gameObject.activeSelf)
         {
             float left = toastUntil - Time.time;
@@ -498,7 +718,7 @@ public class ArtExamDirector : MonoBehaviour
             else toastText.color = new Color(toastColor.r, toastColor.g, toastColor.b, Mathf.Clamp01(left / 0.6f));
         }
 
-        
+
         if (flash != null && flash.color.a > 0f)
             flash.color = new Color(flash.color.r, flash.color.g, flash.color.b, Mathf.MoveTowards(flash.color.a, 0f, Time.deltaTime * 0.6f));
 
@@ -513,6 +733,8 @@ public class ArtExamDirector : MonoBehaviour
             RefreshHUD();
         }
 
+        if (hudVisible) HandleInteraction();
+
         if (Time.time >= nextSupplyCheck)
         {
             nextSupplyCheck = Time.time + 2f;
@@ -520,7 +742,7 @@ public class ArtExamDirector : MonoBehaviour
         }
     }
 
-    
+
     void EnsureSupplies()
     {
         if (finished || failed) return;
@@ -605,13 +827,13 @@ public class ArtExamDirector : MonoBehaviour
         sc.referenceResolution = new Vector2(1920f, 1080f);
         sc.matchWidthOrHeight = 0.5f;
 
-        
+
         RectTransform fr = FullScreen("Flash");
         flash = fr.gameObject.AddComponent<Image>();
         flash.color = new Color(0.9f, 0.1f, 0.1f, 0f);
         flash.raycastTarget = false;
 
-       
+
         const float rowH = 34f;
         float panelH = 70f + objectives.Count * rowH;
         Vector2 topLeft = new Vector2(0f, 1f);
@@ -630,7 +852,7 @@ public class ArtExamDirector : MonoBehaviour
                                         "", 20, TextAnchor.MiddleLeft, Color.white);
         }
 
-       
+
         Vector2 topRight = new Vector2(1f, 1f);
         composureLabel = NewText("ComposureLabel", canvas.transform, topRight, new Vector2(-200f, -32f), new Vector2(BarWidth, 26f),
                                  "HITLER'S COMPOSURE", 20, TextAnchor.MiddleCenter, Color.white);
@@ -653,7 +875,7 @@ public class ArtExamDirector : MonoBehaviour
         fillImg.color = new Color(0.4f, 0.9f, 0.4f);
         fillImg.raycastTarget = false;
 
-        
+
         toastText = NewText("Toast", canvas.transform, topCenter, new Vector2(0f, -300f), new Vector2(1400f, 50f),
                             "", toastFontSize, TextAnchor.MiddleCenter, Color.white);
         toastText.fontStyle = FontStyle.Bold;
@@ -662,7 +884,7 @@ public class ArtExamDirector : MonoBehaviour
         o.effectColor = new Color(0f, 0f, 0f, 0.9f);
         o.effectDistance = new Vector2(2f, -2f);
 
-        
+
         Vector2 bottomCenter = new Vector2(0.5f, 0f);
         promptText = NewText("Prompt", canvas.transform, bottomCenter, new Vector2(0f, 250f), new Vector2(700f, 40f),
                              "", 28, TextAnchor.MiddleCenter, Color.white);
@@ -677,7 +899,7 @@ public class ArtExamDirector : MonoBehaviour
                               "", 26, TextAnchor.MiddleCenter, new Color(0.96f, 0.95f, 0.85f));
         thoughtBg.gameObject.SetActive(false);
 
-        
+
         RectTransform br = FullScreen("Banner");
         banner = br.gameObject;
         Image bImg = banner.AddComponent<Image>();
@@ -825,5 +1047,55 @@ public class ArtExamDirector : MonoBehaviour
         bannerTitle.text = title;
         bannerTitle.color = color;
         bannerSub.text = sub;
+    }
+
+    static ArtExamDirector instance;
+
+    public class PulseTarget
+    {
+        public int order;
+        public string tag;
+        public Color color;
+        public System.Func<Vector3> where;
+    }
+
+    /// Active objectives that currently have a real position (used by the minimap pulse).
+    public static string PulseBlockReason { get; private set; }
+
+    public static void CollectPulseTargets(List<PulseTarget> result)
+    {
+        result.Clear();
+        PulseBlockReason = null;
+
+        if (instance == null) instance = Object.FindObjectOfType<ArtExamDirector>();
+        ArtExamDirector d = instance;
+
+        if (d == null) { PulseBlockReason = "no ArtExamDirector in the scene"; return; }
+        if (d.finished || d.failed) { PulseBlockReason = "exam already finished or failed"; return; }
+        if (d.player == null) { PulseBlockReason = "director has no player yet"; return; }
+
+        for (int i = 0; i < d.objectives.Count; i++)
+        {
+            Objective o = d.objectives[i];
+            if (o.Done || o.where == null) continue;
+            if (float.IsInfinity(o.where().x)) continue;
+            result.Add(new PulseTarget { order = i, tag = o.tag, color = o.color, where = o.where });
+        }
+
+        if (result.Count == 0)
+            PulseBlockReason = "no active objective has a position yet (" + d.objectives.Count + " objectives)";
+    }
+
+    Vector3 NearestPaintingPosition()
+    {
+        Vector3 best = Vector3.positiveInfinity;
+        float bestD = float.MaxValue;
+        foreach (PaintingCanvas p in paintings)
+        {
+            if (p == null || donePaintings.Contains(p)) continue;
+            float d = (p.transform.position - player.transform.position).sqrMagnitude;
+            if (d < bestD) { bestD = d; best = p.transform.position; }
+        }
+        return best;
     }
 }
