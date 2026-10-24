@@ -147,11 +147,3 @@ public class UIManager : Singleton<UIManager>,
     public void OnGamePlayEvent(DeploySessionStartedEvent e) => SetState(UIState.Objective);
     public void OnGamePlayEvent(DeploySessionEndedEvent e)   => SetState(UIState.Exploration);
 }
-
-
-public class MiniMapView : BaseUIView
-{
-    public MiniMapView(VisualElement container) : base(container)
-    {
-    }
-}

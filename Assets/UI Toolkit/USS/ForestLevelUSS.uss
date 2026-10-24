@@ -23,3 +23,10 @@
     border-bottom-right-radius: 0;
     border-bottom-left-radius: 0;
 }
+
+.minimap { width: 200px; height: 200px; overflow: hidden; border-radius: 100px; }
+.minimap__image, .minimap__markers { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.minimap-icon { position: absolute; width: 12px; height: 12px; translate: -50% -50%; border-radius: 6px; }
+.marker-zone { background-color: rgb(255, 200, 0); }
+.marker-zone--done { background-color: rgb(120, 120, 120); }
+.marker-player { background-color: rgb(80, 200, 255); }

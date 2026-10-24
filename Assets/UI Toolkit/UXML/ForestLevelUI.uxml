@@ -31,4 +31,8 @@
     <ui:VisualElement name="objective-container" style="flex-grow: 0; flex-shrink: 0; height: auto; width: auto; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 1014px; left: 767px;">
         <ui:Label text="0/10 Apples Caught" name="objective-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: auto; align-self: flex-start;"/>
     </ui:VisualElement>
+    <ui:VisualElement name="minimap-container" class="minimap">
+    <ui:VisualElement name="minimap-image" class="minimap__image" />
+    <ui:VisualElement name="minimap-markers" class="minimap__markers" picking-mode="Ignore" />
+    </ui:VisualElement>
 </ui:UXML>
