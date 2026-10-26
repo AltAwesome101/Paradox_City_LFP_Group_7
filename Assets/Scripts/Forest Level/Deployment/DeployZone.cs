@@ -17,6 +17,8 @@ public class DeployZone : MonoBehaviour
 
     [Header("Deploy Zone Conditions")]
     [SerializeField]int ApplesToWin = 5;
+    [SerializeField] AppleSpawnTable spawnTable;
+    public AppleSpawnTable SpawnTable => spawnTable;
 
 
 
@@ -73,5 +75,11 @@ public class DeployZone : MonoBehaviour
                 if (d.IsBusy) count++;
             return count;
         }
+    }
+
+    public void SetSessionActive(bool active)
+    {
+        marker.SetActive(!active && !IsCompleted);
+        foreach (var b in borders) b.SetActive(active);
     }
 }

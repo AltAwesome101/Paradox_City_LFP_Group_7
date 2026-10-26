@@ -33,6 +33,11 @@ public class UIManager : Singleton<UIManager>,
     [SerializeField] Camera cam;
     [SerializeField] Transform player;
 
+    [Header("Minimap")]
+    [SerializeField] Camera minimapCamera;
+    [SerializeField] RenderTexture minimapTexture;
+    [SerializeField] MinimapMarkerRegistry markerRegistry;
+
     // public UI view Declarations
     public AppleCollectionView Collection{get; private set;}
     public PauseMenuView PauseMenu{get; private set;}
@@ -42,7 +47,8 @@ public class UIManager : Singleton<UIManager>,
     public InteractPromptView InteractPrompt { get; private set; }
     public AppleIndicatorView Indicator { get; private set; }
     public ObjectiveView Objective {get; private set;}
-
+    public MiniMapView MiniMap { get; private set; }
+    public KeyChainView KeyChain{get; private set;}
 
 
     readonly List<IHideableView> _allViews = new();
@@ -77,6 +83,8 @@ public class UIManager : Singleton<UIManager>,
         GameEventBus.Unregister<DeploySessionEndedEvent>(this);
 
         input.Escape -= OnEscape;
+        MiniMap?.Dispose();
+        KeyChain?.Dispose();
         GamePause.Release(PauseMenu);
     }
 
@@ -91,11 +99,13 @@ public class UIManager : Singleton<UIManager>,
         InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
         Indicator = new AppleIndicatorView(root.Q<VisualElement>("applenotifier-element-archor"), indicatorSettings, cam, player);
         Objective = new ObjectiveView(root.Q<VisualElement>("objective-container"));
+        MiniMap = new MiniMapView(root.Q<VisualElement>("minimap-container"), minimapCamera, minimapTexture, markerRegistry);
+        KeyChain = new KeyChainView(root.Q<VisualElement>("keychain-container"),LevelProgressManager.Instance);
 
-        _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter,WarningCounter,InteractPrompt,Objective});
+        _allViews.AddRange(new IHideableView[] { Collection, PauseMenu, Tutorial, WakeMeter, WarningCounter, InteractPrompt, Objective, MiniMap,KeyChain });
 
-        _layouts[UIState.Objective] = new HashSet<IHideableView> { Collection, WakeMeter, WarningCounter, Indicator };
-        _layouts[UIState.Exploration] = new HashSet<IHideableView>{Objective};
+        _layouts[UIState.Objective]   = new HashSet<IHideableView> { Collection, WakeMeter, WarningCounter, Indicator};
+        _layouts[UIState.Exploration] = new HashSet<IHideableView> { Objective, MiniMap,KeyChain };
 
         PauseMenu.ResumeRequested += () => RemoveOverlay(PauseMenu);
     }

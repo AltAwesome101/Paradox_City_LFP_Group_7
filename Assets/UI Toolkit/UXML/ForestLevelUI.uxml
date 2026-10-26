@@ -1,6 +1,6 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <ui:Template name="arrow-image" src="project://database/Assets/UI%20Toolkit/UXML/arrow-image.uxml?fileID=9197481963319205126&amp;guid=05e58686ef7859545b861b2d2fbefb9c&amp;type=3#arrow-image"/>
-    <Style src="project://database/Assets/ForestLevelUSS.uss?fileID=7433441132597879392&amp;guid=c64a7d6bc0dcc7d409338f8a6ddf4063&amp;type=3#ForestLevelUSS"/>
+    <Style src="project://database/Assets/UI%20Toolkit/USS/ForestLevelUSS.uss?fileID=7433441132597879392&amp;guid=c64a7d6bc0dcc7d409338f8a6ddf4063&amp;type=3#ForestLevelUSS"/>
     <ui:ProgressBar value="0" title="my-progress" name="wake-progressbar"/>
     <ui:VisualElement name="applenotifier-element-archor" style="flex-grow: 0; flex-shrink: 0; width: 1699px; height: 451px; position: absolute; top: 468px; left: 129px;">
         <ui:Instance template="arrow-image" name="arrow-image" style="display: none;"/>
@@ -30,5 +30,15 @@
     </ui:VisualElement>
     <ui:VisualElement name="objective-container" style="flex-grow: 0; flex-shrink: 0; height: auto; width: auto; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 1014px; left: 767px;">
         <ui:Label text="0/10 Apples Caught" name="objective-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: auto; align-self: flex-start;"/>
+    </ui:VisualElement>
+    <ui:VisualElement name="minimap-container" class="minimap" style="bottom: 37px; right: 1672px;">
+        <ui:VisualElement name="minimap-image" class="minimap__image"/>
+        <ui:VisualElement name="minimap-markers" picking-mode="Ignore" class="minimap__markers"/>
+    </ui:VisualElement>
+    <ui:VisualElement name="keychain-container" picking-mode="Ignore" class="keychain">
+        <ui:VisualElement name="keychain-wire" picking-mode="Ignore" class="keychain__wire"/>
+        <ui:VisualElement name="keychain-circle-0" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
+        <ui:VisualElement name="keychain-circle-1" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
+        <ui:VisualElement name="keychain-circle-2" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
     </ui:VisualElement>
 </ui:UXML>

@@ -1,28 +1,30 @@
-using System;
 using UnityEngine;
 using BetterEventBus;
+using BetterPooling;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
 public class Apple : MonoBehaviour
 {
-    [SerializeField] AppleRegistry registry;
-    [SerializeField] AppleTrajectoryProjector projector;
     public LayerMask groundMask;
     public LayerMask playerMask;
+    public AppleDefinitionSO Definition {get; private set;}
+    IAppleOwner owner;
 
-    bool resolved;    // one flag guarding both outcomes, not just ground
-    bool isAirborne;
-    AppleDeployer sourceDeployer;
+
+    bool resolved, isAirborne;
     Rigidbody _rb;
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _rb.useGravity = true;
+        _rb.useGravity = false;
     }
 
-    void OnEnable() => registry.Register(this);
-    void OnDisable() => registry.Deregister(this);
+    public void Init(AppleDefinitionSO def, IAppleOwner owner){
+        Definition = def;
+        this.owner = owner;
+    }
 
     void OnTriggerEnter(Collider other)
     {
@@ -39,26 +41,30 @@ public class Apple : MonoBehaviour
         resolved = true;
         isAirborne = false;
 
-        if (caught) GameEventBus.Raise(new AppleCollectedEvent(this));
-        else GameEventBus.Raise(new AppleDroppedEvent(this));
+        var ctx = new AppleContext(this, transform.position);
+        foreach(var effect in caught? Definition.CaughtEffects : Definition.MissedEffects)
+            effect.Apply(ctx);
+        
+        // if (caught) GameEventBus.Raise(new AppleCollectedEvent(this));
+        // else        GameEventBus.Raise(new AppleDroppedEvent(this));
 
-        sourceDeployer?.MarkFree();
-        projector.Hide();   
-        AppleDeployManager.Instance.ReturnToPool(this);
-
+        owner.Release(this);   // last, so effects and listeners still see a live apple
     }
 
-    public void StartFalling(AppleDeployer deployer = null)
+    public void Drop()
     {
-        sourceDeployer = deployer;
         resolved = false;
         _rb.useGravity = true;
         isAirborne = true;
         GameEventBus.Raise(new AppleAirborneEvent(this));
     }
 
-    void FixedUpdate()
+    public void ResetPhysics()
     {
-        if (isAirborne) projector.Project(transform, _rb, groundMask);
+        resolved = true; isAirborne = false;
+        _rb.useGravity = false;
+        _rb.linearVelocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
     }
+
 }

@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef6b620d8c1f6cc45959b762c2964432, type: 3}
+  m_Name: AntiAppleDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::AppleDefinitionSO
+  Prefab: {fileID: 6081591495760655397, guid: 64b4f1423865fca45983b1a5e3d707aa, type: 3}
+  ProgressValue: 1
+  AppleColor: {r: 0.14680664, g: 0.24340348, b: 0.89433956, a: 0}
+  CaughtEffects:
+  - {fileID: 11400000, guid: 3c2934a40c48abc4d8e7f34ef0d6a908, type: 2}
+  MissedEffects: []
