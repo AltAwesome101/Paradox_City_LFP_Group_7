@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class FPController : MonoBehaviour
 {
@@ -15,6 +16,10 @@ public class FPController : MonoBehaviour
     [Header("Beer Pickup")]
     public Transform beerHoldPoint;
     public float interactionRange = 3f;
+
+    [Header("Interaction Prompts")]
+    public TextMeshProUGUI pickupPrompt;
+    public TextMeshProUGUI handInBeerPrompt;
 
     [Header("Beer Preparation")]
     public PreparationMinigame preparationMinigame;
@@ -40,6 +45,9 @@ public class FPController : MonoBehaviour
             }
         }
 
+        HidePickupPrompt();
+        HideHandInBeerPrompt();
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -52,12 +60,16 @@ public class FPController : MonoBehaviour
             lookInput = Vector2.zero;
             velocity.x = 0f;
             velocity.z = 0f;
+
+            HidePickupPrompt();
+            HideHandInBeerPrompt();
             return;
         }
 
         HandleMovement();
         HandleLook();
         HandleGravity();
+        UpdateInteractionPrompts();
     }
 
     private bool IsPreparationActive()
@@ -172,6 +184,97 @@ public class FPController : MonoBehaviour
         controller.Move(velocity * Time.deltaTime);
     }
 
+    private void UpdateInteractionPrompts()
+    {
+        HidePickupPrompt();
+        HideHandInBeerPrompt();
+
+        if (preparationMinigame == null ||
+            !preparationMinigame.IsPreparationComplete() ||
+            cameraTransform == null)
+        {
+            return;
+        }
+
+        Camera cam = cameraTransform.GetComponent<Camera>();
+
+        if (cam == null)
+        {
+            return;
+        }
+
+        Ray ray = cam.ViewportPointToRay(
+            new Vector3(0.5f, 0.5f, 0f)
+        );
+
+        if (!Physics.Raycast(
+            ray, out RaycastHit hit, interactionRange))
+        {
+            return;
+        }
+
+        // If the player is carrying beer, show the hand-in prompt
+        // when aiming at an NPC who has placed an order.
+        if (carriedBeer != null)
+        {
+            HistoricalFigure npc =
+                hit.collider.GetComponentInParent<HistoricalFigure>();
+
+            if (npc != null && npc.HasOrdered())
+            {
+                ShowHandInBeerPrompt();
+            }
+
+            return;
+        }
+
+        // If the player is not carrying beer, show the pickup prompt
+        // only for the beer assigned by the preparation minigame.
+        Beer beer = hit.collider.GetComponentInParent<Beer>();
+
+        if (beer != null &&
+            preparationMinigame.CanPickUpBeer(beer))
+        {
+            ShowPickupPrompt();
+        }
+    }
+
+    private void ShowPickupPrompt()
+    {
+        if (pickupPrompt != null &&
+            !pickupPrompt.gameObject.activeSelf)
+        {
+            pickupPrompt.gameObject.SetActive(true);
+        }
+    }
+
+    private void HidePickupPrompt()
+    {
+        if (pickupPrompt != null &&
+            pickupPrompt.gameObject.activeSelf)
+        {
+            pickupPrompt.gameObject.SetActive(false);
+        }
+    }
+
+    private void ShowHandInBeerPrompt()
+    {
+        if (handInBeerPrompt != null &&
+            !handInBeerPrompt.gameObject.activeSelf)
+        {
+            handInBeerPrompt.gameObject.SetActive(true);
+        }
+    }
+
+    private void HideHandInBeerPrompt()
+    {
+        if (handInBeerPrompt != null &&
+            handInBeerPrompt.gameObject.activeSelf)
+        {
+            handInBeerPrompt.gameObject.SetActive(false);
+        }
+    }
+
     private void TryPickUpBeer()
     {
         if (carriedBeer != null)
@@ -218,6 +321,7 @@ public class FPController : MonoBehaviour
                 }
 
                 PickUpBeer(beer);
+                HidePickupPrompt();
             }
         }
     }
@@ -231,6 +335,7 @@ public class FPController : MonoBehaviour
         }
 
         carriedBeer = beer;
+
         beer.transform.SetParent(beerHoldPoint);
         beer.transform.localPosition = Vector3.zero;
         beer.transform.localRotation = Quaternion.identity;
@@ -279,9 +384,15 @@ public class FPController : MonoBehaviour
 
             if (npc != null && npc.HasOrdered())
             {
-                npc.ServeBeer(carriedBeer);
-                carriedBeer.gameObject.SetActive(false);
+                Beer beerToServe = carriedBeer;
+
+                npc.ServeBeer(beerToServe);
+
+                beerToServe.gameObject.SetActive(false);
                 carriedBeer = null;
+
+                HidePickupPrompt();
+                HideHandInBeerPrompt();
             }
         }
     }
