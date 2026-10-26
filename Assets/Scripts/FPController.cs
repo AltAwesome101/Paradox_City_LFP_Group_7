@@ -17,9 +17,19 @@ public class FPController : MonoBehaviour
     public Transform beerHoldPoint;
     public float interactionRange = 3f;
 
-    [Header("Interaction Prompts")]
+    [Header("Pickup Prompt UI")]
+    [Tooltip("The TextMeshPro object that displays the beer pickup prompt.")]
     public TextMeshProUGUI pickupPrompt;
+
+    [Tooltip("Assign the background PANEL GameObject behind the pickup prompt.")]
+    public GameObject pickupPromptPanel;
+
+    [Header("Hand-In Beer Prompt UI")]
+    [Tooltip("The TextMeshPro object that displays the hand-in beer prompt.")]
     public TextMeshProUGUI handInBeerPrompt;
+
+    [Tooltip("Assign the background PANEL GameObject behind the hand-in beer prompt.")]
+    public GameObject handInBeerPromptPanel;
 
     [Header("Beer Preparation")]
     public PreparationMinigame preparationMinigame;
@@ -241,37 +251,49 @@ public class FPController : MonoBehaviour
 
     private void ShowPickupPrompt()
     {
-        if (pickupPrompt != null &&
-            !pickupPrompt.gameObject.activeSelf)
-        {
-            pickupPrompt.gameObject.SetActive(true);
-        }
+        SetPickupPromptVisible(true);
     }
 
     private void HidePickupPrompt()
     {
-        if (pickupPrompt != null &&
-            pickupPrompt.gameObject.activeSelf)
+        SetPickupPromptVisible(false);
+    }
+
+    private void SetPickupPromptVisible(bool visible)
+    {
+        // Keep the pickup text and its background panel in sync.
+        if (pickupPrompt != null)
         {
-            pickupPrompt.gameObject.SetActive(false);
+            pickupPrompt.gameObject.SetActive(visible);
+        }
+
+        if (pickupPromptPanel != null)
+        {
+            pickupPromptPanel.SetActive(visible);
         }
     }
 
     private void ShowHandInBeerPrompt()
     {
-        if (handInBeerPrompt != null &&
-            !handInBeerPrompt.gameObject.activeSelf)
-        {
-            handInBeerPrompt.gameObject.SetActive(true);
-        }
+        SetHandInBeerPromptVisible(true);
     }
 
     private void HideHandInBeerPrompt()
     {
-        if (handInBeerPrompt != null &&
-            handInBeerPrompt.gameObject.activeSelf)
+        SetHandInBeerPromptVisible(false);
+    }
+
+    private void SetHandInBeerPromptVisible(bool visible)
+    {
+        // Keep the hand-in text and its background panel in sync.
+        if (handInBeerPrompt != null)
         {
-            handInBeerPrompt.gameObject.SetActive(false);
+            handInBeerPrompt.gameObject.SetActive(visible);
+        }
+
+        if (handInBeerPromptPanel != null)
+        {
+            handInBeerPromptPanel.SetActive(visible);
         }
     }
 
