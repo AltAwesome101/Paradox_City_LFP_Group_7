@@ -103,7 +103,7 @@ public class HistoricalFigure : MonoBehaviour
 
         Debug.Log("[HistoricalFigure] Ordered: " + requestedBeer);
 
-        ShowOrderMessage("Customer: I'll have a beer, please.");
+        ShowOrderMessage("Mahatma Gandhi: I'll have a beer, please.");
 
         if (meetingResultText != null)
             meetingResultText.gameObject.SetActive(false);
@@ -200,7 +200,7 @@ public class HistoricalFigure : MonoBehaviour
         hasBeenServed = true;
         receivedWrongBeer = beer.IsWrongBeer();
 
-        ShowOrderMessage("Customer: Thanks.");
+        ShowOrderMessage("Mahatma Gandhi: Thanks.");
 
         if (meetingTimer != null)
             meetingTimer.StartMeetingTimer();
@@ -214,7 +214,7 @@ public class HistoricalFigure : MonoBehaviour
         if (receivedWrongBeer)
         {
             Debug.Log("[HistoricalFigure] WRONG BEER SERVED.");
-            Debug.Log("[HistoricalFigure] NPC is unaware of the mistake.");
+            Debug.Log("[HistoricalFigure] Mahatma Gandhi is unaware of the mistake.");
         }
         else
         {
@@ -234,7 +234,7 @@ public class HistoricalFigure : MonoBehaviour
 
         Debug.Log(
             "[HistoricalFigure] Correct beer finished in time. " +
-            "NPC is leaving for the meeting."
+            "Mahatma Gandhi is leaving for the meeting."
         );
 
         if (meetingResultText != null)
