@@ -37,12 +37,21 @@ public class HistoricalFigure : MonoBehaviour
     public NPCDrinking npcDrinking;
 
     [Header("Order UI")]
+    [Tooltip("The TextMeshPro object that displays Gandhi's order and thank-you message.")]
     public TextMeshProUGUI orderText;
+
+    [Tooltip("Assign the background PANEL GameObject for the order and thank-you text here.")]
+    public GameObject orderTextPanel;
+
     public float orderTextDuration = 10f;
     public float orderTextDistance = 3f;
 
     [Header("Meeting Result UI")]
+    [Tooltip("The TextMeshPro object that displays the meeting result.")]
     public TextMeshProUGUI meetingResultText;
+
+    [Tooltip("Assign the background PANEL GameObject for the meeting result text here.")]
+    public GameObject meetingResultPanel;
 
     [Header("Cinematic Camera")]
     public CinematicCameraFocus cinematicCamera;
@@ -136,11 +145,8 @@ public class HistoricalFigure : MonoBehaviour
 
     private void Start()
     {
-        if (orderText != null)
-            orderText.gameObject.SetActive(false);
-
-        if (meetingResultText != null)
-            meetingResultText.gameObject.SetActive(false);
+        SetOrderUIVisible(false);
+        SetMeetingResultUIVisible(false);
 
         // Preserve the original gameplay if the new markers
         // have not yet been assigned in the Inspector.
@@ -369,8 +375,7 @@ public class HistoricalFigure : MonoBehaviour
             "Mahatma Gandhi: I'll have a beer, please."
         );
 
-        if (meetingResultText != null)
-            meetingResultText.gameObject.SetActive(false);
+        SetMeetingResultUIVisible(false);
     }
 
     private void ShowOrderMessage(string message)
@@ -385,7 +390,7 @@ public class HistoricalFigure : MonoBehaviour
         }
 
         orderText.text = message;
-        orderText.gameObject.SetActive(true);
+        SetOrderUIVisible(true);
 
         orderTextCoroutine =
             StartCoroutine(HideOrderTextAfterDelay());
@@ -400,8 +405,7 @@ public class HistoricalFigure : MonoBehaviour
 
     private void HideOrderText()
     {
-        if (orderText != null)
-            orderText.gameObject.SetActive(false);
+        SetOrderUIVisible(false);
 
         if (orderTextCoroutine != null)
         {
@@ -532,7 +536,7 @@ public class HistoricalFigure : MonoBehaviour
         if (meetingResultText != null)
         {
             meetingResultText.text = "HEADING TO MEETING";
-            meetingResultText.gameObject.SetActive(true);
+            SetMeetingResultUIVisible(true);
         }
 
         if (cinematicCamera != null)
@@ -680,7 +684,7 @@ public class HistoricalFigure : MonoBehaviour
         if (meetingResultText != null)
         {
             meetingResultText.text = "MEETING MISSED";
-            meetingResultText.gameObject.SetActive(true);
+            SetMeetingResultUIVisible(true);
 
             StartCoroutine(HideMeetingResult());
         }
@@ -690,8 +694,27 @@ public class HistoricalFigure : MonoBehaviour
     {
         yield return new WaitForSecondsRealtime(5f);
 
+        SetMeetingResultUIVisible(false);
+    }
+
+    private void SetOrderUIVisible(bool visible)
+    {
+        // Keep the text and its background panel in sync.
+        if (orderText != null)
+            orderText.gameObject.SetActive(visible);
+
+        if (orderTextPanel != null)
+            orderTextPanel.SetActive(visible);
+    }
+
+    private void SetMeetingResultUIVisible(bool visible)
+    {
+        // Keep the result text and its background panel in sync.
         if (meetingResultText != null)
-            meetingResultText.gameObject.SetActive(false);
+            meetingResultText.gameObject.SetActive(visible);
+
+        if (meetingResultPanel != null)
+            meetingResultPanel.SetActive(visible);
     }
 
     private void OnTriggerEnter(Collider other)
