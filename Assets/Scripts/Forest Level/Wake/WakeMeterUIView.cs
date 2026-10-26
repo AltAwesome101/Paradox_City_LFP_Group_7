@@ -7,13 +7,12 @@ public class WakeMeterUIView : BaseUIView
 {
     public event Action OnMeterFull;
     ProgressBar progress;
-    int disturbAmount;
     float lerpSpeed;
 
     float targetValue;
     IVisualElementScheduledItem scheduledItem;
 
-    public WakeMeterUIView(VisualElement container, int disturb, int maxLimit, float lerpSpeed = 8f): base(container)
+    public WakeMeterUIView(VisualElement container, int maxLimit, float lerpSpeed = 8f): base(container)
     {
         progress = container.Q<ProgressBar>("wake-progressbar");
         progress.lowValue = 0f;
@@ -22,7 +21,6 @@ public class WakeMeterUIView : BaseUIView
 
     public void Configure(int disturb, int maxLimit, float lerpSpeed)
     {
-        disturbAmount = disturb;
         progress.highValue = maxLimit;
         this.lerpSpeed = lerpSpeed;
     }
@@ -31,7 +29,7 @@ public class WakeMeterUIView : BaseUIView
     public override void Hide() => progress.style.display = DisplayStyle.None;
 
 
-    public void Disturb()
+    public void Disturb(float disturbAmount)
     {
         targetValue = Mathf.Min(targetValue + disturbAmount, progress.highValue);
 

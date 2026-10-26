@@ -9,6 +9,6 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
-  m_Name: New Minimap Marker Registry
+  m_Script: {fileID: 11500000, guid: c5bb1d8c741d53c43be1f192b3101594, type: 3}
+  m_Name: Minimap Marker Registry
   m_EditorClassIdentifier: Assembly-CSharp::MinimapMarkerRegistry

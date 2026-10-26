@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 using Forestlevel;
 
 public class WakeManager : Singleton<WakeManager>,
-    IGamePlayEventListener<AppleDroppedEvent>,
+    IGamePlayEventListener<WakeMeterChangeEvent>,
     IGamePlayEventListener<DeploySessionStartedEvent>,
     IGamePlayEventListener<DeploySessionEndedEvent>
 {
@@ -26,13 +26,13 @@ public class WakeManager : Singleton<WakeManager>,
 
     void OnEnable()
     {
-        GameEventBus.Register<AppleDroppedEvent>(this);
+        GameEventBus.Register<WakeMeterChangeEvent>(this);
         GameEventBus.Register<DeploySessionStartedEvent>(this);
         GameEventBus.Register<DeploySessionEndedEvent>(this);
     }
     void OnDisable()
     {
-        GameEventBus.Unregister<AppleDroppedEvent>(this);
+        GameEventBus.Unregister<WakeMeterChangeEvent>(this);
         GameEventBus.Unregister<DeploySessionStartedEvent>(this);
         GameEventBus.Unregister<DeploySessionEndedEvent>(this);
     }
@@ -40,10 +40,10 @@ public class WakeManager : Singleton<WakeManager>,
     public void OnGamePlayEvent(DeploySessionStartedEvent e) { sessionActive = true; wakemeter.ResetMeter(); }
     public void OnGamePlayEvent(DeploySessionEndedEvent e)   => sessionActive = false;
 
-    public void OnGamePlayEvent(AppleDroppedEvent e)
+    public void OnGamePlayEvent(WakeMeterChangeEvent evt)
     {
         if (!sessionActive) return;   // apples still falling after a session ends must not disturb Newton
-        wakemeter.Disturb();
+        wakemeter.Disturb(evt.Amount);
     }
 
     void HandleMeterFull()
