@@ -2,8 +2,10 @@ using UnityEngine;
 using BetterEventBus;
 using BetterPooling;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(Renderer))]
 public class Apple : MonoBehaviour
 {
     public LayerMask groundMask;
@@ -11,19 +13,22 @@ public class Apple : MonoBehaviour
     public AppleDefinitionSO Definition {get; private set;}
     IAppleOwner owner;
 
-
     bool resolved, isAirborne;
     Rigidbody _rb;
+    AppleVisualRenderer _visual;
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+        _visual = new AppleVisualRenderer(GetComponent<Renderer>());
+
         _rb.useGravity = false;
     }
 
     public void Init(AppleDefinitionSO def, IAppleOwner owner){
         Definition = def;
         this.owner = owner;
+        _visual.Apply(def.AppleColor);
     }
 
     void OnTriggerEnter(Collider other)
