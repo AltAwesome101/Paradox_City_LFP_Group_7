@@ -94,7 +94,7 @@ public class UIManager : Singleton<UIManager>,
         PauseMenu  = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"), currentScene, futureScene);
         Tutorial   = new TutorialView(root.Q<VisualElement>("TutorialPanel-container"));
         WakeMeter  = new WakeMeterUIView(root, maxLimit: 0); // TODO real values
-        WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-element"), warningData);
+        WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-container"), warningData);
         InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
         Indicator = new AppleIndicatorView(root.Q<VisualElement>("applenotifier-element-archor"), indicatorSettings, cam, player);
         Objective = new ObjectiveView(root.Q<VisualElement>("objective-container"));

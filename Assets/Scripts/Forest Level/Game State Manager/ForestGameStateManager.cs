@@ -18,7 +18,7 @@ namespace Forestlevel
             void Start()
             {
                 GameEventBus.Raise(new ExplorationGameStateEvent());
-                UIManager.Instance.Objective.UpdateDisplay($"DeployZone Completed {completed}/{SessionToWin}");
+                UIManager.Instance.Objective.UpdateDisplay($"{completed}/{SessionToWin} Zones");
             }
             void OnEnable()  => GameEventBus.Register<DeploySessionEndedEvent>(this);
             void OnDisable() => GameEventBus.Unregister<DeploySessionEndedEvent>(this);
@@ -37,7 +37,7 @@ namespace Forestlevel
                 }
 
                 completed++;
-                UIManager.Instance.Objective.UpdateDisplay($"DeployZone Completed {completed}/{SessionToWin}");
+                UIManager.Instance.Objective.UpdateDisplay($"{completed}/{SessionToWin} Zones");
 
                 Debug.Log($"DeployZone Completed{completed}/{SessionToWin}");
                 if (completed >= SessionToWin)

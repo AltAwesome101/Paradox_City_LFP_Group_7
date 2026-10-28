@@ -22,7 +22,6 @@ public class AppleWarningCounterView : BaseUIView
     { 
         _counter = container.Q<Label>("approachingApple-counter-label");
         this.data = data;
-        // _counter.style.position = Position.Absolute;
     }
 
     public void UpdateDisplay(float remaining)

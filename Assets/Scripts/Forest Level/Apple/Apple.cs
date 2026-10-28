@@ -47,8 +47,8 @@ public class Apple : MonoBehaviour
     {
         resolved = true;
         isAirborne = false;
-        var log = caught? "Player Caught": "Hit Ground!";
-        Debug.Log(log);
+        // var log = caught? "Player Caught": "Hit Ground!";
+        // Debug.Log(log);
 
         var ctx = new AppleContext(this, transform.position);
         foreach(var effect in caught? Definition.CaughtEffects : Definition.MissedEffects)
