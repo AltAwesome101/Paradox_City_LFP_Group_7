@@ -15,10 +15,13 @@ public class AppleVisualRenderer
         _renderers = renderers;
     }
 
-    public void Apply(Color color){
+    public void Apply(AppleDefinitionSO definition){
         foreach(var rend in _renderers){
+            if(definition.AdditionalVisual != null)
+                rend.material = definition.AdditionalVisual;
+
             rend.GetPropertyBlock(_block);
-            _block.SetColor(BaseColorID, color);
+            _block.SetColor(BaseColorID, definition.AppleColor);
             rend.SetPropertyBlock(_block);
         }
     }

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: AntiAppleDefinition
   m_EditorClassIdentifier: Assembly-CSharp::AppleDefinitionSO
   Prefab: {fileID: 8903584848083054290, guid: 64b4f1423865fca45983b1a5e3d707aa, type: 3}
-  AppleSize: 0.8
+  AppleSize: 0.6
   ProgressValue: 1
   AppleColor: {r: 0.14680664, g: 0.24340348, b: 0.89433956, a: 0}
   CaughtEffects:

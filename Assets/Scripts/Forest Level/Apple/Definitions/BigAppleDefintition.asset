@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: BigAppleDefintition
   m_EditorClassIdentifier: Assembly-CSharp::AppleDefinitionSO
   Prefab: {fileID: 8903584848083054290, guid: 64b4f1423865fca45983b1a5e3d707aa, type: 3}
-  AppleSize: 2
+  AdditionalVisual: {fileID: 2100000, guid: 759ce9da799bcfa4b99083890ff4b94a, type: 2}
+  AppleSize: 1
   ProgressValue: 2
   AppleColor: {r: 0.93962264, g: 0.06205042, b: 0.06205042, a: 0}
   CaughtEffects:

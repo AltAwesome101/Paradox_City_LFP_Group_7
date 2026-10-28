@@ -29,7 +29,7 @@ public class Apple : MonoBehaviour
     public void Init(AppleDefinitionSO def, IAppleOwner owner){
         Definition = def;
         this.owner = owner;
-        _visual.Apply(def.AppleColor);
+        _visual.Apply(def);
         _scaler.Scale(def.AppleSize);
     }
 
