@@ -4,7 +4,6 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using Forestlevel;
 using BetterEventBus;
-using UnityEngine.InputSystem;
 
 public enum UIState{
     Exploration,

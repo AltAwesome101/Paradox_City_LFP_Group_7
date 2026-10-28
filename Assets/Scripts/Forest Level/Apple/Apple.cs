@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Rigidbody))]
-[RequireComponent(typeof(Renderer))]
 public class Apple : MonoBehaviour
 {
     public LayerMask groundMask;
@@ -16,11 +15,13 @@ public class Apple : MonoBehaviour
     bool resolved, isAirborne;
     Rigidbody _rb;
     AppleVisualRenderer _visual;
+    AppleScaler _scaler;
 
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _visual = new AppleVisualRenderer(GetComponent<Renderer>());
+        _visual = new AppleVisualRenderer(GetComponentsInChildren<Renderer>());
+        _scaler = new AppleScaler(transform);
 
         _rb.useGravity = false;
     }
@@ -29,6 +30,7 @@ public class Apple : MonoBehaviour
         Definition = def;
         this.owner = owner;
         _visual.Apply(def.AppleColor);
+        _scaler.Scale(def.AppleSize);
     }
 
     void OnTriggerEnter(Collider other)
@@ -45,13 +47,14 @@ public class Apple : MonoBehaviour
     {
         resolved = true;
         isAirborne = false;
+        var log = caught? "Player Caught": "Hit Ground!";
+        Debug.Log(log);
 
         var ctx = new AppleContext(this, transform.position);
         foreach(var effect in caught? Definition.CaughtEffects : Definition.MissedEffects)
+        {
             effect.Apply(ctx);
-        
-        // if (caught) GameEventBus.Raise(new AppleCollectedEvent(this));
-        // else        GameEventBus.Raise(new AppleDroppedEvent(this));
+        }
 
         owner.Release(this);   // last, so effects and listeners still see a live apple
     }
