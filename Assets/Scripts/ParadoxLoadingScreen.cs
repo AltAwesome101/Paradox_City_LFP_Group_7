@@ -391,7 +391,7 @@ public class ParadoxLoadingScreen : MonoBehaviour
                 sceneKeywords = new[] { "beer", "tavern", "pub" },
                 title = "THE TAVERN",
                 subtitle = "A MEETING THAT CHANGES EVERYTHING",
-                year = "1970",
+                year = "1930",
                 isPast = true,
                 backgroundTop = C(0.12f, 0.05f, 0.02f),
                 backgroundBottom = C(0.30f, 0.13f, 0.04f),
