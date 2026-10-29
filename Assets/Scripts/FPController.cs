@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class FPController : MonoBehaviour
 {
@@ -16,6 +17,25 @@ public class FPController : MonoBehaviour
     public Transform beerHoldPoint;
     public float interactionRange = 3f;
 
+    [Header("Glass Pickup")]
+    public Transform glassHoldPoint;
+    public TextMeshProUGUI glassPickupPrompt;
+    public GameObject glassPickupPanel;
+
+    [Header("Glass Drop-Off")]
+    public Transform glassDropOffPoint;
+    public float glassDropOffRange = 2f;
+    public TextMeshProUGUI glassDropOffPrompt;
+    public GameObject glassDropOffPanel;
+
+    [Header("Beer Pickup UI")]
+    public TextMeshProUGUI pickupPrompt;
+    public GameObject pickupPanel;
+
+    [Header("Beer Hand-In UI")]
+    public TextMeshProUGUI handInBeerPrompt;
+    public GameObject handInBeerPanel;
+
     [Header("Beer Preparation")]
     public PreparationMinigame preparationMinigame;
 
@@ -24,7 +44,9 @@ public class FPController : MonoBehaviour
     private Vector2 lookInput;
     private Vector3 velocity;
     private float verticalRotation = 0f;
+
     private Beer carriedBeer;
+    private CleanableGlass carriedGlass;
 
     private void Awake()
     {
@@ -40,6 +62,8 @@ public class FPController : MonoBehaviour
             }
         }
 
+        HideAllInteractionPrompts();
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -50,14 +74,18 @@ public class FPController : MonoBehaviour
         {
             moveInput = Vector2.zero;
             lookInput = Vector2.zero;
+
             velocity.x = 0f;
             velocity.z = 0f;
+
+            HideAllInteractionPrompts();
             return;
         }
 
         HandleMovement();
         HandleLook();
         HandleGravity();
+        UpdateInteractionPrompts();
     }
 
     private bool IsPreparationActive()
@@ -95,19 +123,28 @@ public class FPController : MonoBehaviour
             return;
         }
 
+        // Serving beer takes priority while carrying beer.
         if (carriedBeer != null)
         {
             TryServeBeer();
+            return;
         }
-        else
+
+        // Return a carried glass to the counter.
+        if (carriedGlass != null)
         {
-            TryPickUpBeer();
+            TryReturnGlass();
+            return;
         }
+
+        // Otherwise, try picking up a glass or beer.
+        TryPickUpObject();
     }
 
     private void HandleMovement()
     {
-        if (controller == null || !controller.enabled ||
+        if (controller == null ||
+            !controller.enabled ||
             cameraTransform == null)
         {
             return;
@@ -123,14 +160,17 @@ public class FPController : MonoBehaviour
         right.Normalize();
 
         Vector3 movement =
-            forward * moveInput.y + right * moveInput.x;
+            forward * moveInput.y +
+            right * moveInput.x;
 
         if (movement.magnitude > 1f)
         {
             movement.Normalize();
         }
 
-        controller.Move(movement * moveSpeed * Time.deltaTime);
+        controller.Move(
+            movement * moveSpeed * Time.deltaTime
+        );
     }
 
     private void HandleLook()
@@ -144,6 +184,7 @@ public class FPController : MonoBehaviour
         float mouseY = lookInput.y * lookSensitivity;
 
         verticalRotation -= mouseY;
+
         verticalRotation = Mathf.Clamp(
             verticalRotation,
             -verticalLookLimit,
@@ -169,68 +210,273 @@ public class FPController : MonoBehaviour
         }
 
         velocity.y += gravity * Time.deltaTime;
+
         controller.Move(velocity * Time.deltaTime);
     }
 
-    private void TryPickUpBeer()
+    private Camera GetPlayerCamera()
     {
-        if (carriedBeer != null)
+        if (cameraTransform == null)
         {
-            return;
+            return null;
         }
 
-        if (preparationMinigame == null ||
-            !preparationMinigame.IsPreparationComplete())
-        {
-            Debug.Log("Prepare the beer before picking one up.");
-            return;
-        }
+        return cameraTransform.GetComponent<Camera>();
+    }
 
-        Camera cam = cameraTransform != null
-            ? cameraTransform.GetComponent<Camera>()
-            : null;
+    private bool TryGetLookedAtObject(out RaycastHit hit)
+    {
+        hit = default;
+
+        Camera cam = GetPlayerCamera();
 
         if (cam == null)
         {
-            Debug.LogError(
-                "FPController: No Camera component on cameraTransform."
-            );
-            return;
+            return false;
         }
 
         Ray ray = cam.ViewportPointToRay(
             new Vector3(0.5f, 0.5f, 0f)
         );
 
-        if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
+        return Physics.Raycast(
+            ray,
+            out hit,
+            interactionRange
+        );
+    }
+
+    private bool IsNearGlassDropOff()
+    {
+        if (glassDropOffPoint == null)
         {
-            Beer beer = hit.collider.GetComponentInParent<Beer>();
-
-            if (beer != null)
-            {
-                if (!preparationMinigame.CanPickUpBeer(beer))
-                {
-                    Debug.Log(
-                        "That beer is not assigned to you. " +
-                        "Find the assigned beer."
-                    );
-                    return;
-                }
-
-                PickUpBeer(beer);
-            }
+            return false;
         }
+
+        Vector3 playerPosition = transform.position;
+        Vector3 dropOffPosition = glassDropOffPoint.position;
+
+        // Ignore height differences between the player
+        // and the counter.
+        playerPosition.y = 0f;
+        dropOffPosition.y = 0f;
+
+        return Vector3.Distance(
+            playerPosition,
+            dropOffPosition
+        ) <= glassDropOffRange;
+    }
+
+    private void UpdateInteractionPrompts()
+    {
+        HideAllInteractionPrompts();
+
+        // Carrying a glass: show the return prompt near the counter.
+        if (carriedGlass != null)
+        {
+            if (IsNearGlassDropOff())
+            {
+                ShowGlassDropOffPrompt();
+            }
+
+            return;
+        }
+
+        if (!TryGetLookedAtObject(out RaycastHit hit))
+        {
+            return;
+        }
+
+        // Carrying beer: show the hand-in prompt when
+        // looking at Gandhi after he has ordered.
+        if (carriedBeer != null)
+        {
+            HistoricalFigure npc =
+                hit.collider.GetComponentInParent<HistoricalFigure>();
+
+            if (npc != null && npc.HasOrdered())
+            {
+                ShowHandInBeerPrompt();
+            }
+
+            return;
+        }
+
+        // Show the glass pickup prompt for available glasses.
+        CleanableGlass glass =
+            hit.collider.GetComponentInParent<CleanableGlass>();
+
+        if (glass != null &&
+            !glass.isCollected &&
+            !glass.isReturned)
+        {
+            ShowGlassPickupPrompt();
+            return;
+        }
+
+        // Beer pickup is available only after preparation.
+        if (preparationMinigame == null ||
+            !preparationMinigame.IsPreparationComplete())
+        {
+            return;
+        }
+
+        Beer beer =
+            hit.collider.GetComponentInParent<Beer>();
+
+        if (beer != null &&
+            preparationMinigame.CanPickUpBeer(beer))
+        {
+            ShowBeerPickupPrompt();
+        }
+    }
+
+    private void TryPickUpObject()
+    {
+        if (carriedBeer != null || carriedGlass != null)
+        {
+            return;
+        }
+
+        if (!TryGetLookedAtObject(out RaycastHit hit))
+        {
+            return;
+        }
+
+        // Try picking up a glass first.
+        CleanableGlass glass =
+            hit.collider.GetComponentInParent<CleanableGlass>();
+
+        if (glass != null)
+        {
+            TryPickUpGlass(glass);
+            return;
+        }
+
+        // If it is not a glass, try picking up beer.
+        TryPickUpBeer(hit);
+    }
+
+    private void TryPickUpGlass(CleanableGlass glass)
+    {
+        if (glass == null ||
+            glass.isCollected ||
+            glass.isReturned)
+        {
+            return;
+        }
+
+        Transform holdPoint = glassHoldPoint != null
+            ? glassHoldPoint
+            : beerHoldPoint;
+
+        if (holdPoint == null)
+        {
+            Debug.LogError(
+                "FPController: Assign Glass Hold Point or Beer Hold Point."
+            );
+            return;
+        }
+
+        glass.PickUp(holdPoint);
+
+        if (glass.isCollected)
+        {
+            carriedGlass = glass;
+            HideAllInteractionPrompts();
+
+            Debug.Log("Picked up glass: " + glass.glassName);
+        }
+    }
+
+    private void TryReturnGlass()
+    {
+        if (carriedGlass == null)
+        {
+            return;
+        }
+
+        if (glassDropOffPoint == null)
+        {
+            Debug.LogError(
+                "FPController: Glass Drop Off Point is not assigned."
+            );
+            return;
+        }
+
+        if (!IsNearGlassDropOff())
+        {
+            Debug.Log(
+                "Move closer to the counter to return the glass."
+            );
+            return;
+        }
+
+        CleanableGlass glassToReturn = carriedGlass;
+
+        glassToReturn.ReturnToCounter(glassDropOffPoint);
+
+        if (glassToReturn.isReturned)
+        {
+            carriedGlass = null;
+            HideAllInteractionPrompts();
+
+            Debug.Log(
+                glassToReturn.glassName +
+                " returned to the counter successfully."
+            );
+        }
+    }
+
+    private void TryPickUpBeer(RaycastHit hit)
+    {
+        if (preparationMinigame == null ||
+            !preparationMinigame.IsPreparationComplete())
+        {
+            Debug.Log(
+                "Prepare the beer before picking one up."
+            );
+            return;
+        }
+
+        Beer beer =
+            hit.collider.GetComponentInParent<Beer>();
+
+        if (beer == null)
+        {
+            return;
+        }
+
+        if (!preparationMinigame.CanPickUpBeer(beer))
+        {
+            Debug.Log(
+                "That beer is not assigned to you. " +
+                "Find the assigned beer."
+            );
+            return;
+        }
+
+        PickUpBeer(beer);
+        HideAllInteractionPrompts();
     }
 
     private void PickUpBeer(Beer beer)
     {
+        if (beer == null)
+        {
+            return;
+        }
+
         if (beerHoldPoint == null)
         {
-            Debug.LogError("Beer Hold Point is not assigned!");
+            Debug.LogError(
+                "FPController: Beer Hold Point is not assigned!"
+            );
             return;
         }
 
         carriedBeer = beer;
+
         beer.transform.SetParent(beerHoldPoint);
         beer.transform.localPosition = Vector3.zero;
         beer.transform.localRotation = Quaternion.identity;
@@ -243,7 +489,8 @@ public class FPController : MonoBehaviour
             beerCollider.enabled = false;
         }
 
-        Rigidbody beerRigidbody = beer.GetComponent<Rigidbody>();
+        Rigidbody beerRigidbody =
+            beer.GetComponent<Rigidbody>();
 
         if (beerRigidbody != null)
         {
@@ -256,35 +503,133 @@ public class FPController : MonoBehaviour
 
     private void TryServeBeer()
     {
-        if (carriedBeer == null || cameraTransform == null)
+        if (carriedBeer == null)
         {
             return;
         }
 
-        Camera cam = cameraTransform.GetComponent<Camera>();
-
-        if (cam == null)
+        if (!TryGetLookedAtObject(out RaycastHit hit))
         {
             return;
         }
 
-        Ray ray = cam.ViewportPointToRay(
-            new Vector3(0.5f, 0.5f, 0f)
+        HistoricalFigure npc =
+            hit.collider.GetComponentInParent<HistoricalFigure>();
+
+        if (npc == null || !npc.HasOrdered())
+        {
+            return;
+        }
+
+        Beer beerToServe = carriedBeer;
+
+        // IMPORTANT FIX:
+        // ServeBeer expects a Beer object, not a string.
+        // Gandhi can receive either beer without knowing
+        // whether it is correct or wrong.
+        npc.ServeBeer(beerToServe);
+
+        // Remove the beer from the player's hand.
+        beerToServe.gameObject.SetActive(false);
+        carriedBeer = null;
+
+        HideAllInteractionPrompts();
+
+        Debug.Log(
+            "Served " + beerToServe.beerName + " to Gandhi."
+        );
+    }
+
+    // -------------------------------
+    // SHOW INTERACTION PROMPTS
+    // -------------------------------
+
+    private void ShowGlassPickupPrompt()
+    {
+        SetPromptVisible(
+            glassPickupPrompt,
+            glassPickupPanel,
+            true
+        );
+    }
+
+    private void ShowGlassDropOffPrompt()
+    {
+        SetPromptVisible(
+            glassDropOffPrompt,
+            glassDropOffPanel,
+            true
+        );
+    }
+
+    private void ShowBeerPickupPrompt()
+    {
+        SetPromptVisible(
+            pickupPrompt,
+            pickupPanel,
+            true
+        );
+    }
+
+    private void ShowHandInBeerPrompt()
+    {
+        SetPromptVisible(
+            handInBeerPrompt,
+            handInBeerPanel,
+            true
+        );
+    }
+
+    // -------------------------------
+    // HIDE INTERACTION PROMPTS
+    // -------------------------------
+
+    private void HideAllInteractionPrompts()
+    {
+        SetPromptVisible(
+            glassPickupPrompt,
+            glassPickupPanel,
+            false
         );
 
-        if (Physics.Raycast(ray, out RaycastHit hit, interactionRange))
-        {
-            HistoricalFigure npc =
-                hit.collider.GetComponentInParent<HistoricalFigure>();
+        SetPromptVisible(
+            glassDropOffPrompt,
+            glassDropOffPanel,
+            false
+        );
 
-            if (npc != null && npc.HasOrdered())
-            {
-                npc.ServeBeer(carriedBeer);
-                carriedBeer.gameObject.SetActive(false);
-                carriedBeer = null;
-            }
+        SetPromptVisible(
+            pickupPrompt,
+            pickupPanel,
+            false
+        );
+
+        SetPromptVisible(
+            handInBeerPrompt,
+            handInBeerPanel,
+            false
+        );
+    }
+
+    private void SetPromptVisible(
+        TextMeshProUGUI prompt,
+        GameObject panel,
+        bool visible)
+    {
+        if (prompt != null)
+        {
+            prompt.gameObject.SetActive(visible);
+        }
+
+        if (panel != null)
+        {
+            panel.SetActive(visible);
         }
     }
+
+    // -------------------------------
+    // PUBLIC STATUS METHODS
+    // -------------------------------
 
     public bool IsCarryingBeer()
     {
@@ -294,5 +639,15 @@ public class FPController : MonoBehaviour
     public Beer GetCarriedBeer()
     {
         return carriedBeer;
+    }
+
+    public bool IsCarryingGlass()
+    {
+        return carriedGlass != null;
+    }
+
+    public CleanableGlass GetCarriedGlass()
+    {
+        return carriedGlass;
     }
 }

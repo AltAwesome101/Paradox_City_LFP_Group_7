@@ -4,34 +4,42 @@ using UnityEngine.UI;
 
 public class NPCDrinking : MonoBehaviour
 {
-    [Header("Drinking")]
+    [Header("Drinking Speeds")]
+    [Tooltip("Seconds for Gandhi to finish the correct beer.")]
     public float normalDrinkingTime = 8f;
+
+    [Tooltip("Seconds for Gandhi to reach the drunk threshold on wrong beer.")]
     public float wrongBeerDrinkingTime = 20f;
 
-    [Header("UI")]
-    public Slider drinkingBar;
-
-    [Tooltip("Text that displays the drinking percentage.")]
-    public TextMeshProUGUI drinkingPercentageText;
-
-    [Header("Drunk State")]
+    [Header("Drunk Threshold")]
+    [Range(0.01f, 1f)]
+    [Tooltip("Wrong beer makes Gandhi drunk at this percentage.")]
     public float drunkThreshold = 0.6f;
 
-    [Header("Meeting Timer")]
-    public MeetingTimer meetingTimer;
+    [Header("Drinking UI")]
+    public Slider drinkingBar;
+    public TextMeshProUGUI drinkingPercentageText;
+    public TextMeshProUGUI drinkingLabelText;
 
-    private float drinkingProgress = 0f;
-    private float currentDrinkingTime;
+    private float drinkingProgress;
+    private bool isDrinking;
+    private bool isWrongBeer;
+    private bool isDrunk;
+    private bool finishedDrinking;
+    private bool drinkingStoppedAtOutcome;
 
-    private bool isDrinking = false;
-    private bool finishedDrinking = false;
-    private bool isDrunk = false;
-    private bool receivedWrongBeer = false;
+    public float DrinkingProgress => drinkingProgress;
+    public bool IsDrinking => isDrinking;
 
     private void Start()
     {
-        // Make sure the percentage text and bar
-        // start hidden before the NPC receives beer.
+        drinkingProgress = 0f;
+        isDrinking = false;
+        isWrongBeer = false;
+        isDrunk = false;
+        finishedDrinking = false;
+        drinkingStoppedAtOutcome = false;
+
         if (drinkingBar != null)
         {
             drinkingBar.minValue = 0f;
@@ -45,118 +53,91 @@ public class NPCDrinking : MonoBehaviour
             drinkingPercentageText.text = "0%";
             drinkingPercentageText.gameObject.SetActive(false);
         }
+
+        if (drinkingLabelText != null)
+        {
+            drinkingLabelText.text = "Drinking";
+            drinkingLabelText.gameObject.SetActive(false);
+        }
     }
 
     private void Update()
     {
-        if (!isDrinking)
+        if (!isDrinking || drinkingStoppedAtOutcome)
+            return;
+
+        float duration = isWrongBeer
+            ? wrongBeerDrinkingTime
+            : normalDrinkingTime;
+
+        duration = Mathf.Max(0.01f, duration);
+
+        // Correct beer fills quickly. Wrong beer fills slowly.
+        drinkingProgress += Time.deltaTime / duration;
+        drinkingProgress = Mathf.Clamp01(drinkingProgress);
+
+        // Only the wrong beer can make Gandhi drunk.
+        if (isWrongBeer && drinkingProgress >= drunkThreshold)
         {
+            drinkingProgress = Mathf.Clamp01(drunkThreshold);
+            BecomeDrunk();
+            UpdateDrinkingUI();
             return;
         }
 
-        // Update drinking progress over time.
-        drinkingProgress +=
-            Time.deltaTime / currentDrinkingTime;
-
-        drinkingProgress =
-            Mathf.Clamp01(drinkingProgress);
-
-        // Update the slider.
-        if (drinkingBar != null)
+        // Correct beer reaches 100% and ends the drinking sequence.
+        if (!isWrongBeer && drinkingProgress >= 1f)
         {
-            drinkingBar.value = drinkingProgress;
-        }
-
-        // Convert progress into a percentage.
-        int percentage = Mathf.RoundToInt(
-            drinkingProgress * 100f
-        );
-
-        // Update the percentage text.
-        if (drinkingPercentageText != null)
-        {
-            drinkingPercentageText.text =
-                percentage + "%";
-        }
-
-        // The NPC becomes drunk after drinking
-        // 60% of the wrong beer.
-        if (!isDrunk &&
-            receivedWrongBeer &&
-            drinkingProgress >= drunkThreshold)
-        {
-            BecomeDrunk();
-        }
-
-        // Finish when the bar reaches 100%.
-        if (drinkingProgress >= 1f)
-        {
+            drinkingProgress = 1f;
             FinishDrinking();
         }
+
+        UpdateDrinkingUI();
     }
 
     public void StartDrinking(bool wrongBeer)
     {
-        if (finishedDrinking)
-        {
+        if (isDrinking || finishedDrinking || drinkingStoppedAtOutcome)
             return;
-        }
 
+        isWrongBeer = wrongBeer;
         drinkingProgress = 0f;
-        isDrinking = true;
-        receivedWrongBeer = wrongBeer;
         isDrunk = false;
+        finishedDrinking = false;
+        drinkingStoppedAtOutcome = false;
+        isDrinking = true;
 
-        // Choose the drinking duration.
-        if (receivedWrongBeer)
-        {
-            currentDrinkingTime =
-                wrongBeerDrinkingTime;
-        }
-        else
-        {
-            currentDrinkingTime =
-                normalDrinkingTime;
-        }
-
-        // Reset and display the slider.
         if (drinkingBar != null)
-        {
-            drinkingBar.minValue = 0f;
-            drinkingBar.maxValue = 1f;
-            drinkingBar.value = 0f;
             drinkingBar.gameObject.SetActive(true);
-        }
 
-        // Reset and display the percentage.
         if (drinkingPercentageText != null)
-        {
-            drinkingPercentageText.text = "0%";
             drinkingPercentageText.gameObject.SetActive(true);
-        }
 
-        Debug.Log("NPC started drinking.");
-
-        // Wrong beer speeds up the meeting timer.
-        if (receivedWrongBeer &&
-            meetingTimer != null)
+        if (drinkingLabelText != null)
         {
-            meetingTimer.SpeedUpTime();
+            drinkingLabelText.text = wrongBeer
+                ? "Drinking"
+                : "Drinking";
 
-            Debug.Log(
-                "WRONG BEER: Time manipulation started immediately."
-            );
+            drinkingLabelText.gameObject.SetActive(true);
         }
+
+        UpdateDrinkingUI();
+
+        Debug.Log(wrongBeer
+            ? "[NPCDrinking] Wrong beer: slow drinking started."
+            : "[NPCDrinking] Correct beer: fast drinking started.");
     }
 
     private void BecomeDrunk()
     {
         isDrunk = true;
-
-        Debug.Log("NPC IS NOW DRUNK!");
+        isDrinking = false;
+        drinkingStoppedAtOutcome = true;
 
         Debug.Log(
-            "NPC has reached the drunk threshold."
+            "[NPCDrinking] Gandhi reached the drunk threshold. " +
+            "The drinking bar is now frozen."
         );
     }
 
@@ -164,37 +145,29 @@ public class NPCDrinking : MonoBehaviour
     {
         isDrinking = false;
         finishedDrinking = true;
-        drinkingProgress = 1f;
+        drinkingStoppedAtOutcome = true;
 
+        Debug.Log(
+            "[NPCDrinking] Gandhi finished the correct beer. " +
+            "The drinking bar is frozen at 100%."
+        );
+    }
+
+    private void UpdateDrinkingUI()
+    {
         if (drinkingBar != null)
-        {
-            drinkingBar.value = 1f;
-        }
+            drinkingBar.value = drinkingProgress;
 
         if (drinkingPercentageText != null)
         {
-            drinkingPercentageText.text = "100%";
-        }
-
-        Debug.Log("NPC finished drinking.");
-
-        if (isDrunk)
-        {
-            Debug.Log(
-                "NPC finished the wrong beer and is drunk."
-            );
-        }
-        else
-        {
-            Debug.Log(
-                "NPC finished the correct beer."
-            );
+            drinkingPercentageText.text =
+                Mathf.RoundToInt(drinkingProgress * 100f) + "%";
         }
     }
 
-    public bool IsDrinking()
+    public bool IsDrunk()
     {
-        return isDrinking;
+        return isDrunk;
     }
 
     public bool HasFinishedDrinking()
@@ -202,8 +175,36 @@ public class NPCDrinking : MonoBehaviour
         return finishedDrinking;
     }
 
-    public bool IsDrunk()
+    public bool HasReachedDrinkingOutcome()
     {
-        return isDrunk;
+        return drinkingStoppedAtOutcome;
+    }
+
+    public void StopDrinking()
+    {
+        isDrinking = false;
+        drinkingStoppedAtOutcome = true;
+        UpdateDrinkingUI();
+    }
+
+    public void ResetDrinking()
+    {
+        drinkingProgress = 0f;
+        isDrinking = false;
+        isWrongBeer = false;
+        isDrunk = false;
+        finishedDrinking = false;
+        drinkingStoppedAtOutcome = false;
+
+        UpdateDrinkingUI();
+
+        if (drinkingBar != null)
+            drinkingBar.gameObject.SetActive(false);
+
+        if (drinkingPercentageText != null)
+            drinkingPercentageText.gameObject.SetActive(false);
+
+        if (drinkingLabelText != null)
+            drinkingLabelText.gameObject.SetActive(false);
     }
 }
