@@ -22,7 +22,12 @@ public class FPController : MonoBehaviour
     public GameObject mainCounter;
     public Transform glassDropOffPoint;
     public Transform[] glassDropOffSlots;
+
+    [Tooltip("The glass interaction prompt text.")]
     public TextMeshProUGUI glassInteractionPrompt;
+
+    [Tooltip("The background panel behind the glass prompt.")]
+    public GameObject glassInteractionPromptPanel;
 
     [Header("Interaction Prompts")]
     public TextMeshProUGUI pickupPrompt;
@@ -115,21 +120,18 @@ public class FPController : MonoBehaviour
         if (IsPreparationActive() || !context.started)
             return;
 
-        // Preserve the existing beer-serving behaviour.
         if (carriedBeer != null)
         {
             TryServeBeer();
             return;
         }
 
-        // If carrying a glass, E attempts to return it to the counter.
         if (carriedGlass != null)
         {
             TryDropOffGlass();
             return;
         }
 
-        // Otherwise, try a glass first, then a beer.
         TryPickUpGlassOrBeer();
     }
 
@@ -222,7 +224,7 @@ public class FPController : MonoBehaviour
         if (!TryGetLookHit(out RaycastHit hit))
             return;
 
-        // Carrying beer: show the existing hand-in prompt.
+        // Carrying beer: show the hand-in prompt.
         if (carriedBeer != null)
         {
             HistoricalFigure npc =
@@ -234,8 +236,7 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Carrying a glass: show the return prompt when aiming
-        // at the main counter.
+        // Carrying a glass: show the return prompt.
         if (carriedGlass != null)
         {
             if (IsMainCounterHit(hit))
@@ -244,7 +245,7 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Glass pickup is available before beer preparation.
+        // Show pickup prompt for an available glass.
         CleanableGlass glass =
             hit.collider.GetComponentInParent<CleanableGlass>();
 
@@ -256,7 +257,7 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Preserve the existing beer preparation requirement.
+        // Preserve the beer preparation requirement.
         if (preparationMinigame == null ||
             !preparationMinigame.IsPreparationComplete())
             return;
@@ -287,7 +288,6 @@ public class FPController : MonoBehaviour
         if (!TryGetLookHit(out RaycastHit hit))
             return;
 
-        // Try to pick up a glass first.
         CleanableGlass glass =
             hit.collider.GetComponentInParent<CleanableGlass>();
 
@@ -317,7 +317,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // If the object is not a glass, try the existing beer logic.
         TryPickUpBeer();
     }
 
@@ -334,7 +333,6 @@ public class FPController : MonoBehaviour
 
         Transform dropPoint = glassDropOffPoint;
 
-        // Use individual slots if you have assigned them.
         if (glassDropOffSlots != null &&
             nextGlassSlotIndex < glassDropOffSlots.Length &&
             glassDropOffSlots[nextGlassSlotIndex] != null)
@@ -352,6 +350,7 @@ public class FPController : MonoBehaviour
         }
 
         CleanableGlass glassToReturn = carriedGlass;
+
         glassToReturn.ReturnToCounter(dropPoint);
 
         carriedGlass = null;
@@ -477,17 +476,25 @@ public class FPController : MonoBehaviour
 
     private void ShowGlassPrompt(string message)
     {
-        if (glassInteractionPrompt == null)
-            return;
+        // Show both the prompt text and its background panel.
+        if (glassInteractionPrompt != null)
+        {
+            glassInteractionPrompt.text = message;
+            glassInteractionPrompt.gameObject.SetActive(true);
+        }
 
-        glassInteractionPrompt.text = message;
-        glassInteractionPrompt.gameObject.SetActive(true);
+        if (glassInteractionPromptPanel != null)
+            glassInteractionPromptPanel.SetActive(true);
     }
 
     private void HideGlassPrompt()
     {
+        // Hide both together so the background cannot remain visible.
         if (glassInteractionPrompt != null)
             glassInteractionPrompt.gameObject.SetActive(false);
+
+        if (glassInteractionPromptPanel != null)
+            glassInteractionPromptPanel.SetActive(false);
     }
 
     public bool IsCarryingBeer()

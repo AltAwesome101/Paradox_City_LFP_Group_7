@@ -59,5 +59,19 @@ public class CleanableGlass : MonoBehaviour
 
         if (glassCollider != null)
             glassCollider.enabled = true;
+
+        // Register progress only after the glass is returned.
+        if (GlassCleaningProgress.Instance != null)
+        {
+            GlassCleaningProgress.Instance.RegisterReturnedGlass(this);
+        }
+        else
+        {
+            Debug.LogWarning(
+                "GlassCleaningProgress manager was not found in the scene."
+            );
+        }
+
+        Debug.Log(glassName + " has been returned to the counter.");
     }
 }
