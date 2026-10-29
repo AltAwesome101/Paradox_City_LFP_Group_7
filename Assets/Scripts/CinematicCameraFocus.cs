@@ -33,6 +33,7 @@ public class CinematicCameraFocus : MonoBehaviour
 
     private bool focusingOnNPC;
     private bool transitioning;
+    private bool followTargetDuringFocus;
 
     private void Awake()
     {
@@ -45,12 +46,11 @@ public class CinematicCameraFocus : MonoBehaviour
         if (playerCamera != null && playerCamera.transform != transform)
         {
             Debug.LogWarning(
-                "[CinematicCameraFocus] The script should be attached " +
-                "to the actual player camera."
+                "[CinematicCameraFocus] Attach this script to " +
+                "the actual player camera."
             );
         }
 
-        // Find the first-person controller before detaching the camera.
         if (playerController == null)
             playerController = GetComponentInParent<FPController>();
 
@@ -64,7 +64,10 @@ public class CinematicCameraFocus : MonoBehaviour
         if (!focusingOnNPC || targetNPC == null)
             return;
 
-        // Smoothly move into the cinematic position.
+        // Recalculate the camera pose while tracking a moving NPC.
+        if (followTargetDuringFocus)
+            CalculateCinematicPose();
+
         if (transitioning)
         {
             transform.position = Vector3.Lerp(
@@ -79,7 +82,6 @@ public class CinematicCameraFocus : MonoBehaviour
                 transitionSpeed * Time.unscaledDeltaTime
             );
 
-            // Finish the transition when sufficiently close.
             if (Vector3.Distance(
                     transform.position,
                     cinematicPosition) < 0.02f &&
@@ -94,27 +96,21 @@ public class CinematicCameraFocus : MonoBehaviour
         }
         else
         {
-            // Keep the camera fixed on the cinematic view.
-            // Mouse movement and player rotation cannot override it.
             transform.position = cinematicPosition;
             transform.rotation = cinematicRotation;
         }
     }
 
-    public void FocusOnNPC(Transform npc)
+    private void CalculateCinematicPose()
     {
-        if (npc == null)
+        if (targetNPC == null)
             return;
 
-        targetNPC = npc;
-
-        // Calculate a fixed cinematic camera position.
         cinematicPosition =
             targetNPC.position -
             targetNPC.forward * focusDistance +
             Vector3.up * focusHeight;
 
-        // Calculate the exact rotation required to look at the NPC.
         Vector3 lookTarget =
             targetNPC.position + Vector3.up * lookAtHeight;
 
@@ -126,8 +122,25 @@ public class CinematicCameraFocus : MonoBehaviour
             cinematicRotation =
                 Quaternion.LookRotation(lookDirection);
         }
+    }
 
-        // Prevent the player from moving or rotating the camera.
+    // Existing calls continue to use a fixed cinematic view.
+    public void FocusOnNPC(Transform npc)
+    {
+        FocusOnNPC(npc, false);
+    }
+
+    // Use this overload when the camera must follow a moving NPC.
+    public void FocusOnNPC(Transform npc, bool followMovingTarget)
+    {
+        if (npc == null)
+            return;
+
+        targetNPC = npc;
+        followTargetDuringFocus = followMovingTarget;
+
+        CalculateCinematicPose();
+
         if (playerController != null)
         {
             playerController.enabled = false;
@@ -135,13 +148,10 @@ public class CinematicCameraFocus : MonoBehaviour
         else
         {
             Debug.LogWarning(
-                "[CinematicCameraFocus] No FPController assigned. " +
-                "The cinematic camera may be affected by player controls."
+                "[CinematicCameraFocus] No FPController assigned."
             );
         }
 
-        // Detach the camera so player rotation and movement
-        // cannot change its transform during the cinematic.
         transform.SetParent(null, true);
 
         focusingOnNPC = true;
@@ -149,7 +159,7 @@ public class CinematicCameraFocus : MonoBehaviour
 
         Debug.Log(
             "[CinematicCameraFocus] Cinematic started. " +
-            "Player controls disabled."
+            "Tracking target: " + followMovingTarget
         );
     }
 
@@ -160,9 +170,9 @@ public class CinematicCameraFocus : MonoBehaviour
 
         focusingOnNPC = false;
         transitioning = false;
+        followTargetDuringFocus = false;
         targetNPC = null;
 
-        // Restore the camera to its original player hierarchy.
         if (originalParent != null)
         {
             transform.SetParent(originalParent, false);
@@ -170,15 +180,11 @@ public class CinematicCameraFocus : MonoBehaviour
             transform.localRotation = originalLocalRotation;
         }
 
-        // Restore normal first-person movement and mouse-look.
         if (playerController != null)
-        {
             playerController.enabled = true;
-        }
 
         Debug.Log(
-            "[CinematicCameraFocus] Camera returned to player. " +
-            "Player controls restored."
+            "[CinematicCameraFocus] Camera returned to player."
         );
     }
 
@@ -189,8 +195,6 @@ public class CinematicCameraFocus : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Avoid leaving the controller disabled if this component
-        // is removed while the player is still in the scene.
         if (playerController != null)
             playerController.enabled = true;
     }

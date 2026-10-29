@@ -8,17 +8,18 @@ public class CleanableGlass : MonoBehaviour
     public bool isReturned = false;
 
     private Rigidbody rb;
-    private Collider glassCollider;
+    private Collider[] glassColliders;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        glassCollider = GetComponent<Collider>();
 
         if (rb == null)
         {
             rb = gameObject.AddComponent<Rigidbody>();
         }
+
+        glassColliders = GetComponentsInChildren<Collider>(true);
 
         rb.isKinematic = false;
         rb.useGravity = true;
@@ -27,40 +28,63 @@ public class CleanableGlass : MonoBehaviour
     public void PickUp(Transform holdPoint)
     {
         if (holdPoint == null || isCollected || isReturned)
+        {
             return;
+        }
 
         isCollected = true;
 
         rb.isKinematic = true;
         rb.useGravity = false;
 
-        if (glassCollider != null)
-            glassCollider.enabled = false;
+        if (glassColliders != null)
+        {
+            foreach (Collider glassCollider in glassColliders)
+            {
+                if (glassCollider != null)
+                {
+                    glassCollider.enabled = false;
+                }
+            }
+        }
 
         transform.SetParent(holdPoint);
         transform.localPosition = Vector3.zero;
         transform.localRotation = Quaternion.identity;
+
+        Debug.Log(glassName + " picked up successfully.");
     }
 
     public void ReturnToCounter(Transform counterPoint)
     {
         if (counterPoint == null || !isCollected || isReturned)
+        {
             return;
+        }
 
         isCollected = false;
         isReturned = true;
 
         transform.SetParent(null);
-        transform.position = counterPoint.position;
-        transform.rotation = counterPoint.rotation;
+        transform.SetPositionAndRotation(
+            counterPoint.position,
+            counterPoint.rotation
+        );
 
         rb.isKinematic = true;
         rb.useGravity = false;
 
-        if (glassCollider != null)
-            glassCollider.enabled = true;
+        if (glassColliders != null)
+        {
+            foreach (Collider glassCollider in glassColliders)
+            {
+                if (glassCollider != null)
+                {
+                    glassCollider.enabled = true;
+                }
+            }
+        }
 
-        // Register progress only after the glass is returned.
         if (GlassCleaningProgress.Instance != null)
         {
             GlassCleaningProgress.Instance.RegisterReturnedGlass(this);
