@@ -12,7 +12,7 @@ public class CinematicCameraFocus : MonoBehaviour
     [Tooltip("Distance between the camera and the NPC.")]
     public float focusDistance = 4f;
 
-    [Tooltip("Height of the camera relative to the NPC's position.")]
+    [Tooltip("Height of the camera relative to the NPC.")]
     public float focusHeight = 2f;
 
     [Tooltip("Speed of the transition into the cinematic.")]
@@ -33,6 +33,7 @@ public class CinematicCameraFocus : MonoBehaviour
 
     private bool focusingOnNPC;
     private bool transitioning;
+    private bool followTargetDuringFocus;
 
     private void Awake()
     {
@@ -42,15 +43,15 @@ public class CinematicCameraFocus : MonoBehaviour
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
 
-        if (playerCamera != null && playerCamera.transform != transform)
+        if (playerCamera != null &&
+            playerCamera.transform != transform)
         {
             Debug.LogWarning(
-                "[CinematicCameraFocus] The script should be attached " +
+                "[CinematicCameraFocus] Attach this script " +
                 "to the actual player camera."
             );
         }
 
-        // Find the first-person controller before detaching the camera.
         if (playerController == null)
             playerController = GetComponentInParent<FPController>();
 
@@ -64,7 +65,10 @@ public class CinematicCameraFocus : MonoBehaviour
         if (!focusingOnNPC || targetNPC == null)
             return;
 
-        // Smoothly move into the cinematic position.
+        // Keep updating the camera pose while Gandhi moves.
+        if (followTargetDuringFocus)
+            CalculateCinematicPose();
+
         if (transitioning)
         {
             transform.position = Vector3.Lerp(
@@ -79,13 +83,16 @@ public class CinematicCameraFocus : MonoBehaviour
                 transitionSpeed * Time.unscaledDeltaTime
             );
 
-            // Finish the transition when sufficiently close.
-            if (Vector3.Distance(
+            if (
+                Vector3.Distance(
                     transform.position,
-                    cinematicPosition) < 0.02f &&
+                    cinematicPosition
+                ) < 0.02f &&
                 Quaternion.Angle(
                     transform.rotation,
-                    cinematicRotation) < 0.5f)
+                    cinematicRotation
+                ) < 0.5f
+            )
             {
                 transform.position = cinematicPosition;
                 transform.rotation = cinematicRotation;
@@ -94,29 +101,24 @@ public class CinematicCameraFocus : MonoBehaviour
         }
         else
         {
-            // Keep the camera fixed on the cinematic view.
-            // Mouse movement and player rotation cannot override it.
             transform.position = cinematicPosition;
             transform.rotation = cinematicRotation;
         }
     }
 
-    public void FocusOnNPC(Transform npc)
+    private void CalculateCinematicPose()
     {
-        if (npc == null)
+        if (targetNPC == null)
             return;
 
-        targetNPC = npc;
-
-        // Calculate a fixed cinematic camera position.
         cinematicPosition =
             targetNPC.position -
             targetNPC.forward * focusDistance +
             Vector3.up * focusHeight;
 
-        // Calculate the exact rotation required to look at the NPC.
         Vector3 lookTarget =
-            targetNPC.position + Vector3.up * lookAtHeight;
+            targetNPC.position +
+            Vector3.up * lookAtHeight;
 
         Vector3 lookDirection =
             lookTarget - cinematicPosition;
@@ -126,8 +128,48 @@ public class CinematicCameraFocus : MonoBehaviour
             cinematicRotation =
                 Quaternion.LookRotation(lookDirection);
         }
+    }
 
-        // Prevent the player from moving or rotating the camera.
+    // CINEMATIC 1: Gandhi enters and walks to his seat.
+    public void FocusOnEntrance(Transform npc)
+    {
+        FocusOnNPC(npc, true);
+    }
+
+    // CINEMATIC 2: Gandhi drinks the beer.
+    public void FocusOnDrinking(Transform npc)
+    {
+        FocusOnNPC(npc, true);
+    }
+
+    // Keeps compatibility with existing script calls.
+    public void FocusOnNPC(Transform npc)
+    {
+        FocusOnNPC(npc, false);
+    }
+
+    public void FocusOnNPC(
+        Transform npc,
+        bool followMovingTarget
+    )
+    {
+        if (npc == null)
+            return;
+
+        // Do not overwrite the original player camera pose
+        // if a cinematic is already running.
+        if (!focusingOnNPC)
+        {
+            originalParent = transform.parent;
+            originalLocalPosition = transform.localPosition;
+            originalLocalRotation = transform.localRotation;
+        }
+
+        targetNPC = npc;
+        followTargetDuringFocus = followMovingTarget;
+
+        CalculateCinematicPose();
+
         if (playerController != null)
         {
             playerController.enabled = false;
@@ -135,13 +177,10 @@ public class CinematicCameraFocus : MonoBehaviour
         else
         {
             Debug.LogWarning(
-                "[CinematicCameraFocus] No FPController assigned. " +
-                "The cinematic camera may be affected by player controls."
+                "[CinematicCameraFocus] No FPController assigned."
             );
         }
 
-        // Detach the camera so player rotation and movement
-        // cannot change its transform during the cinematic.
         transform.SetParent(null, true);
 
         focusingOnNPC = true;
@@ -149,7 +188,7 @@ public class CinematicCameraFocus : MonoBehaviour
 
         Debug.Log(
             "[CinematicCameraFocus] Cinematic started. " +
-            "Player controls disabled."
+            "Following NPC: " + followMovingTarget
         );
     }
 
@@ -160,9 +199,9 @@ public class CinematicCameraFocus : MonoBehaviour
 
         focusingOnNPC = false;
         transitioning = false;
+        followTargetDuringFocus = false;
         targetNPC = null;
 
-        // Restore the camera to its original player hierarchy.
         if (originalParent != null)
         {
             transform.SetParent(originalParent, false);
@@ -170,15 +209,11 @@ public class CinematicCameraFocus : MonoBehaviour
             transform.localRotation = originalLocalRotation;
         }
 
-        // Restore normal first-person movement and mouse-look.
         if (playerController != null)
-        {
             playerController.enabled = true;
-        }
 
         Debug.Log(
-            "[CinematicCameraFocus] Camera returned to player. " +
-            "Player controls restored."
+            "[CinematicCameraFocus] Camera returned to player."
         );
     }
 
@@ -189,8 +224,6 @@ public class CinematicCameraFocus : MonoBehaviour
 
     private void OnDestroy()
     {
-        // Avoid leaving the controller disabled if this component
-        // is removed while the player is still in the scene.
         if (playerController != null)
             playerController.enabled = true;
     }
