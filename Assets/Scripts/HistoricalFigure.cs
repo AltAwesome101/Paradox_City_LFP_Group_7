@@ -9,26 +9,18 @@ public class HistoricalFigure : MonoBehaviour
     public string requestedBeer = "Correct Beer";
 
     [Header("Delayed Tavern Entrance")]
-    [Tooltip("Where Gandhi appears after waiting outside.")]
     public Transform entranceTarget;
-
-    [Tooltip("Where Gandhi walks to sit at the table.")]
     public Transform sittingPoint;
-
-    [Tooltip("Seconds after the level begins before Gandhi enters.")]
     public float entranceDelay = 30f;
-
-    [Tooltip("Walking speed when entering the tavern.")]
     public float entranceSpeed = 2f;
-
-    [Tooltip("Turning speed when entering the tavern.")]
     public float entranceTurnSpeed = 180f;
-
-    [Tooltip("Distance at which Gandhi stops at the table.")]
     public float sittingArrivalDistance = 0.2f;
 
-    [Tooltip("Duration of the simulated sitting movement.")]
-    public float sitDownDuration = 1f;
+    [Tooltip("Maximum time Gandhi tries to reach his seat.")]
+    public float entranceWalkTimeout = 20f;
+
+    [Tooltip("Time without movement before Gandhi stops trying.")]
+    public float blockedMovementTimeout = 1.5f;
 
     [Header("Meeting")]
     public MeetingTimer meetingTimer;
@@ -37,20 +29,13 @@ public class HistoricalFigure : MonoBehaviour
     public NPCDrinking npcDrinking;
 
     [Header("Order UI")]
-    [Tooltip("The TextMeshPro object that displays Gandhi's order and thank-you message.")]
     public TextMeshProUGUI orderText;
-
-    [Tooltip("Assign the background PANEL GameObject for the order and thank-you text here.")]
     public GameObject orderTextPanel;
-
     public float orderTextDuration = 10f;
     public float orderTextDistance = 3f;
 
     [Header("Meeting Result UI")]
-    [Tooltip("The TextMeshPro object that displays the meeting result.")]
     public TextMeshProUGUI meetingResultText;
-
-    [Tooltip("Assign the background PANEL GameObject for the meeting result text here.")]
     public GameObject meetingResultPanel;
 
     [Header("Cinematic Camera")]
@@ -60,42 +45,27 @@ public class HistoricalFigure : MonoBehaviour
     public WrongBeerLevelCompletion wrongBeerCompletion;
 
     [Header("NPC Door Movement")]
-    [Tooltip("Create an empty GameObject at the tavern exit and assign it here.")]
     public Transform doorTarget;
-
-    [Tooltip("NPC movement speed when leaving.")]
     public float leaveSpeed = 2f;
-
-    [Tooltip("NPC turning speed in degrees per second.")]
     public float turnSpeed = 180f;
-
-    [Tooltip("Distance at which the NPC stops at the door.")]
     public float doorArrivalDistance = 0.2f;
-
-    [Tooltip("Optional correction for models whose forward axis is misaligned.")]
     public float modelRotationOffset = 0f;
 
     [Header("Game Over")]
-    [Tooltip("Exact Game Over scene name from Build Settings.")]
     public string gameOverSceneName = "GameOver";
-
-    [Tooltip("Seconds to wait before loading Game Over.")]
     public float gameOverDelay = 3f;
 
-    private bool hasOrdered = false;
-    private bool hasBeenServed = false;
-    private bool receivedWrongBeer = false;
-    private bool meetingMissed = false;
-    private bool meetingAttended = false;
-    private bool leaving = false;
-    private bool resultShown = false;
-    private bool endingTriggered = false;
-
-    private bool canTakeOrder = false;
-    private bool hasEnteredTavern = false;
-    private bool entranceSetupValid = false;
+    private bool hasOrdered;
+    private bool hasBeenServed;
+    private bool receivedWrongBeer;
+    private bool meetingMissed;
+    private bool meetingAttended;
+    private bool resultShown;
+    private bool endingTriggered;
+    private bool canTakeOrder;
 
     private Transform playerTransform;
+    private CharacterController characterController;
 
     private Coroutine orderTextCoroutine;
     private Coroutine leaveCoroutine;
@@ -107,35 +77,12 @@ public class HistoricalFigure : MonoBehaviour
     private Collider[] characterColliders;
     private bool[] originalColliderStates;
 
-    public bool HasOrdered()
-    {
-        return hasOrdered;
-    }
-
-    public string GetRequestedBeer()
-    {
-        return requestedBeer;
-    }
-
-    public bool HasBeenServed()
-    {
-        return hasBeenServed;
-    }
-
-    public bool ReceivedWrongBeer()
-    {
-        return receivedWrongBeer;
-    }
-
-    public bool MeetingWasMissed()
-    {
-        return meetingMissed;
-    }
-
-    public bool MeetingWasAttended()
-    {
-        return meetingAttended;
-    }
+    public bool HasOrdered() => hasOrdered;
+    public string GetRequestedBeer() => requestedBeer;
+    public bool HasBeenServed() => hasBeenServed;
+    public bool ReceivedWrongBeer() => receivedWrongBeer;
+    public bool MeetingWasMissed() => meetingMissed;
+    public bool MeetingWasAttended() => meetingAttended;
 
     public bool CanTakeOrder()
     {
@@ -145,54 +92,45 @@ public class HistoricalFigure : MonoBehaviour
 
     private void Start()
     {
+        characterController = GetComponent<CharacterController>();
+
         SetOrderUIVisible(false);
         SetMeetingResultUIVisible(false);
 
-        // Preserve the original gameplay if the new markers
-        // have not yet been assigned in the Inspector.
         if (entranceTarget == null || sittingPoint == null)
         {
             Debug.LogWarning(
                 "[HistoricalFigure] Entrance Target or Sitting Point " +
-                "is missing. Gandhi will remain at his original position. " +
-                "Assign both markers to enable the delayed entrance."
+                "is missing. Gandhi will remain at his current position."
             );
 
             canTakeOrder = true;
-            hasEnteredTavern = true;
             return;
         }
 
-        entranceSetupValid = true;
+        if (characterController == null)
+        {
+            Debug.LogError(
+                "[HistoricalFigure] Add a CharacterController to Gandhi."
+            );
 
-        // Cache the original visibility and collider states so
-        // Gandhi can be hidden before entering the tavern.
-        characterRenderers =
-            GetComponentsInChildren<Renderer>(true);
+            canTakeOrder = true;
+            return;
+        }
 
-        originalRendererStates =
-            new bool[characterRenderers.Length];
+        characterRenderers = GetComponentsInChildren<Renderer>(true);
+        originalRendererStates = new bool[characterRenderers.Length];
 
         for (int i = 0; i < characterRenderers.Length; i++)
-        {
-            originalRendererStates[i] =
-                characterRenderers[i].enabled;
-        }
+            originalRendererStates[i] = characterRenderers[i].enabled;
 
-        characterColliders =
-            GetComponentsInChildren<Collider>(true);
-
-        originalColliderStates =
-            new bool[characterColliders.Length];
+        characterColliders = GetComponentsInChildren<Collider>(true);
+        originalColliderStates = new bool[characterColliders.Length];
 
         for (int i = 0; i < characterColliders.Length; i++)
-        {
-            originalColliderStates[i] =
-                characterColliders[i].enabled;
-        }
+            originalColliderStates[i] = characterColliders[i].enabled;
 
-        // Move Gandhi to the entrance and hide him until the
-        // 30-second delay has elapsed.
+        // Move Gandhi to his starting point before the delay.
         transform.position = entranceTarget.position;
         transform.rotation = entranceTarget.rotation;
 
@@ -200,60 +138,53 @@ public class HistoricalFigure : MonoBehaviour
         SetCharacterCollidersEnabled(false);
 
         canTakeOrder = false;
-        hasEnteredTavern = false;
-
         entranceCoroutine = StartCoroutine(EnterTavernSequence());
     }
 
     private IEnumerator EnterTavernSequence()
     {
-        // Wait before Gandhi enters the tavern.
         if (entranceDelay > 0f)
-        {
             yield return new WaitForSeconds(entranceDelay);
-        }
 
-        if (entranceTarget == null || sittingPoint == null)
+        if (entranceTarget == null || sittingPoint == null ||
+            characterController == null)
         {
-            Debug.LogError(
-                "[HistoricalFigure] Entrance markers are missing."
-            );
-
+            canTakeOrder = true;
+            entranceCoroutine = null;
             yield break;
         }
 
-        Debug.Log(
-            "[HistoricalFigure] Gandhi is entering the tavern."
-        );
+        Debug.Log("[HistoricalFigure] Gandhi is entering the tavern.");
 
-        // Make Gandhi visible and restore his original collider states.
         SetCharacterVisible(true);
         SetCharacterCollidersEnabled(true);
 
-        // Walk horizontally toward the sitting position.
-        while (sittingPoint != null)
+        float totalWalkTime = 0f;
+        float blockedTime = 0f;
+        bool reachedSittingPoint = false;
+
+        // Walk toward the seat using collision-aware movement.
+        while (totalWalkTime < entranceWalkTimeout)
         {
             Vector3 targetPosition = sittingPoint.position;
-
-            // Preserve the current height while walking.
             targetPosition.y = transform.position.y;
 
             Vector3 direction = targetPosition - transform.position;
             direction.y = 0f;
 
-            if (direction.magnitude <= sittingArrivalDistance)
+            float distance = direction.magnitude;
+
+            if (distance <= sittingArrivalDistance)
+            {
+                reachedSittingPoint = true;
                 break;
+            }
 
             direction.Normalize();
 
             Quaternion targetRotation =
-                Quaternion.LookRotation(direction, Vector3.up);
-
-            targetRotation *= Quaternion.Euler(
-                0f,
-                modelRotationOffset,
-                0f
-            );
+                Quaternion.LookRotation(direction, Vector3.up) *
+                Quaternion.Euler(0f, modelRotationOffset, 0f);
 
             transform.rotation = Quaternion.RotateTowards(
                 transform.rotation,
@@ -261,70 +192,76 @@ public class HistoricalFigure : MonoBehaviour
                 entranceTurnSpeed * Time.deltaTime
             );
 
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                targetPosition,
-                entranceSpeed * Time.deltaTime
+            Vector3 positionBeforeMove = transform.position;
+
+            characterController.Move(
+                direction * entranceSpeed * Time.deltaTime
             );
+
+            float movedDistance = Vector3.Distance(
+                positionBeforeMove,
+                transform.position
+            );
+
+            if (movedDistance < 0.005f)
+                blockedTime += Time.deltaTime;
+            else
+                blockedTime = 0f;
+
+            totalWalkTime += Time.deltaTime;
+
+            if (blockedTime >= blockedMovementTimeout)
+            {
+                Debug.LogWarning(
+                    "[HistoricalFigure] Gandhi is blocked on the way " +
+                    "to his seat. He will stop here and order interaction " +
+                    "will be enabled. Adjust Sitting Point or add waypoints."
+                );
+                break;
+            }
 
             yield return null;
         }
 
-        // Simulate sitting by moving the main GameObject to
-        // the designated seated position.
-        Vector3 standingPosition = transform.position;
-        Vector3 seatedPosition = sittingPoint.position;
+        // Check whether Gandhi reached the seat closely enough.
+        Vector3 currentFlat = new Vector3(
+            transform.position.x, 0f, transform.position.z
+        );
 
-        Quaternion seatedRotation =
-            sittingPoint.rotation *
-            Quaternion.Euler(0f, modelRotationOffset, 0f);
+        Vector3 seatFlat = new Vector3(
+            sittingPoint.position.x, 0f, sittingPoint.position.z
+        );
 
-        float elapsed = 0f;
+        float finalDistance = Vector3.Distance(currentFlat, seatFlat);
 
-        if (sitDownDuration > 0f)
+        if (finalDistance <= Mathf.Max(sittingArrivalDistance, 0.35f))
+            reachedSittingPoint = true;
+
+        // Never force Gandhi through the counter to reach the marker.
+        // This script does not play a real sitting animation.
+        if (reachedSittingPoint)
         {
-            while (elapsed < sitDownDuration)
-            {
-                elapsed += Time.deltaTime;
-
-                float progress = Mathf.Clamp01(
-                    elapsed / sitDownDuration
-                );
-
-                // Smoothly lower and rotate Gandhi into position.
-                float smoothProgress =
-                    progress * progress * (3f - 2f * progress);
-
-                transform.position = Vector3.Lerp(
-                    standingPosition,
-                    seatedPosition,
-                    smoothProgress
-                );
-
-                transform.rotation = Quaternion.Slerp(
-                    transform.rotation,
-                    seatedRotation,
-                    smoothProgress
-                );
-
-                yield return null;
-            }
+            transform.rotation = sittingPoint.rotation *
+                Quaternion.Euler(0f, modelRotationOffset, 0f);
+        }
+        else
+        {
+            Debug.LogWarning(
+                "[HistoricalFigure] Gandhi did not reach the exact seat. " +
+                "He will remain at his current position, but the player " +
+                "can still take his order."
+            );
         }
 
-        transform.position = seatedPosition;
-        transform.rotation = seatedRotation;
-
-        hasEnteredTavern = true;
+        // CRITICAL FIX: always unlock the order after the entrance attempt.
         canTakeOrder = true;
         entranceCoroutine = null;
 
         Debug.Log(
-            "[HistoricalFigure] Gandhi is seated. " +
-            "The player can now approach to take his order."
+            "[HistoricalFigure] Gandhi's entrance sequence has ended. " +
+            "He is now available for the player's order."
         );
 
-        // If the player entered Gandhi's trigger while he was
-        // arriving, allow the order once he is seated.
         TryPlaceOrderForNearbyPlayer();
     }
 
@@ -336,11 +273,8 @@ public class HistoricalFigure : MonoBehaviour
         for (int i = 0; i < characterRenderers.Length; i++)
         {
             if (characterRenderers[i] != null)
-            {
-                characterRenderers[i].enabled = visible
-                    ? originalRendererStates[i]
-                    : false;
-            }
+                characterRenderers[i].enabled =
+                    visible ? originalRendererStates[i] : false;
         }
     }
 
@@ -352,11 +286,8 @@ public class HistoricalFigure : MonoBehaviour
         for (int i = 0; i < characterColliders.Length; i++)
         {
             if (characterColliders[i] != null)
-            {
-                characterColliders[i].enabled = enabled
-                    ? originalColliderStates[i]
-                    : false;
-            }
+                characterColliders[i].enabled =
+                    enabled ? originalColliderStates[i] : false;
         }
     }
 
@@ -367,21 +298,21 @@ public class HistoricalFigure : MonoBehaviour
 
         hasOrdered = true;
 
-        Debug.Log(
-            "[HistoricalFigure] Gandhi ordered: " + requestedBeer
-        );
+        Debug.Log("[HistoricalFigure] Gandhi ordered: " + requestedBeer);
 
-        ShowOrderMessage(
-            "Mahatma Gandhi: I'll have a beer, please."
-        );
-
+        ShowOrderMessage("Mahatma Gandhi: I'll have a beer, please.");
         SetMeetingResultUIVisible(false);
     }
 
     private void ShowOrderMessage(string message)
     {
         if (orderText == null)
+        {
+            Debug.LogWarning(
+                "[HistoricalFigure] Order Text is not assigned."
+            );
             return;
+        }
 
         if (orderTextCoroutine != null)
         {
@@ -391,15 +322,12 @@ public class HistoricalFigure : MonoBehaviour
 
         orderText.text = message;
         SetOrderUIVisible(true);
-
-        orderTextCoroutine =
-            StartCoroutine(HideOrderTextAfterDelay());
+        orderTextCoroutine = StartCoroutine(HideOrderTextAfterDelay());
     }
 
     private IEnumerator HideOrderTextAfterDelay()
     {
         yield return new WaitForSecondsRealtime(orderTextDuration);
-
         HideOrderText();
     }
 
@@ -416,7 +344,6 @@ public class HistoricalFigure : MonoBehaviour
 
     private void Update()
     {
-        // Hide the order or thank-you message when the player walks away.
         if (orderText != null &&
             orderText.gameObject.activeSelf &&
             playerTransform != null)
@@ -430,14 +357,11 @@ public class HistoricalFigure : MonoBehaviour
                 HideOrderText();
         }
 
-        // Once Gandhi is seated, allow the order if the player
-        // is already inside his interaction trigger.
         TryPlaceOrderForNearbyPlayer();
 
         if (endingTriggered)
             return;
 
-        // Check the meeting deadline.
         if (meetingTimer != null &&
             meetingTimer.IsMeetingMissed() &&
             !meetingMissed)
@@ -446,8 +370,6 @@ public class HistoricalFigure : MonoBehaviour
             return;
         }
 
-        // Correct beer finished before the deadline:
-        // Gandhi leaves for the meeting.
         if (!receivedWrongBeer &&
             npcDrinking != null &&
             npcDrinking.HasFinishedDrinking() &&
@@ -466,14 +388,9 @@ public class HistoricalFigure : MonoBehaviour
 
     private void TryPlaceOrderForNearbyPlayer()
     {
-        if (!canTakeOrder ||
-            hasOrdered ||
-            hasBeenServed ||
-            endingTriggered ||
-            playerTransform == null)
-        {
+        if (!canTakeOrder || hasOrdered || hasBeenServed ||
+            endingTriggered || playerTransform == null)
             return;
-        }
 
         float distance = Vector3.Distance(
             playerTransform.position,
@@ -481,9 +398,7 @@ public class HistoricalFigure : MonoBehaviour
         );
 
         if (distance <= orderTextDistance)
-        {
             PlaceOrder();
-        }
     }
 
     public void ServeBeer(Beer beer)
@@ -508,9 +423,7 @@ public class HistoricalFigure : MonoBehaviour
         if (receivedWrongBeer)
         {
             Debug.Log("[HistoricalFigure] WRONG BEER SERVED.");
-            Debug.Log(
-                "[HistoricalFigure] Gandhi is unaware of the mistake."
-            );
+            Debug.Log("[HistoricalFigure] Gandhi is unaware of the mistake.");
         }
         else
         {
@@ -545,20 +458,30 @@ public class HistoricalFigure : MonoBehaviour
         if (doorTarget == null)
         {
             Debug.LogError(
-                "[HistoricalFigure] Door Target is not assigned. " +
-                "Assign NPCDoorTarget in the Inspector."
+                "[HistoricalFigure] Door Target is not assigned."
             );
 
             StartCoroutine(LoadGameOverAfterDelay());
             return;
         }
 
-        leaving = true;
         leaveCoroutine = StartCoroutine(WalkToDoor());
     }
 
     private IEnumerator WalkToDoor()
     {
+        if (characterController == null)
+        {
+            Debug.LogError(
+                "[HistoricalFigure] CharacterController is missing."
+            );
+
+            yield return StartCoroutine(LoadGameOverAfterDelay());
+            yield break;
+        }
+
+        float blockedTime = 0f;
+
         while (doorTarget != null)
         {
             Vector3 targetPosition = doorTarget.position;
@@ -573,13 +496,8 @@ public class HistoricalFigure : MonoBehaviour
             direction.Normalize();
 
             Quaternion targetRotation =
-                Quaternion.LookRotation(direction, Vector3.up);
-
-            targetRotation *= Quaternion.Euler(
-                0f,
-                modelRotationOffset,
-                0f
-            );
+                Quaternion.LookRotation(direction, Vector3.up) *
+                Quaternion.Euler(0f, modelRotationOffset, 0f);
 
             transform.rotation = Quaternion.RotateTowards(
                 transform.rotation,
@@ -587,18 +505,31 @@ public class HistoricalFigure : MonoBehaviour
                 turnSpeed * Time.deltaTime
             );
 
-            transform.position = Vector3.MoveTowards(
-                transform.position,
-                targetPosition,
-                leaveSpeed * Time.deltaTime
+            Vector3 beforeMove = transform.position;
+
+            characterController.Move(
+                direction * leaveSpeed * Time.deltaTime
             );
+
+            if (Vector3.Distance(beforeMove, transform.position) < 0.005f)
+                blockedTime += Time.deltaTime;
+            else
+                blockedTime = 0f;
+
+            // Prevent an obstacle from trapping the ending forever.
+            if (blockedTime >= 3f)
+            {
+                Debug.LogWarning(
+                    "[HistoricalFigure] Gandhi is blocked on the way " +
+                    "to the door. Continuing to the Game Over sequence."
+                );
+                break;
+            }
 
             yield return null;
         }
 
-        leaving = false;
-
-        Debug.Log("[HistoricalFigure] Gandhi reached the door.");
+        Debug.Log("[HistoricalFigure] Gandhi's exit sequence has ended.");
 
         yield return StartCoroutine(LoadGameOverAfterDelay());
     }
@@ -613,20 +544,16 @@ public class HistoricalFigure : MonoBehaviour
             Debug.LogError(
                 "[HistoricalFigure] Game Over scene '" +
                 gameOverSceneName +
-                "' cannot be loaded. Check the exact scene name " +
-                "and Build Settings."
+                "' cannot be loaded. Check the scene name and Build Settings."
             );
-
             yield break;
         }
 
         Time.timeScale = 1f;
-
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
         Debug.Log("[HistoricalFigure] Loading Game Over scene.");
-
         SceneManager.LoadScene(gameOverSceneName);
     }
 
@@ -643,7 +570,6 @@ public class HistoricalFigure : MonoBehaviour
 
         ShowMeetingMissed();
 
-        // Wrong beer causes the missed-meeting Game Win sequence.
         if (receivedWrongBeer)
         {
             endingTriggered = true;
@@ -654,22 +580,17 @@ public class HistoricalFigure : MonoBehaviour
             );
 
             if (wrongBeerCompletion != null)
-            {
                 wrongBeerCompletion.WrongBeerGiven();
-            }
             else
-            {
                 Debug.LogError(
                     "[HistoricalFigure] WrongBeerLevelCompletion " +
-                    "is not assigned. Assign it in the Inspector."
+                    "is not assigned in the Inspector."
                 );
-            }
         }
         else
         {
             Debug.Log(
-                "[HistoricalFigure] The correct-beer NPC missed the deadline. " +
-                "The specified Game Over condition was not met."
+                "[HistoricalFigure] The correct-beer NPC missed the deadline."
             );
         }
     }
@@ -685,7 +606,6 @@ public class HistoricalFigure : MonoBehaviour
         {
             meetingResultText.text = "MEETING MISSED";
             SetMeetingResultUIVisible(true);
-
             StartCoroutine(HideMeetingResult());
         }
     }
@@ -693,13 +613,11 @@ public class HistoricalFigure : MonoBehaviour
     private IEnumerator HideMeetingResult()
     {
         yield return new WaitForSecondsRealtime(5f);
-
         SetMeetingResultUIVisible(false);
     }
 
     private void SetOrderUIVisible(bool visible)
     {
-        // Keep the text and its background panel in sync.
         if (orderText != null)
             orderText.gameObject.SetActive(visible);
 
@@ -709,7 +627,6 @@ public class HistoricalFigure : MonoBehaviour
 
     private void SetMeetingResultUIVisible(bool visible)
     {
-        // Keep the result text and its background panel in sync.
         if (meetingResultText != null)
             meetingResultText.gameObject.SetActive(visible);
 
@@ -722,8 +639,6 @@ public class HistoricalFigure : MonoBehaviour
         if (other.gameObject.layer == LayerMask.NameToLayer("Player"))
         {
             playerTransform = other.transform;
-
-            // PlaceOrder will only work after Gandhi is seated.
             PlaceOrder();
         }
     }
