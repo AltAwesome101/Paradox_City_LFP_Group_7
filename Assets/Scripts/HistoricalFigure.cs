@@ -5,25 +5,32 @@ using UnityEngine.SceneManagement;
 
 public class HistoricalFigure : MonoBehaviour
 {
-    [Header("Entrance Settings")]
+    [Header("Order")]
+    public string requestedBeer = "Correct Beer";
+
+    [Header("Delayed Tavern Entrance")]
     public Transform entranceTarget;
     public Transform sittingPoint;
-
-    [Tooltip("Initial delay before Gandhi can begin his entrance sequence.")]
     public float entranceDelay = 30f;
-
-    [Tooltip("Extra time given to the player after all three glasses are cleaned.")]
-    public float playerMoveDelayAfterCleaning = 5f;
-
     public float entranceSpeed = 2f;
-    public float entranceTurnSpeed = 5f;
-    public float arrivalDistance = 0.2f;
-    public float entranceWalkTimeout = 30f;
-    public float blockedMovementTimeout = 2f;
+    public float entranceTurnSpeed = 180f;
+    public float sittingArrivalDistance = 0.2f;
+    public float entranceWalkTimeout = 20f;
+    public float blockedMovementTimeout = 1.5f;
 
-    [Header("Player Interaction")]
-    public float interactionRange = 3f;
-    public string playerLayerName = "Player";
+    [Header("Entrance Communication")]
+    public TextMeshProUGUI communicationText;
+    public GameObject communicationTextPanel;
+
+    public string entranceMessage = "Gandhi is entering the tavern...";
+    public string approachMessage = "Approach Gandhi to take his order.";
+    public float approachMessageDuration = 5f;
+
+    [Header("Meeting")]
+    public MeetingTimer meetingTimer;
+
+    [Header("Drinking")]
+    public NPCDrinking npcDrinking;
 
     [Header("Order UI")]
     public TextMeshProUGUI orderText;
@@ -34,260 +41,201 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Meeting Result UI")]
     public TextMeshProUGUI meetingResultText;
     public GameObject meetingResultPanel;
-    public float meetingResultDuration = 5f;
-
-    [Header("Entrance Communication")]
-    public TextMeshProUGUI communicationText;
-    public GameObject communicationTextPanel;
-
-    public string entranceMessage = "Gandhi is entering the tavern...";
-    public string approachMessage = "Approach Gandhi to take his order.";
-    public float approachMessageDuration = 5f;
-
-    [Header("Beer Settings")]
-    public string requestedBeer = "Correct Beer";
-
-    [Header("Beer Pickup UI")]
-    public TextMeshProUGUI beerPickupText;
-    public GameObject beerPickupPanel;
-
-    [Header("Beer Hand-In UI")]
-    public TextMeshProUGUI beerHandInText;
-    public GameObject beerHandInPanel;
-
-    [Header("Meeting and Drinking")]
-    public MeetingTimer meetingTimer;
-    public NPCDrinking npcDrinking;
 
     [Header("Cinematic Camera")]
     public CinematicCameraFocus cinematicCamera;
 
-    [Header("Level Completion")]
+    [Header("Wrong Beer Completion")]
     public WrongBeerLevelCompletion wrongBeerCompletion;
 
-    [Header("Leaving After Correct Beer")]
-    public Transform exitDoorTarget;
+    [Header("NPC Door Movement")]
+    public Transform doorTarget;
     public float leaveSpeed = 2f;
-    public float leaveDistance = 8f;
+    public float turnSpeed = 180f;
+    public float doorArrivalDistance = 0.2f;
+    public float modelRotationOffset = 0f;
 
     [Header("Game Over")]
     public string gameOverSceneName = "GameOver";
     public float gameOverDelay = 3f;
 
+    private bool hasOrdered;
+    private bool hasBeenServed;
+    private bool receivedWrongBeer;
+    private bool meetingMissed;
+    private bool meetingAttended;
+    private bool resultShown;
+    private bool endingTriggered;
+    private bool canTakeOrder;
+    private bool entranceFinished;
+
     private Transform playerTransform;
     private CharacterController characterController;
 
-    private bool canTakeOrder;
-    private bool hasOrdered;
-    private bool hasServedBeer;
-    private bool receivedWrongBeer;
-    private bool leaving;
-    private bool entranceStarted;
-    private bool entranceFinished;
-    private bool endingSequenceStarted;
-
-    private Vector3 leaveDirection;
-
-    private Coroutine entranceCoroutine;
-    private Coroutine orderUICoroutine;
-    private Coroutine meetingResultCoroutine;
+    private Coroutine orderTextCoroutine;
     private Coroutine communicationCoroutine;
+    private Coroutine leaveCoroutine;
+    private Coroutine entranceCoroutine;
 
-    private Renderer[] npcRenderers;
-    private Collider[] npcColliders;
+    private Renderer[] characterRenderers;
+    private bool[] originalRendererStates;
 
-    private void Awake()
+    private Collider[] characterColliders;
+    private bool[] originalColliderStates;
+
+    public bool HasOrdered() => hasOrdered;
+    public string GetRequestedBeer() => requestedBeer;
+    public bool HasBeenServed() => hasBeenServed;
+    public bool ReceivedWrongBeer() => receivedWrongBeer;
+    public bool MeetingWasMissed() => meetingMissed;
+    public bool MeetingWasAttended() => meetingAttended;
+
+    public bool CanTakeOrder()
+    {
+        return canTakeOrder &&
+               !hasOrdered &&
+               !hasBeenServed &&
+               !endingTriggered;
+    }
+
+    private void Start()
     {
         characterController = GetComponent<CharacterController>();
-
-        npcRenderers = GetComponentsInChildren<Renderer>(true);
-        npcColliders = GetComponentsInChildren<Collider>(true);
 
         SetOrderUIVisible(false);
         SetMeetingResultUIVisible(false);
         SetCommunicationUIVisible(false);
 
-        SetOptionalUIVisible(
-            beerPickupText,
-            beerPickupPanel,
-            false
-        );
-
-        SetOptionalUIVisible(
-            beerHandInText,
-            beerHandInPanel,
-            false
-        );
-    }
-
-    private void Start()
-    {
-        if (entranceTarget == null)
+        // If entrance markers are not assigned, Gandhi stays
+        // at his existing scene position and can take an order.
+        if (entranceTarget == null || sittingPoint == null)
         {
-            Debug.LogError(
-                "[HistoricalFigure] Entrance Target has not been assigned."
+            Debug.LogWarning(
+                "[HistoricalFigure] Entrance Target or Sitting Point " +
+                "is missing. Gandhi will remain at his current position."
             );
 
-            return;
-        }
-
-        if (sittingPoint == null)
-        {
-            Debug.LogError(
-                "[HistoricalFigure] Sitting Point has not been assigned."
-            );
-
+            canTakeOrder = true;
+            entranceFinished = true;
+            ShowApproachMessage();
             return;
         }
 
         if (characterController == null)
         {
             Debug.LogError(
-                "[HistoricalFigure] Gandhi needs a CharacterController."
+                "[HistoricalFigure] Add a CharacterController to Gandhi."
             );
 
+            canTakeOrder = true;
+            entranceFinished = true;
+            ShowApproachMessage();
             return;
         }
 
-        // Place Gandhi at the entrance while hidden.
-        transform.SetPositionAndRotation(
-            entranceTarget.position,
-            entranceTarget.rotation
-        );
+        characterRenderers = GetComponentsInChildren<Renderer>(true);
+        originalRendererStates = new bool[characterRenderers.Length];
 
-        SetNPCVisible(false);
+        for (int i = 0; i < characterRenderers.Length; i++)
+        {
+            originalRendererStates[i] = characterRenderers[i].enabled;
+        }
+
+        characterColliders = GetComponentsInChildren<Collider>(true);
+        originalColliderStates = new bool[characterColliders.Length];
+
+        for (int i = 0; i < characterColliders.Length; i++)
+        {
+            originalColliderStates[i] = characterColliders[i].enabled;
+        }
+
+        transform.position = entranceTarget.position;
+        transform.rotation = entranceTarget.rotation;
+
+        SetCharacterVisible(false);
+        SetCharacterCollidersEnabled(false);
 
         canTakeOrder = false;
+        entranceFinished = false;
 
-        entranceCoroutine =
-            StartCoroutine(EnterTavernSequence());
+        entranceCoroutine = StartCoroutine(EnterTavernSequence());
     }
 
     private IEnumerator EnterTavernSequence()
     {
-        // Step 1: Wait for the initial entrance delay.
+        // Wait before Gandhi appears at the entrance.
         if (entranceDelay > 0f)
         {
             yield return new WaitForSeconds(entranceDelay);
         }
 
-        // Step 2: Wait until all three glasses are returned.
-        while (
-            GlassCleaningProgress.Instance == null ||
-            !GlassCleaningProgress.Instance.AllGlassesReturned
-        )
-        {
-            yield return null;
-        }
-
-        // Step 3: Give the player five additional seconds.
-        if (playerMoveDelayAfterCleaning > 0f)
-        {
-            yield return new WaitForSeconds(
-                playerMoveDelayAfterCleaning
-            );
-        }
-
-        // Step 4: Start Gandhi's entrance cinematic.
-        entranceStarted = true;
-
-        ShowCommunicationMessage(entranceMessage);
-        SetNPCVisible(true);
-
-        if (cinematicCamera != null)
-        {
-            cinematicCamera.FocusOnNPC(transform, true);
-        }
-
-        // Step 5: Walk toward the designated sitting point.
-        yield return StartCoroutine(
-            WalkToPoint(sittingPoint)
-        );
-
-        // Step 6: Return the camera to the player.
-        if (cinematicCamera != null)
-        {
-            cinematicCamera.ReturnToPlayer();
-        }
-
-        HideCommunicationMessage();
-
-        entranceFinished = true;
-        canTakeOrder = true;
-
-        // Step 7: Tell the player to approach Gandhi.
-        ShowCommunicationMessage(approachMessage);
-
-        if (communicationCoroutine != null)
-        {
-            StopCoroutine(communicationCoroutine);
-        }
-
-        communicationCoroutine = StartCoroutine(
-            HideCommunicationAfterDelay(
-                approachMessageDuration
-            )
-        );
-
-        TryPlaceOrderForNearbyPlayer();
-
-        Debug.Log(
-            "[HistoricalFigure] Gandhi has reached his seat. " +
-            "The player can now take his order."
-        );
-    }
-
-    private IEnumerator WalkToPoint(Transform destination)
-    {
-        if (destination == null ||
+        if (entranceTarget == null ||
+            sittingPoint == null ||
             characterController == null)
         {
+            canTakeOrder = true;
+            entranceFinished = true;
+            entranceCoroutine = null;
+            ShowApproachMessage();
             yield break;
         }
 
-        float elapsed = 0f;
-        float blockedTime = 0f;
+        Debug.Log("[HistoricalFigure] Gandhi is entering the tavern.");
 
-        Vector3 previousPosition = transform.position;
+        // Display the entrance communication.
+        ShowCommunication(entranceMessage);
 
-        while (
-            Vector3.Distance(
-                transform.position,
-                destination.position
-            ) > arrivalDistance &&
-            elapsed < entranceWalkTimeout
-        )
+        SetCharacterVisible(true);
+        SetCharacterCollidersEnabled(true);
+
+        // CINEMATIC: focus on Gandhi and follow him during entrance.
+        if (cinematicCamera != null)
         {
-            Vector3 direction =
-                destination.position - transform.position;
+            cinematicCamera.FocusOnEntrance(transform);
+        }
 
+        float totalWalkTime = 0f;
+        float blockedTime = 0f;
+        bool reachedSittingPoint = false;
+
+        while (totalWalkTime < entranceWalkTimeout)
+        {
+            Vector3 targetPosition = sittingPoint.position;
+            targetPosition.y = transform.position.y;
+
+            Vector3 direction = targetPosition - transform.position;
             direction.y = 0f;
 
-            if (direction.sqrMagnitude > 0.001f)
+            if (direction.magnitude <= sittingArrivalDistance)
             {
-                direction.Normalize();
-
-                Quaternion targetRotation =
-                    Quaternion.LookRotation(direction);
-
-                transform.rotation = Quaternion.Slerp(
-                    transform.rotation,
-                    targetRotation,
-                    entranceTurnSpeed * Time.deltaTime
-                );
-
-                // CharacterController.Move respects solid colliders.
-                characterController.Move(
-                    direction * entranceSpeed * Time.deltaTime
-                );
+                reachedSittingPoint = true;
+                break;
             }
 
-            float distanceMoved = Vector3.Distance(
-                transform.position,
-                previousPosition
+            direction.Normalize();
+
+            Quaternion targetRotation =
+                Quaternion.LookRotation(direction, Vector3.up) *
+                Quaternion.Euler(0f, modelRotationOffset, 0f);
+
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRotation,
+                entranceTurnSpeed * Time.deltaTime
             );
 
-            if (distanceMoved < 0.005f)
+            Vector3 positionBeforeMove = transform.position;
+
+            characterController.Move(
+                direction * entranceSpeed * Time.deltaTime
+            );
+
+            float movedDistance = Vector3.Distance(
+                positionBeforeMove,
+                transform.position
+            );
+
+            if (movedDistance < 0.005f)
             {
                 blockedTime += Time.deltaTime;
             }
@@ -296,75 +244,233 @@ public class HistoricalFigure : MonoBehaviour
                 blockedTime = 0f;
             }
 
-            previousPosition = transform.position;
+            totalWalkTime += Time.deltaTime;
 
             if (blockedTime >= blockedMovementTimeout)
             {
                 Debug.LogWarning(
-                    "[HistoricalFigure] Gandhi's movement is blocked. " +
-                    "Check his path, sitting point and colliders."
+                    "[HistoricalFigure] Gandhi is blocked on the way " +
+                    "to his seat. He will stop here, but order interaction " +
+                    "will still become available."
                 );
-
                 break;
             }
 
-            elapsed += Time.deltaTime;
             yield return null;
         }
 
-        if (
-            Vector3.Distance(
-                transform.position,
-                destination.position
-            ) > arrivalDistance
-        )
+        Vector3 currentFlat = new Vector3(
+            transform.position.x, 0f, transform.position.z
+        );
+
+        Vector3 seatFlat = new Vector3(
+            sittingPoint.position.x, 0f, sittingPoint.position.z
+        );
+
+        float finalDistance = Vector3.Distance(currentFlat, seatFlat);
+
+        if (finalDistance <= Mathf.Max(sittingArrivalDistance, 0.35f))
+        {
+            reachedSittingPoint = true;
+        }
+
+        if (reachedSittingPoint)
+        {
+            transform.rotation = sittingPoint.rotation *
+                Quaternion.Euler(0f, modelRotationOffset, 0f);
+        }
+        else
         {
             Debug.LogWarning(
-                "[HistoricalFigure] Gandhi did not reach the exact " +
-                "sitting point. Order interaction will still be unlocked."
+                "[HistoricalFigure] Gandhi did not reach the exact seat. " +
+                "He will remain at his current position."
             );
+        }
+
+        // End the entrance cinematic and return control to the player.
+        if (cinematicCamera != null)
+        {
+            cinematicCamera.ReturnToPlayer();
+        }
+
+        // End the entrance sequence and make Gandhi available.
+        canTakeOrder = true;
+        entranceFinished = true;
+        entranceCoroutine = null;
+
+        Debug.Log(
+            "[HistoricalFigure] Gandhi's entrance has ended. " +
+            "He can now take the player's order."
+        );
+
+        ShowApproachMessage();
+        TryPlaceOrderForNearbyPlayer();
+    }
+
+    // -------------------------------
+    // ENTRANCE COMMUNICATION
+    // -------------------------------
+
+    private void ShowCommunication(string message)
+    {
+        if (communicationText == null)
+        {
+            Debug.LogWarning(
+                "[HistoricalFigure] Communication Text is not assigned."
+            );
+            return;
+        }
+
+        if (communicationCoroutine != null)
+        {
+            StopCoroutine(communicationCoroutine);
+            communicationCoroutine = null;
+        }
+
+        communicationText.text = message;
+        SetCommunicationUIVisible(true);
+    }
+
+    private void ShowApproachMessage()
+    {
+        if (string.IsNullOrEmpty(approachMessage))
+        {
+            SetCommunicationUIVisible(false);
+            return;
+        }
+
+        ShowCommunication(approachMessage);
+
+        if (communicationCoroutine != null)
+        {
+            StopCoroutine(communicationCoroutine);
+        }
+
+        communicationCoroutine =
+            StartCoroutine(HideCommunicationAfterDelay(
+                approachMessageDuration
+            ));
+    }
+
+    private IEnumerator HideCommunicationAfterDelay(float delay)
+    {
+        yield return new WaitForSecondsRealtime(delay);
+
+        SetCommunicationUIVisible(false);
+        communicationCoroutine = null;
+    }
+
+    private void SetCommunicationUIVisible(bool visible)
+    {
+        if (communicationText != null)
+        {
+            communicationText.gameObject.SetActive(visible);
+        }
+
+        if (communicationTextPanel != null)
+        {
+            communicationTextPanel.SetActive(visible);
         }
     }
 
-    private void SetNPCVisible(bool visible)
+    private void SetCharacterVisible(bool visible)
     {
-        if (npcRenderers != null)
+        if (characterRenderers == null)
         {
-            foreach (Renderer npcRenderer in npcRenderers)
-            {
-                if (npcRenderer != null)
-                {
-                    npcRenderer.enabled = visible;
-                }
-            }
+            return;
         }
 
-        if (npcColliders != null)
+        for (int i = 0; i < characterRenderers.Length; i++)
         {
-            foreach (Collider npcCollider in npcColliders)
+            if (characterRenderers[i] != null)
             {
-                if (npcCollider != null)
-                {
-                    npcCollider.enabled = visible;
-                }
+                characterRenderers[i].enabled = visible
+                    ? originalRendererStates[i]
+                    : false;
             }
         }
+    }
 
-        if (characterController != null)
+    private void SetCharacterCollidersEnabled(bool enabledState)
+    {
+        if (characterColliders == null)
         {
-            characterController.enabled = visible;
+            return;
+        }
+
+        for (int i = 0; i < characterColliders.Length; i++)
+        {
+            if (characterColliders[i] != null)
+            {
+                characterColliders[i].enabled = enabledState
+                    ? originalColliderStates[i]
+                    : false;
+            }
+        }
+    }
+
+    public void PlaceOrder()
+    {
+        if (!CanTakeOrder())
+        {
+            return;
+        }
+
+        hasOrdered = true;
+
+        Debug.Log(
+            "[HistoricalFigure] Gandhi ordered: " + requestedBeer
+        );
+
+        ShowOrderMessage("Mahatma Gandhi: I'll have a beer, please.");
+        SetMeetingResultUIVisible(false);
+    }
+
+    private void ShowOrderMessage(string message)
+    {
+        if (orderText == null)
+        {
+            Debug.LogWarning(
+                "[HistoricalFigure] Order Text is not assigned."
+            );
+            return;
+        }
+
+        if (orderTextCoroutine != null)
+        {
+            StopCoroutine(orderTextCoroutine);
+            orderTextCoroutine = null;
+        }
+
+        orderText.text = message;
+        SetOrderUIVisible(true);
+
+        orderTextCoroutine =
+            StartCoroutine(HideOrderTextAfterDelay());
+    }
+
+    private IEnumerator HideOrderTextAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(orderTextDuration);
+        HideOrderText();
+    }
+
+    private void HideOrderText()
+    {
+        SetOrderUIVisible(false);
+
+        if (orderTextCoroutine != null)
+        {
+            StopCoroutine(orderTextCoroutine);
+            orderTextCoroutine = null;
         }
     }
 
     private void Update()
     {
-        if (leaving)
-        {
-            MoveTowardsExit();
-            return;
-        }
-
-        if (playerTransform != null)
+        if (orderText != null &&
+            orderText.gameObject.activeSelf &&
+            playerTransform != null)
         {
             float distance = Vector3.Distance(
                 playerTransform.position,
@@ -373,38 +479,48 @@ public class HistoricalFigure : MonoBehaviour
 
             if (distance > orderTextDistance)
             {
-                SetOrderUIVisible(false);
-            }
-            else
-            {
-                TryPlaceOrderForNearbyPlayer();
+                HideOrderText();
             }
         }
 
-        if (!hasServedBeer || endingSequenceStarted)
+        TryPlaceOrderForNearbyPlayer();
+
+        if (endingTriggered)
         {
             return;
         }
 
-        if (
-            meetingTimer != null &&
-            meetingTimer.IsMeetingMissed()
-        )
+        // The wrong-beer route ends when the accelerated timer expires.
+        if (meetingTimer != null &&
+            meetingTimer.IsMeetingMissed() &&
+            !meetingMissed)
         {
-            HandleMissedMeeting();
+            HandleMeetingMissed();
+            return;
         }
 
-        if (
+        // Only the correct-beer route can finish drinking and leave
+        // for the meeting.
+        if (!receivedWrongBeer &&
+            hasBeenServed &&
             npcDrinking != null &&
             npcDrinking.HasFinishedDrinking() &&
-            !endingSequenceStarted &&
-            meetingTimer != null &&
-            !meetingTimer.IsMeetingMissed()
-        )
+            !meetingAttended &&
+            !meetingMissed)
         {
-            if (!receivedWrongBeer)
+            bool stillInTime =
+                meetingTimer == null ||
+                (!meetingTimer.IsMeetingMissed() &&
+                 meetingTimer.GetRemainingTime() > 0f);
+
+            if (stillInTime)
             {
-                StartCoroutine(CorrectBeerEnding());
+                AttendMeeting();
+            }
+            else if (meetingTimer != null &&
+                     meetingTimer.IsMeetingMissed())
+            {
+                HandleMeetingMissed();
             }
         }
     }
@@ -413,6 +529,8 @@ public class HistoricalFigure : MonoBehaviour
     {
         if (!canTakeOrder ||
             hasOrdered ||
+            hasBeenServed ||
+            endingTriggered ||
             playerTransform == null)
         {
             return;
@@ -429,298 +547,291 @@ public class HistoricalFigure : MonoBehaviour
         }
     }
 
-    private void PlaceOrder()
+    public void ServeBeer(Beer beer)
     {
-        if (!canTakeOrder || hasOrdered)
+        if (!hasOrdered || hasBeenServed || beer == null)
         {
             return;
         }
 
-        hasOrdered = true;
+        hasBeenServed = true;
 
-        ShowOrderMessage(
-            "Mahatma Gandhi: I'll have a beer, please."
-        );
-    }
-
-    // PUBLIC METHOD: Used by FPController to check the order status.
-    public bool HasOrdered()
-    {
-        return hasOrdered;
-    }
-
-    private void ShowOrderMessage(string message)
-    {
-        if (orderText != null)
-        {
-            orderText.text = message;
-        }
-
-        SetOrderUIVisible(true);
-
-        if (orderUICoroutine != null)
-        {
-            StopCoroutine(orderUICoroutine);
-        }
-
-        orderUICoroutine = StartCoroutine(
-            HideOrderAfterDelay(orderTextDuration)
-        );
-    }
-
-    private IEnumerator HideOrderAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-
-        SetOrderUIVisible(false);
-        orderUICoroutine = null;
-    }
-
-    // Receives the beer name from FPController.
-    public void ServeBeer(string beerName)
-    {
-        if (!hasOrdered || hasServedBeer)
-        {
-            return;
-        }
-
-        hasServedBeer = true;
-
-        receivedWrongBeer = !string.Equals(
-            beerName,
-            requestedBeer,
-            System.StringComparison.OrdinalIgnoreCase
-        );
+        // Gandhi requested the correct beer but does not recognise
+        // whether the player has handed him the wrong beer.
+        receivedWrongBeer = beer.IsWrongBeer();
 
         ShowOrderMessage("Mahatma Gandhi: Thanks.");
 
-        // Start the meeting timer when Gandhi receives the beer.
         if (meetingTimer != null)
         {
-            meetingTimer.StartMeetingTimer();
+            // Requires the compatible overload in MeetingTimer.cs.
+            meetingTimer.StartMeetingTimer(receivedWrongBeer);
         }
 
-        // Start drinking with the correct/wrong beer outcome.
         if (npcDrinking != null)
         {
             npcDrinking.StartDrinking(receivedWrongBeer);
         }
+        else
+        {
+            Debug.LogError(
+                "[HistoricalFigure] NPCDrinking is not assigned."
+            );
+        }
 
-        // Preserve the beer-serving cinematic.
+        // CINEMATIC: focus on Gandhi and follow him during drinking.
         if (cinematicCamera != null)
         {
-            cinematicCamera.FocusOnNPC(transform);
+            cinematicCamera.FocusOnDrinking(transform);
+        }
+
+        if (receivedWrongBeer)
+        {
+            Debug.Log(
+                "[HistoricalFigure] WRONG BEER SERVED. " +
+                "Gandhi will become drunk and miss the meeting."
+            );
+        }
+        else
+        {
+            Debug.Log(
+                "[HistoricalFigure] CORRECT BEER SERVED. " +
+                "Gandhi will finish drinking quickly and leave for the meeting."
+            );
+        }
+    }
+
+    private void AttendMeeting()
+    {
+        if (meetingAttended || endingTriggered)
+        {
+            return;
+        }
+
+        meetingAttended = true;
+        endingTriggered = true;
+
+        HideOrderText();
+
+        if (meetingTimer != null)
+        {
+            meetingTimer.StopMeetingTimer();
+        }
+
+        if (npcDrinking != null)
+        {
+            npcDrinking.StopDrinking();
         }
 
         Debug.Log(
-            receivedWrongBeer
-                ? "[HistoricalFigure] Gandhi received the wrong beer."
-                : "[HistoricalFigure] Gandhi received the correct beer."
+            "[HistoricalFigure] Gandhi finished the correct beer in time. " +
+            "He is leaving for the meeting. Game Over will follow."
         );
-    }
 
-    private IEnumerator CorrectBeerEnding()
-    {
-        if (endingSequenceStarted)
+        if (meetingResultText != null)
         {
-            yield break;
+            meetingResultText.text = "HEADING TO MEETING";
+            SetMeetingResultUIVisible(true);
         }
 
-        endingSequenceStarted = true;
-
-        ShowMeetingResultMessage("HEADING TO MEETING");
-
-        yield return new WaitForSeconds(1f);
-
-        if (
-            cinematicCamera != null &&
-            cinematicCamera.IsFocusingOnNPC()
-        )
+        if (cinematicCamera != null)
         {
             cinematicCamera.ReturnToPlayer();
         }
 
-        if (exitDoorTarget != null)
+        if (doorTarget == null)
         {
-            leaveDirection =
-                exitDoorTarget.position - transform.position;
+            Debug.LogError(
+                "[HistoricalFigure] Door Target is not assigned. " +
+                "Assign an empty GameObject at the tavern exit."
+            );
 
-            leaveDirection.y = 0f;
+            leaveCoroutine = StartCoroutine(LoadGameOverAfterDelay());
+            return;
+        }
 
-            if (leaveDirection.sqrMagnitude > 0.001f)
+        leaveCoroutine = StartCoroutine(WalkToDoor());
+    }
+
+    private IEnumerator WalkToDoor()
+    {
+        if (characterController == null)
+        {
+            Debug.LogWarning(
+                "[HistoricalFigure] CharacterController is missing. " +
+                "Loading Game Over without the exit movement."
+            );
+
+            yield return StartCoroutine(LoadGameOverAfterDelay());
+            yield break;
+        }
+
+        float blockedTime = 0f;
+
+        while (doorTarget != null)
+        {
+            Vector3 targetPosition = doorTarget.position;
+            targetPosition.y = transform.position.y;
+
+            Vector3 direction = targetPosition - transform.position;
+            direction.y = 0f;
+
+            if (direction.magnitude <= doorArrivalDistance)
             {
-                leaveDirection.Normalize();
+                break;
+            }
+
+            direction.Normalize();
+
+            Quaternion targetRotation =
+                Quaternion.LookRotation(direction, Vector3.up) *
+                Quaternion.Euler(0f, modelRotationOffset, 0f);
+
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                targetRotation,
+                turnSpeed * Time.deltaTime
+            );
+
+            Vector3 beforeMove = transform.position;
+
+            characterController.Move(
+                direction * leaveSpeed * Time.deltaTime
+            );
+
+            if (Vector3.Distance(beforeMove, transform.position) < 0.005f)
+            {
+                blockedTime += Time.deltaTime;
             }
             else
             {
-                leaveDirection = transform.forward;
+                blockedTime = 0f;
             }
+
+            if (blockedTime >= 3f)
+            {
+                Debug.LogWarning(
+                    "[HistoricalFigure] Gandhi is blocked on the way " +
+                    "to the door. Continuing to Game Over."
+                );
+                break;
+            }
+
+            yield return null;
         }
-        else
+
+        Debug.Log("[HistoricalFigure] Gandhi's exit sequence has ended.");
+
+        yield return StartCoroutine(LoadGameOverAfterDelay());
+    }
+
+    private IEnumerator LoadGameOverAfterDelay()
+    {
+        if (gameOverDelay > 0f)
         {
-            leaveDirection = transform.forward;
+            yield return new WaitForSecondsRealtime(gameOverDelay);
         }
-
-        leaving = true;
-
-        yield return new WaitForSeconds(gameOverDelay);
 
         if (!Application.CanStreamedLevelBeLoaded(gameOverSceneName))
         {
             Debug.LogError(
                 "[HistoricalFigure] Game Over scene '" +
                 gameOverSceneName +
-                "' cannot be loaded. Check the scene name and Build Settings."
+                "' cannot be loaded. Check the exact scene name and " +
+                "make sure it is included in Build Settings."
             );
-
-            leaving = false;
             yield break;
         }
 
         Time.timeScale = 1f;
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+
+        Debug.Log("[HistoricalFigure] Loading Game Over scene.");
         SceneManager.LoadScene(gameOverSceneName);
     }
 
-    private void MoveTowardsExit()
+    private void HandleMeetingMissed()
     {
-        if (characterController == null ||
-            !characterController.enabled)
+        if (meetingMissed || endingTriggered)
         {
             return;
         }
 
-        if (exitDoorTarget != null)
+        meetingMissed = true;
+
+        HideOrderText();
+
+        if (meetingTimer != null)
         {
-            Vector3 direction =
-                exitDoorTarget.position - transform.position;
-
-            direction.y = 0f;
-
-            if (direction.sqrMagnitude > 0.01f)
-            {
-                direction.Normalize();
-
-                transform.rotation = Quaternion.Slerp(
-                    transform.rotation,
-                    Quaternion.LookRotation(direction),
-                    entranceTurnSpeed * Time.deltaTime
-                );
-
-                characterController.Move(
-                    direction * leaveSpeed * Time.deltaTime
-                );
-            }
-        }
-        else
-        {
-            characterController.Move(
-                leaveDirection * leaveSpeed * Time.deltaTime
-            );
-        }
-    }
-
-    private void HandleMissedMeeting()
-    {
-        if (endingSequenceStarted)
-        {
-            return;
+            meetingTimer.StopMeetingTimer();
         }
 
-        // Wait until Gandhi finishes drinking before deciding the outcome.
-        if (
-            npcDrinking != null &&
-            !npcDrinking.HasFinishedDrinking()
-        )
-        {
-            return;
-        }
-
-        endingSequenceStarted = true;
-
-        ShowMeetingResultMessage("MEETING MISSED");
+        Debug.Log("[HistoricalFigure] MEETING MISSED.");
 
         if (cinematicCamera != null)
         {
             cinematicCamera.ReturnToPlayer();
         }
 
+        ShowMeetingMissed();
+
         if (receivedWrongBeer)
         {
-            StartCoroutine(CompleteWrongBeerEnding());
-        }
-    }
+            endingTriggered = true;
 
-    private IEnumerator CompleteWrongBeerEnding()
-    {
-        yield return new WaitForSeconds(meetingResultDuration);
+            if (npcDrinking != null)
+            {
+                npcDrinking.StopDrinking();
+            }
 
-        if (wrongBeerCompletion != null)
-        {
-            wrongBeerCompletion.WrongBeerGiven();
+            Debug.Log(
+                "[HistoricalFigure] Wrong beer caused the missed meeting. " +
+                "Triggering Game Win."
+            );
+
+            if (wrongBeerCompletion != null)
+            {
+                wrongBeerCompletion.WrongBeerGiven();
+            }
+            else
+            {
+                Debug.LogError(
+                    "[HistoricalFigure] WrongBeerLevelCompletion is not " +
+                    "assigned. Assign it in the Inspector."
+                );
+            }
         }
         else
         {
-            Debug.LogError(
-                "[HistoricalFigure] WrongBeerLevelCompletion " +
-                "has not been assigned."
+            Debug.LogWarning(
+                "[HistoricalFigure] Gandhi missed the meeting on the " +
+                "correct-beer route. Game Win will not be triggered."
             );
         }
     }
 
-    private void ShowMeetingResultMessage(string message)
+    private void ShowMeetingMissed()
     {
+        if (resultShown)
+        {
+            return;
+        }
+
+        resultShown = true;
+
         if (meetingResultText != null)
         {
-            meetingResultText.text = message;
+            meetingResultText.text = "MEETING MISSED";
+            SetMeetingResultUIVisible(true);
+            StartCoroutine(HideMeetingResult());
         }
-
-        SetMeetingResultUIVisible(true);
-
-        if (meetingResultCoroutine != null)
-        {
-            StopCoroutine(meetingResultCoroutine);
-        }
-
-        meetingResultCoroutine = StartCoroutine(
-            HideMeetingResultAfterDelay(meetingResultDuration)
-        );
     }
 
-    private IEnumerator HideMeetingResultAfterDelay(float delay)
+    private IEnumerator HideMeetingResult()
     {
-        yield return new WaitForSeconds(delay);
-
+        yield return new WaitForSecondsRealtime(5f);
         SetMeetingResultUIVisible(false);
-        meetingResultCoroutine = null;
-    }
-
-    private void ShowCommunicationMessage(string message)
-    {
-        if (communicationText != null)
-        {
-            communicationText.text = message;
-        }
-
-        SetCommunicationUIVisible(true);
-    }
-
-    private IEnumerator HideCommunicationAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-
-        HideCommunicationMessage();
-        communicationCoroutine = null;
-    }
-
-    private void HideCommunicationMessage()
-    {
-        if (communicationCoroutine != null)
-        {
-            StopCoroutine(communicationCoroutine);
-            communicationCoroutine = null;
-        }
-
-        SetCommunicationUIVisible(false);
     }
 
     private void SetOrderUIVisible(bool visible)
@@ -749,68 +860,52 @@ public class HistoricalFigure : MonoBehaviour
         }
     }
 
-    private void SetCommunicationUIVisible(bool visible)
-    {
-        if (communicationText != null)
-        {
-            communicationText.gameObject.SetActive(visible);
-        }
-
-        if (communicationTextPanel != null)
-        {
-            communicationTextPanel.SetActive(visible);
-        }
-    }
-
-    private void SetOptionalUIVisible(
-        TextMeshProUGUI textElement,
-        GameObject panel,
-        bool visible
-    )
-    {
-        if (textElement != null)
-        {
-            textElement.gameObject.SetActive(visible);
-        }
-
-        if (panel != null)
-        {
-            panel.SetActive(visible);
-        }
-    }
-
     private void OnTriggerEnter(Collider other)
     {
-        if (
-            other.gameObject.layer !=
-            LayerMask.NameToLayer(playerLayerName)
-        )
+        if (other.gameObject.layer == LayerMask.NameToLayer("Player"))
         {
-            return;
+            playerTransform = other.transform;
+            PlaceOrder();
         }
-
-        playerTransform = other.transform;
-
-        TryPlaceOrderForNearbyPlayer();
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.transform == playerTransform)
+        if (other.gameObject.layer == LayerMask.NameToLayer("Player") &&
+            playerTransform == other.transform)
         {
+            HideOrderText();
             playerTransform = null;
-            SetOrderUIVisible(false);
         }
     }
 
     private void OnDisable()
     {
+        if (orderTextCoroutine != null)
+        {
+            StopCoroutine(orderTextCoroutine);
+            orderTextCoroutine = null;
+        }
+
         if (communicationCoroutine != null)
         {
             StopCoroutine(communicationCoroutine);
             communicationCoroutine = null;
         }
 
+        if (leaveCoroutine != null)
+        {
+            StopCoroutine(leaveCoroutine);
+            leaveCoroutine = null;
+        }
+
+        if (entranceCoroutine != null)
+        {
+            StopCoroutine(entranceCoroutine);
+            entranceCoroutine = null;
+        }
+
+        // Avoid leaving player controls disabled if Gandhi is disabled.
         if (cinematicCamera != null &&
             cinematicCamera.IsFocusingOnNPC())
         {

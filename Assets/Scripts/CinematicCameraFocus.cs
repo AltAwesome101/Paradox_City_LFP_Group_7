@@ -12,7 +12,7 @@ public class CinematicCameraFocus : MonoBehaviour
     [Tooltip("Distance between the camera and the NPC.")]
     public float focusDistance = 4f;
 
-    [Tooltip("Height of the camera relative to the NPC's position.")]
+    [Tooltip("Height of the camera relative to the NPC.")]
     public float focusHeight = 2f;
 
     [Tooltip("Speed of the transition into the cinematic.")]
@@ -43,11 +43,12 @@ public class CinematicCameraFocus : MonoBehaviour
         if (playerCamera == null)
             playerCamera = GetComponentInChildren<Camera>();
 
-        if (playerCamera != null && playerCamera.transform != transform)
+        if (playerCamera != null &&
+            playerCamera.transform != transform)
         {
             Debug.LogWarning(
-                "[CinematicCameraFocus] Attach this script to " +
-                "the actual player camera."
+                "[CinematicCameraFocus] Attach this script " +
+                "to the actual player camera."
             );
         }
 
@@ -64,7 +65,7 @@ public class CinematicCameraFocus : MonoBehaviour
         if (!focusingOnNPC || targetNPC == null)
             return;
 
-        // Recalculate the camera pose while tracking a moving NPC.
+        // Keep updating the camera pose while Gandhi moves.
         if (followTargetDuringFocus)
             CalculateCinematicPose();
 
@@ -82,12 +83,16 @@ public class CinematicCameraFocus : MonoBehaviour
                 transitionSpeed * Time.unscaledDeltaTime
             );
 
-            if (Vector3.Distance(
+            if (
+                Vector3.Distance(
                     transform.position,
-                    cinematicPosition) < 0.02f &&
+                    cinematicPosition
+                ) < 0.02f &&
                 Quaternion.Angle(
                     transform.rotation,
-                    cinematicRotation) < 0.5f)
+                    cinematicRotation
+                ) < 0.5f
+            )
             {
                 transform.position = cinematicPosition;
                 transform.rotation = cinematicRotation;
@@ -112,7 +117,8 @@ public class CinematicCameraFocus : MonoBehaviour
             Vector3.up * focusHeight;
 
         Vector3 lookTarget =
-            targetNPC.position + Vector3.up * lookAtHeight;
+            targetNPC.position +
+            Vector3.up * lookAtHeight;
 
         Vector3 lookDirection =
             lookTarget - cinematicPosition;
@@ -124,17 +130,40 @@ public class CinematicCameraFocus : MonoBehaviour
         }
     }
 
-    // Existing calls continue to use a fixed cinematic view.
+    // CINEMATIC 1: Gandhi enters and walks to his seat.
+    public void FocusOnEntrance(Transform npc)
+    {
+        FocusOnNPC(npc, true);
+    }
+
+    // CINEMATIC 2: Gandhi drinks the beer.
+    public void FocusOnDrinking(Transform npc)
+    {
+        FocusOnNPC(npc, true);
+    }
+
+    // Keeps compatibility with existing script calls.
     public void FocusOnNPC(Transform npc)
     {
         FocusOnNPC(npc, false);
     }
 
-    // Use this overload when the camera must follow a moving NPC.
-    public void FocusOnNPC(Transform npc, bool followMovingTarget)
+    public void FocusOnNPC(
+        Transform npc,
+        bool followMovingTarget
+    )
     {
         if (npc == null)
             return;
+
+        // Do not overwrite the original player camera pose
+        // if a cinematic is already running.
+        if (!focusingOnNPC)
+        {
+            originalParent = transform.parent;
+            originalLocalPosition = transform.localPosition;
+            originalLocalRotation = transform.localRotation;
+        }
 
         targetNPC = npc;
         followTargetDuringFocus = followMovingTarget;
@@ -159,7 +188,7 @@ public class CinematicCameraFocus : MonoBehaviour
 
         Debug.Log(
             "[CinematicCameraFocus] Cinematic started. " +
-            "Tracking target: " + followMovingTarget
+            "Following NPC: " + followMovingTarget
         );
     }
 

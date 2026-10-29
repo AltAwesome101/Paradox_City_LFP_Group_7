@@ -3,87 +3,28 @@ using TMPro;
 
 public class MeetingTimer : MonoBehaviour
 {
-    [Header("Timer")]
+    [Header("Meeting Time")]
+    [Tooltip("Available meeting time in seconds.")]
     public float meetingTime = 120f;
 
-    [Header("Time Manipulation")]
+    [Header("Timer Speeds")]
+    [Tooltip("Countdown multiplier for the correct beer.")]
     public float normalTimeSpeed = 1f;
-    public float drunkTimeSpeed = 3f;
 
-    [Header("UI")]
+    [Tooltip("Countdown multiplier for the wrong beer.")]
+    public float drunkTimeSpeed = 5f;
+
+    [Header("Timer UI")]
     public TextMeshProUGUI timerText;
 
-    private float currentTime;
-    private bool timerRunning = false;
-    private bool meetingMissed = false;
-    private float currentTimeSpeed = 1f;
+    private float remainingTime;
+    private bool timerRunning;
+    private bool meetingMissed;
+    private bool wrongBeerRoute;
 
-    private void Start()
+    public float GetRemainingTime()
     {
-        currentTime = meetingTime;
-        currentTimeSpeed = normalTimeSpeed;
-
-        UpdateTimerUI();
-    }
-
-    private void Update()
-    {
-        if (!timerRunning)
-            return;
-
-        currentTime -= Time.deltaTime * currentTimeSpeed;
-
-        if (currentTime <= 0f)
-        {
-            currentTime = 0f;
-            meetingMissed = true;
-            timerRunning = false;
-            currentTimeSpeed = normalTimeSpeed;
-
-            UpdateTimerUI();
-
-            if (timerText != null)
-                timerText.text = "MEETING MISSED";
-
-            Debug.Log("[MeetingTimer] MEETING MISSED!");
-
-            // Do not pause the game here.
-            // HistoricalFigure will handle the ending.
-            return;
-        }
-
-        UpdateTimerUI();
-    }
-
-    public void StartMeetingTimer()
-    {
-        if (meetingMissed || timerRunning)
-            return;
-
-        Time.timeScale = 1f;
-        timerRunning = true;
-
-        Debug.Log("[MeetingTimer] Meeting timer started.");
-    }
-
-    public void SpeedUpTime()
-    {
-        if (!timerRunning)
-            return;
-
-        currentTimeSpeed = drunkTimeSpeed;
-
-        Debug.Log(
-            "[MeetingTimer] Time manipulation active: " +
-            currentTimeSpeed + "x"
-        );
-    }
-
-    public void ReturnToNormalTime()
-    {
-        currentTimeSpeed = normalTimeSpeed;
-
-        Debug.Log("[MeetingTimer] Time returned to normal.");
+        return remainingTime;
     }
 
     public bool IsMeetingMissed()
@@ -96,14 +37,83 @@ public class MeetingTimer : MonoBehaviour
         return timerRunning;
     }
 
-    public float GetRemainingTime()
+    private void Awake()
     {
-        return currentTime;
+        remainingTime = Mathf.Max(0f, meetingTime);
+        timerRunning = false;
+        meetingMissed = false;
+        wrongBeerRoute = false;
+        UpdateTimerUI();
     }
 
-    public float GetCurrentTimeSpeed()
+    private void Update()
     {
-        return currentTimeSpeed;
+        if (!timerRunning || meetingMissed)
+            return;
+
+        float speed = wrongBeerRoute
+            ? drunkTimeSpeed
+            : normalTimeSpeed;
+
+        remainingTime -= Time.deltaTime * Mathf.Max(0f, speed);
+
+        if (remainingTime <= 0f)
+        {
+            remainingTime = 0f;
+            meetingMissed = true;
+            timerRunning = false;
+
+            Debug.Log("[MeetingTimer] The meeting deadline has expired.");
+        }
+
+        UpdateTimerUI();
+    }
+
+    // Kept for compatibility with scripts that call StartMeetingTimer().
+    public void StartMeetingTimer()
+    {
+        StartMeetingTimer(false);
+    }
+
+    // HistoricalFigure calls this overload to choose the correct speed.
+    public void StartMeetingTimer(bool wrongBeer)
+    {
+        remainingTime = Mathf.Max(0f, meetingTime);
+        wrongBeerRoute = wrongBeer;
+        meetingMissed = false;
+        timerRunning = remainingTime > 0f;
+
+        UpdateTimerUI();
+
+        Debug.Log(wrongBeer
+            ? "[MeetingTimer] Wrong beer: countdown running at fast speed."
+            : "[MeetingTimer] Correct beer: countdown running at normal speed.");
+    }
+
+    public void StopMeetingTimer()
+    {
+        timerRunning = false;
+        UpdateTimerUI();
+    }
+
+    public void PauseMeetingTimer()
+    {
+        timerRunning = false;
+    }
+
+    public void ResumeMeetingTimer()
+    {
+        if (!meetingMissed && remainingTime > 0f)
+            timerRunning = true;
+    }
+
+    public void ResetMeetingTimer()
+    {
+        remainingTime = Mathf.Max(0f, meetingTime);
+        timerRunning = false;
+        meetingMissed = false;
+        wrongBeerRoute = false;
+        UpdateTimerUI();
     }
 
     private void UpdateTimerUI()
@@ -111,12 +121,11 @@ public class MeetingTimer : MonoBehaviour
         if (timerText == null)
             return;
 
-        int minutes = Mathf.FloorToInt(currentTime / 60f);
-        int seconds = Mathf.FloorToInt(currentTime % 60f);
+        int totalSeconds = Mathf.CeilToInt(remainingTime);
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
 
-        timerText.text =
-            "Meeting in: " +
-            minutes.ToString("00") + ":" +
-            seconds.ToString("00");
+        timerText.text = minutes.ToString("00") + ":" +
+                         seconds.ToString("00");
     }
 }

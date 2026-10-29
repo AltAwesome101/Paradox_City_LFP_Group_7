@@ -130,7 +130,7 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // While carrying a glass, E is used to return it.
+        // Return a carried glass to the counter.
         if (carriedGlass != null)
         {
             TryReturnGlass();
@@ -523,8 +523,13 @@ public class FPController : MonoBehaviour
 
         Beer beerToServe = carriedBeer;
 
-        npc.ServeBeer(beerToServe.beerName);
+        // IMPORTANT FIX:
+        // ServeBeer expects a Beer object, not a string.
+        // Gandhi can receive either beer without knowing
+        // whether it is correct or wrong.
+        npc.ServeBeer(beerToServe);
 
+        // Remove the beer from the player's hand.
         beerToServe.gameObject.SetActive(false);
         carriedBeer = null;
 
