@@ -1,0 +1,317 @@
+/* Apple Forest pause menu - ported from FuturePauseMenu.
+   Change --accent to recolour the whole menu. */
+
+.pm-root {
+    --accent: rgb(120, 200, 60);
+    --accent-border: rgba(120, 200, 60, 0.8);
+    --accent-hot: rgba(46, 72, 30, 0.96);
+    --row-idle: rgba(255, 255, 255, 0.05);
+    --row-hot: rgba(120, 200, 60, 0.28);
+    --btn-idle: rgba(255, 255, 255, 0.06);
+    --danger: rgb(220, 60, 60);
+    --danger-hot: rgba(100, 24, 26, 0.96);
+    --panel: rgba(8, 12, 8, 0.94);
+
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(4, 8, 4, 0.72);
+}
+
+.pm-hidden { display: none; }
+
+/* ---------- Left block ---------- */
+
+.pm-title-block {
+    position: absolute;
+    left: 150px;
+    top: 90px;
+    width: 900px;
+}
+
+.pm-chip {
+    align-self: flex-start;
+    background-color: var(--accent);
+    color: rgb(5, 14, 4);
+    -unity-font-style: bold;
+    font-size: 21px;
+    padding: 8px 20px;
+}
+
+.pm-paused {
+    font-size: 150px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    margin-top: 10px;
+    -unity-text-outline-width: 3px;
+    -unity-text-outline-color: rgb(0, 0, 0);
+}
+
+.pm-tagline {
+    font-size: 32px;
+    -unity-font-style: italic;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 20px;
+}
+
+.pm-time-caption {
+    font-size: 20px;
+    -unity-font-style: bold;
+    color: rgba(255, 255, 255, 0.55);
+    margin-top: 40px;
+}
+
+.pm-time {
+    font-size: 54px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+}
+
+.pm-tip-card {
+    flex-direction: row;
+    width: 760px;
+    margin-top: 28px;
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.pm-tip-accent {
+    width: 6px;
+    background-color: var(--accent);
+    margin-right: 24px;
+}
+
+.pm-tip-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    white-space: normal;
+    font-size: 25px;
+    color: rgba(255, 255, 255, 0.92);
+    padding: 18px 24px 18px 0;
+    -unity-text-align: middle-left;
+}
+
+/* ---------- Panels ---------- */
+
+.pm-panel {
+    position: absolute;
+    background-color: var(--panel);
+    border-width: 2px;
+    border-color: var(--accent-border);
+    padding: 30px;
+}
+
+.pm-main-panel {
+    right: 170px;
+    top: 50%;
+    width: 640px;
+    translate: 0 -50%;
+}
+
+.pm-panel-header {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--accent);
+    -unity-text-align: middle-center;
+}
+
+.pm-divider {
+    height: 2px;
+    background-color: rgba(255, 255, 255, 0.15);
+    margin-top: 14px;
+    margin-bottom: 22px;
+}
+
+/* ---------- Buttons ---------- */
+
+.pm-btn {
+    height: 94px;
+    margin: 0 0 14px 0;
+    padding: 0 0 0 34px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--btn-idle);
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    transition-property: background-color, scale;
+    transition-duration: 0.12s;
+}
+
+.pm-btn:focus { border-width: 0; }
+
+.pm-btn__title {
+    font-size: 34px;
+    -unity-font-style: bold;
+    color: rgba(255, 255, 255, 0.88);
+    transition-property: translate, color;
+    transition-duration: 0.12s;
+}
+
+.pm-btn__sub {
+    font-size: 19px;
+    color: rgba(255, 255, 255, 0.5);
+    transition-property: translate;
+    transition-duration: 0.12s;
+}
+
+.pm-btn.pm-focused {
+    background-color: var(--accent-hot);
+    scale: 1.025 1.025;
+}
+
+.pm-btn.pm-focused .pm-btn__title { color: rgb(255, 255, 255); translate: 20px 0; }
+.pm-btn.pm-focused .pm-btn__sub { translate: 20px 0; }
+
+.pm-btn--danger.pm-focused { background-color: var(--danger-hot); }
+
+/* centred button variant (settings footer, confirm dialog) */
+.pm-btn--center {
+    height: 64px;
+    padding: 0;
+    margin: 0;
+    align-items: center;
+}
+
+.pm-btn--center .pm-btn__title { font-size: 26px; }
+
+/* ---------- Settings ---------- */
+
+.pm-settings-panel {
+    left: 50%;
+    top: 50%;
+    width: 1100px;
+    height: 780px;
+    translate: -50% -50%;
+    padding: 30px 70px 40px 70px;
+}
+
+.pm-settings-title {
+    font-size: 48px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+}
+
+.pm-settings-rows { flex-grow: 1; margin-top: 10px; }
+
+.pm-row {
+    flex-direction: row;
+    align-items: center;
+    height: 72px;
+    margin-bottom: 8px;
+    padding: 0 24px 0 30px;
+    background-color: var(--row-idle);
+    transition-property: background-color;
+    transition-duration: 0.12s;
+}
+
+.pm-row.pm-focused { background-color: var(--row-hot); }
+
+.pm-row__label {
+    flex-grow: 1;
+    font-size: 28px;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.pm-row.pm-focused .pm-row__label { color: rgb(255, 255, 255); }
+
+.pm-cycler { flex-direction: row; align-items: center; width: 420px; }
+
+.pm-arrow {
+    width: 48px;
+    height: 48px;
+    background-color: rgba(255, 255, 255, 0.10);
+    color: var(--accent);
+    font-size: 30px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+}
+
+.pm-cycler__value {
+    flex-grow: 1;
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-center;
+}
+
+.pm-slider { width: 360px; margin: 0 20px 0 0; }
+
+.pm-slider .unity-base-slider__tracker {
+    height: 12px;
+    background-color: rgba(255, 255, 255, 0.16);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.pm-slider .unity-base-slider__dragger {
+    width: 24px;
+    height: 30px;
+    background-color: rgb(255, 255, 255);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.pm-slider-value {
+    width: 110px;
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-text-align: middle-right;
+}
+
+.pm-settings-footer {
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.pm-footer-reset { width: 350px; }
+.pm-footer-back { width: 240px; }
+
+/* ---------- Confirm dialog ---------- */
+
+.pm-confirm {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.62);
+    align-items: center;
+    justify-content: center;
+}
+
+.pm-confirm-box {
+    width: 780px;
+    padding: 40px;
+    background-color: var(--panel);
+    border-width: 2px;
+    border-color: var(--accent-border);
+    align-items: center;
+}
+
+.pm-confirm-title { font-size: 44px; -unity-font-style: bold; color: rgb(255, 255, 255); }
+
+.pm-confirm-msg {
+    font-size: 28px;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: normal;
+    -unity-text-align: upper-center;
+    margin: 20px 0 36px 0;
+}
+
+.pm-confirm-buttons { flex-direction: row; justify-content: center; }
+.pm-confirm-buttons .pm-btn { width: 300px; margin: 0 14px; }
+
+/* ---------- Footer hint ---------- */
+
+.pm-hint {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 30px;
+    font-size: 20px;
+    color: rgba(255, 255, 255, 0.5);
+    -unity-text-align: middle-center;
+}

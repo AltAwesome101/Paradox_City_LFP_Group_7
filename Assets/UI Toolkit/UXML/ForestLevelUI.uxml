@@ -1,37 +1,49 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <ui:Template name="arrow-image" src="project://database/Assets/UI%20Toolkit/UXML/arrow-image.uxml?fileID=9197481963319205126&amp;guid=05e58686ef7859545b861b2d2fbefb9c&amp;type=3#arrow-image"/>
     <Style src="project://database/Assets/UI%20Toolkit/USS/ForestLevelUSS.uss?fileID=7433441132597879392&amp;guid=c64a7d6bc0dcc7d409338f8a6ddf4063&amp;type=3#ForestLevelUSS"/>
-    <ui:ProgressBar value="0" title="my-progress" name="wake-progressbar"/>
+    <ui:VisualElement name="wake-container" style="flex-grow: 1; position: absolute; height: 5%; width: 80%; flex-direction: row-reverse; top: 18px; left: 98px; border-left-color: rgba(0, 0, 0, 0); border-right-color: rgba(0, 0, 0, 0); border-top-color: rgba(0, 0, 0, 0); border-bottom-color: rgba(0, 0, 0, 0);">
+        <ui:ProgressBar value="100" title="my-progress" name="wake-progressbar" style="flex-grow: 1; border-left-color: rgba(255, 255, 255, 0); border-right-color: rgba(255, 255, 255, 0); border-top-color: rgba(255, 255, 255, 0); border-bottom-color: rgba(255, 255, 255, 0);"/>
+        <ui:VisualElement name="wake-icon-container" style="flex-grow: 0; flex-shrink: 0; background-color: rgb(245, 245, 245); width: 40px; height: 40px; rotate: -45deg;">
+            <ui:VisualElement name="wake-icon-outline" style="flex-grow: 1; flex-shrink: 0; border-top-width: 3px; border-right-width: 3px; border-bottom-width: 3px; border-left-width: 3px; border-left-color: rgba(18, 17, 17, 0.933); border-right-color: rgba(18, 17, 17, 0.933); border-top-color: rgba(18, 17, 17, 0.933); border-bottom-color: rgba(18, 17, 17, 0.933); margin-top: 5px; margin-right: 5px; margin-bottom: 5px; margin-left: 5px;">
+                <ui:Image name="wake-icon" source="project://database/Assets/SVG%20Icons/sleep-svgrepo-com.svg?fileID=7388822144124034973&amp;guid=6c3a076be490d2a479bfb1e9436ebdc9&amp;type=3#sleep-svgrepo-com" tint-color="rgb(230, 230, 230)" style="flex-shrink: 0; flex-grow: 1; rotate: 45deg;"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
     <ui:VisualElement name="applenotifier-element-archor" style="flex-grow: 0; flex-shrink: 0; width: 1699px; height: 451px; position: absolute; top: 468px; left: 129px;">
         <ui:Instance template="arrow-image" name="arrow-image" style="display: none;"/>
+        <ui:Template name="PauseMenu" src="project://database/Assets/UI%20Toolkit/UXML/PauseMenu.uxml"/>
     </ui:VisualElement>
-    <ui:VisualElement name="approachingApple-counter-element" style="flex-grow: 0; flex-shrink: 0; height: 92px; width: 463px; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 40px; left: 1454px;">
-        <ui:Label text="Apple approaching in:" name="approachingApple-title-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left;"/>
-        <ui:Label text="10" name="approachingApple-counter-label" style="-unity-font-style: bold; font-size: 40px; color: rgb(255, 255, 255); -unity-text-align: middle-right;"/>
+    <ui:VisualElement name="approachingApple-counter-container" style="flex-grow: 0; flex-shrink: 0; height: auto; width: auto; flex-direction: row-reverse; background-color: rgba(0, 0, 0, 0); position: absolute; top: 56px; left: 1454px; background-image: none; flex-wrap: nowrap; display: none;">
+        <ui:VisualElement name="approachingApple-Label-container" style="flex-grow: 0; flex-direction: row; background-color: rgba(22, 19, 19, 0.98); flex-shrink: 0; align-items: auto; align-self: center; margin-top: -21px; margin-right: -21px; margin-bottom: -21px; margin-left: -21px; padding-top: 2px; padding-right: 8px; padding-bottom: 2px; padding-left: 40px;">
+            <ui:Label text="Apple incoming in:" name="approachingApple-title-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-right; align-self: auto;"/>
+            <ui:Label text="10" name="approachingApple-counter-label" style="-unity-font-style: bold; font-size: 40px; color: rgb(255, 255, 255); -unity-text-align: lower-right; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;"/>
+        </ui:VisualElement>
+        <ui:VisualElement name="approachingApple-icon-container" style="flex-grow: 0; border-top-width: 5px; border-right-width: 5px; border-bottom-width: 5px; border-left-width: 5px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255); background-color: rgba(141, 182, 0, 0.871); rotate: -45deg; width: 60px; flex-shrink: 0; height: 60px;">
+            <ui:Image name="approachingApple-icon" source="project://database/Assets/SVG%20Icons/sliced-apple-svgrepo-com.svg?fileID=7388822144124034973&amp;guid=2b033adc6dba89c4198924a78adaa726&amp;type=3#sliced-apple-svgrepo-com" style="flex-grow: 0; flex-shrink: 0; height: auto; width: auto; rotate: 45deg;"/>
+        </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 1; position: absolute; height: 64px; width: 568px; top: 54px; left: 12px; background-color: rgba(0, 0, 0, 0); display: flex; flex-shrink: 0;">
+    <ui:VisualElement name="TutorialPanel-container" style="flex-grow: 1; position: absolute; height: 64px; width: 568px; top: 54px; left: 12px; background-color: rgba(0, 0, 0, 0); display: none; flex-shrink: 0;">
         <ui:Image name="tutorial-image" style="height: 388px; width: 686px; flex-shrink: 0; flex-grow: 1; position: absolute; top: 259px; left: 619px; background-color: rgb(0, 0, 0); border-top-width: 1.2px; border-right-width: 1.2px; border-bottom-width: 1.2px; border-left-width: 1.2px; border-left-color: rgb(0, 0, 0); border-right-color: rgb(0, 0, 0); border-top-color: rgb(0, 0, 0); border-bottom-color: rgb(0, 0, 0);"/>
         <ui:VisualElement name="tutorial-instruction-container" style="flex-grow: 0; width: auto; flex-shrink: 0; background-color: rgba(0, 0, 0, 0.945); min-width: auto; align-self: flex-start; max-width: 1000px;">
             <ui:Label text="Label" name="tutorial-instruction-label" style="font-size: 25px; -unity-font-style: bold; color: rgb(255, 255, 255); bottom: auto; right: auto; top: auto; white-space: normal; width: 100%;"/>
         </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="appleCollection-container" style="flex-grow: 0; flex-shrink: 0; height: 92px; width: 368px; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 978px; left: 11px;">
-        <ui:Label text="0/10 Apples Caught" name="appleCollection-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: -33px;"/>
-    </ui:VisualElement>
-    <ui:VisualElement name="pauseMenu-container" style="flex-grow: 0; color: rgb(18, 17, 17); flex-shrink: 0; position: absolute; height: 788px; width: 1314px; top: 158px; left: 272px; background-color: rgb(0, 0, 0); display: flex; opacity: 1;">
-        <ui:Label text="Pause Menu" name="pauseMenu-title" style="color: rgb(245, 245, 245); -unity-text-align: upper-center; font-size: 50px;"/>
-        <ui:Label text="Apple Forest - 16th century" name="pauseMenu-Level-title" style="color: rgb(245, 245, 245); -unity-text-align: upper-center; font-size: 35px; top: 47px;"/>
-        <ui:Button text="Resume" name="resume-button" style="width: 338px; height: 64px; top: 258px; position: absolute; left: 477px; -unity-font-style: bold; font-size: 25px;"/>
-        <ui:Button text="Restart Level" name="restart-button" style="width: 338px; height: 64px; top: 392px; position: absolute; left: 476px; -unity-font-style: bold; font-size: 25px;"/>
-        <ui:Button text="Return To Future" name="future-button" style="width: 338px; height: 64px; top: 545px; position: absolute; left: 480px; -unity-font-style: bold; font-size: 25px;"/>
+    <ui:VisualElement name="appleCollection-container" style="flex-grow: 1; flex-shrink: 1; height: auto; width: auto; flex-direction: row; background-color: rgba(0, 0, 0, 0); position: absolute; top: 978px; left: 815px;">
+        <ui:Label text="0/10 Apples Caught" name="appleCollection-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: auto; margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; padding-top: 0; padding-right: 0; padding-bottom: 0; padding-left: 0; align-items: stretch; background-color: rgb(18, 15, 15); border-top-width: 1.2px; border-right-width: 1.2px; border-bottom-width: 1.2px; border-left-width: 1.2px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255);"/>
+        <ui:VisualElement name="appleCollection-icon-container" style="flex-grow: 0; flex-shrink: 0; width: 60px; height: 60px; background-color: rgb(141, 182, 0); border-top-width: 2px; border-right-width: 2px; border-bottom-width: 2px; border-left-width: 2px; border-left-color: rgb(255, 255, 255); border-right-color: rgb(255, 255, 255); border-top-color: rgb(255, 255, 255); border-bottom-color: rgb(255, 255, 255);">
+            <ui:Image name="appleCollection-icon" source="project://database/Assets/SVG%20Icons/apple-svgrepo-com.svg?fileID=7388822144124034973&amp;guid=9d5454ca2d47ea641980373f1b90e592&amp;type=3#apple-svgrepo-com" style="flex-grow: 1;"/>
+        </ui:VisualElement>
     </ui:VisualElement>
     <ui:VisualElement name="interactPrompt-container" style="flex-grow: 0; position: absolute; height: 64px; width: 568px; top: 500px; left: 745px; background-color: rgba(0, 0, 0, 0); display: flex; color: rgb(27, 27, 27);">
         <ui:Label text="Label" name="interactPrompt-label" style="font-size: 33px; -unity-font-style: bold; color: rgb(253, 253, 253); bottom: 0; right: -18px; -unity-text-align: upper-center;"/>
     </ui:VisualElement>
-    <ui:VisualElement name="objective-container" style="flex-grow: 0; flex-shrink: 0; height: auto; width: auto; flex-direction: row; background-color: rgba(0, 0, 0, 0.824); position: absolute; top: 1014px; left: 767px;">
-        <ui:Label text="0/10 Apples Caught" name="objective-label" style="-unity-font-style: bold; font-size: 30px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: auto; align-self: flex-start;"/>
+    <ui:VisualElement name="objective-container" style="flex-grow: 1; flex-shrink: 1; height: auto; width: auto; flex-direction: row-reverse; background-color: rgba(0, 0, 0, 0); position: absolute; top: 7px; left: 10px; display: none;">
+        <ui:Label text="Zones Completed" name="objective-label" style="-unity-font-style: bold; font-size: 35px; color: rgb(255, 255, 255); -unity-text-align: middle-left; right: auto; align-self: flex-start; margin-top: 2px; margin-right: 0; margin-bottom: 0; margin-left: -17px; padding-top: 6px; padding-right: 5px; padding-bottom: 0; padding-left: 37px; flex-shrink: 1; flex-grow: 1; background-color: rgba(16, 15, 15, 0.996);"/>
+        <ui:VisualElement name="objective-icon-container" style="flex-grow: 0; flex-shrink: 0; background-color: rgb(211, 100, 19); border-top-width: 4.5px; border-right-width: 4.5px; border-bottom-width: 4.5px; border-left-width: 4.5px; border-left-color: rgba(249, 240, 238, 0.965); border-right-color: rgba(249, 240, 238, 0.965); border-top-color: rgba(249, 240, 238, 0.965); border-bottom-color: rgba(249, 240, 238, 0.965); width: 60px; height: 60px; rotate: -45deg;">
+            <ui:Image name="objective-icon" source="project://database/Assets/SVG%20Icons/flag-svgrepo-com.svg?fileID=7388822144124034973&amp;guid=3abf031597f30e84ebd8388044e3e0bc&amp;type=3#flag-svgrepo-com" style="flex-shrink: 0; height: 100%; rotate: 45deg; width: 70%; padding-bottom: 10px; padding-left: 14px; padding-top: 0; scale: 1.2 1.2 1.2;"/>
+        </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="minimap-container" class="minimap" style="bottom: 37px; right: 1672px;">
+    <ui:VisualElement name="minimap-container" class="minimap" style="bottom: 11px; right: 1643px; height: 226px; width: 229px;">
         <ui:VisualElement name="minimap-image" class="minimap__image"/>
         <ui:VisualElement name="minimap-markers" picking-mode="Ignore" class="minimap__markers"/>
     </ui:VisualElement>
@@ -41,4 +53,6 @@
         <ui:VisualElement name="keychain-circle-1" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
         <ui:VisualElement name="keychain-circle-2" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
     </ui:VisualElement>
+    <ui:Instance template="PauseMenu" name="pauseMenu-container" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0;"/>
+<ui:Label name="fps-label" text="FPS" picking-mode="Ignore" style="position: absolute; top: 8px; right: 12px; font-size: 20px; color: rgb(255, 255, 255); display: none;"/>
 </ui:UXML>

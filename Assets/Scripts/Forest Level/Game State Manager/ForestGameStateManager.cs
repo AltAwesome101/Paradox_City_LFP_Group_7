@@ -18,7 +18,7 @@ namespace Forestlevel
             void Start()
             {
                 GameEventBus.Raise(new ExplorationGameStateEvent());
-                UIManager.Instance.Objective.UpdateDisplay($"DeployZone Completed {completed}/{SessionToWin}");
+                UIManager.Instance.Objective.UpdateDisplay($"{completed}/{SessionToWin} Zones");
             }
             void OnEnable()  => GameEventBus.Register<DeploySessionEndedEvent>(this);
             void OnDisable() => GameEventBus.Unregister<DeploySessionEndedEvent>(this);
@@ -27,19 +27,13 @@ namespace Forestlevel
             {
                 if (levelOver) return;
 
-                if (!e.Won)
-                {
-                    levelOver = true;
-                    GameEventBus.Raise(new LevelLostEvent());
-                    SceneManager.LoadScene(currentScene.Name);
-
-                    return;
-                }
+                // Failed session: do nothing. The Director already returns the player
+                // to free look + exploration, so they can re-trigger the zone.
+                if (!e.Won) return;
 
                 completed++;
-                UIManager.Instance.Objective.UpdateDisplay($"DeployZone Completed {completed}/{SessionToWin}");
+                UIManager.Instance.Objective.UpdateDisplay($"{completed}/{SessionToWin} Zones");
 
-                Debug.Log($"DeployZone Completed{completed}/{SessionToWin}");
                 if (completed >= SessionToWin)
                 {
                     levelOver = true;

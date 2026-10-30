@@ -6,32 +6,28 @@ using BetterEventBus;
 public class WakeMeterUIView : BaseUIView
 {
     public event Action OnMeterFull;
-    ProgressBar progress;
-    int disturbAmount;
+    readonly ProgressBar progress;
+    readonly Image icon;
     float lerpSpeed;
 
     float targetValue;
     IVisualElementScheduledItem scheduledItem;
 
-    public WakeMeterUIView(VisualElement container, int disturb, int maxLimit, float lerpSpeed = 8f): base(container)
+    public WakeMeterUIView(VisualElement container, int maxLimit, float lerpSpeed = 8f): base(container)
     {
         progress = container.Q<ProgressBar>("wake-progressbar");
+        icon = container.Q<Image>("wake-icon");
         progress.lowValue = 0f;
         progress.value = 0f;
     }
 
     public void Configure(int disturb, int maxLimit, float lerpSpeed)
     {
-        disturbAmount = disturb;
         progress.highValue = maxLimit;
         this.lerpSpeed = lerpSpeed;
     }
 
-    public override void Show() => progress.style.display = DisplayStyle.Flex;
-    public override void Hide() => progress.style.display = DisplayStyle.None;
-
-
-    public void Disturb()
+    public void Disturb(float disturbAmount)
     {
         targetValue = Mathf.Min(targetValue + disturbAmount, progress.highValue);
 

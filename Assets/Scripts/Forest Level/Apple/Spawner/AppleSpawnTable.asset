@@ -16,3 +16,9 @@ MonoBehaviour:
   - Apple: {fileID: 11400000, guid: 53069fe32c0b9a04d9462fd72e46f51a, type: 2}
     Weight: 1
     UnlockAfterSeconds: 0
+  - Apple: {fileID: 11400000, guid: f5cf6b35df82af04ca5db6f3bebdfeff, type: 2}
+    Weight: 1
+    UnlockAfterSeconds: 1.5
+  - Apple: {fileID: 11400000, guid: a2218c5f92938fc45ba90a576d58c30e, type: 2}
+    Weight: 1
+    UnlockAfterSeconds: 1.5

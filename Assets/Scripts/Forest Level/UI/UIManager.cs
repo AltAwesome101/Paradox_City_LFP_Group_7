@@ -4,7 +4,6 @@ using UnityEngine.UIElements;
 using System.Collections.Generic;
 using Forestlevel;
 using BetterEventBus;
-using UnityEngine.InputSystem;
 
 public enum UIState{
     Exploration,
@@ -27,6 +26,7 @@ public class UIManager : Singleton<UIManager>,
     [Header("Pause Menu info")]   // moved over from the old TutorialController
     [SerializeField] SceneReference currentScene;
     [SerializeField] SceneReference futureScene;
+    [SerializeField] PauseMenuInfo pauseInfo = new(); 
 
     [Header("Apple Indicator")]
     [SerializeField] AppleIndicatorSettings indicatorSettings;
@@ -78,24 +78,25 @@ public class UIManager : Singleton<UIManager>,
     {
         GameEventBus.Unregister<TutorialStartedEvent>(this);
         GameEventBus.Unregister<TutorialClosedEvent>(this);
-        GameEventBus.Unregister<InteractPromptEvent>(this);          // these three say Register
-        GameEventBus.Unregister<DeploySessionStartedEvent>(this);    // in your pasted version
+        GameEventBus.Unregister<InteractPromptEvent>(this); 
+        GameEventBus.Unregister<DeploySessionStartedEvent>(this);    
         GameEventBus.Unregister<DeploySessionEndedEvent>(this);
 
         input.Escape -= OnEscape;
         MiniMap?.Dispose();
         KeyChain?.Dispose();
         GamePause.Release(PauseMenu);
+        PauseMenu?.Dispose();
     }
 
     void DeclareUIViewsAndLayout()
     {
         var root = document.rootVisualElement;
         Collection = new AppleCollectionView(root.Q<VisualElement>("appleCollection-container"));
-        PauseMenu  = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"), currentScene, futureScene);
+        PauseMenu = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"),currentScene, futureScene, pauseInfo,root.Q<Label>("fps-label")); 
         Tutorial   = new TutorialView(root.Q<VisualElement>("TutorialPanel-container"));
-        WakeMeter  = new WakeMeterUIView(root, disturb: 0, maxLimit: 0); // TODO real values
-        WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-element"), warningData);
+        WakeMeter  = new WakeMeterUIView(root.Q<VisualElement>("wake-container"), maxLimit: 0);
+        WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-container"), warningData);
         InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
         Indicator = new AppleIndicatorView(root.Q<VisualElement>("applenotifier-element-archor"), indicatorSettings, cam, player);
         Objective = new ObjectiveView(root.Q<VisualElement>("objective-container"));
@@ -111,10 +112,14 @@ public class UIManager : Singleton<UIManager>,
     }
 
     void OnEscape() => TogglePause();
-
+    void Update() => PauseMenu?.Tick(Time.unscaledDeltaTime);
     public void TogglePause()
     {
-        if (_overlays.Contains(PauseMenu)) RemoveOverlay(PauseMenu);
+        if (_overlays.Contains(PauseMenu))
+        {
+            if (PauseMenu.HandleBack()) return;
+            RemoveOverlay(PauseMenu);
+        }
         else AddOverlay(PauseMenu);
     }
 

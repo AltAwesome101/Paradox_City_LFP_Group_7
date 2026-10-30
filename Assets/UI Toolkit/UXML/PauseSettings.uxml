@@ -1,0 +1,54 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI%20Toolkit/USS/PauseMenu.uss?fileID=7433441132597879392&amp;guid=29150a83ac3e90843a214a1cb9570b00&amp;type=3#PauseMenu"/>
+    <ui:VisualElement name="pm-settings-panel" class="pm-panel pm-settings-panel pm-hidden">
+        <ui:Label text="SETTINGS" picking-mode="Ignore" class="pm-settings-title"/>
+        <ui:VisualElement class="pm-divider"/>
+        <ui:VisualElement class="pm-settings-rows">
+            <ui:VisualElement name="master-row" class="pm-row">
+                <ui:Label text="Master Volume" picking-mode="Ignore" class="pm-row__label"/>
+                <ui:Slider name="master-slider" low-value="0" high-value="1" value="1" class="pm-slider"/>
+                <ui:Label name="master-value" text="100%" picking-mode="Ignore" class="pm-slider-value"/>
+            </ui:VisualElement>
+            <ui:VisualElement name="mute-row" class="pm-row">
+                <ui:Label text="Mute All Audio" picking-mode="Ignore" class="pm-row__label"/>
+                <ui:VisualElement class="pm-cycler">
+                    <ui:Label name="mute-prev" text="&lt;" class="pm-arrow"/>
+                    <ui:Label name="mute-value" text="OFF" picking-mode="Ignore" class="pm-cycler__value"/>
+                    <ui:Label name="mute-next" text="&gt;" class="pm-arrow"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="quality-row" class="pm-row">
+                <ui:Label text="Graphics Quality" picking-mode="Ignore" class="pm-row__label"/>
+                <ui:VisualElement class="pm-cycler">
+                    <ui:Label name="quality-prev" text="&lt;" class="pm-arrow"/>
+                    <ui:Label name="quality-value" text="" picking-mode="Ignore" class="pm-cycler__value"/>
+                    <ui:Label name="quality-next" text="&gt;" class="pm-arrow"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="vsync-row" class="pm-row">
+                <ui:Label text="VSync" picking-mode="Ignore" class="pm-row__label"/>
+                <ui:VisualElement class="pm-cycler">
+                    <ui:Label name="vsync-prev" text="&lt;" class="pm-arrow"/>
+                    <ui:Label name="vsync-value" text="ON" picking-mode="Ignore" class="pm-cycler__value"/>
+                    <ui:Label name="vsync-next" text="&gt;" class="pm-arrow"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="fps-row" class="pm-row">
+                <ui:Label text="Show FPS Counter" picking-mode="Ignore" class="pm-row__label"/>
+                <ui:VisualElement class="pm-cycler">
+                    <ui:Label name="fps-prev" text="&lt;" class="pm-arrow"/>
+                    <ui:Label name="fps-value" text="OFF" picking-mode="Ignore" class="pm-cycler__value"/>
+                    <ui:Label name="fps-next" text="&gt;" class="pm-arrow"/>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="pm-settings-footer">
+            <ui:Button name="reset-button" class="pm-btn pm-btn--center pm-footer-reset">
+                <ui:Label text="RESET TO DEFAULTS" picking-mode="Ignore" class="pm-btn__title"/>
+            </ui:Button>
+            <ui:Button name="back-button" class="pm-btn pm-btn--center pm-footer-back">
+                <ui:Label text="BACK" picking-mode="Ignore" class="pm-btn__title"/>
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

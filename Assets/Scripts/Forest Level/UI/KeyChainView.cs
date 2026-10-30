@@ -34,6 +34,7 @@ public class KeyChainView : BaseUIView, IDisposable
     };
 
     readonly VisualElement[] _circles = new VisualElement[LevelIDs.Length];
+    readonly Color[] _confirmationColours = new Color[LevelIDs.Length];
     readonly VisualElement _wire;
     readonly LevelProgressManager _injected;
 
@@ -48,7 +49,7 @@ public class KeyChainView : BaseUIView, IDisposable
         for (int i = 0; i < _circles.Length; i++)
             _circles[i] = container.Q<VisualElement>($"keychain-circle-{i}");
 
-        _wire.generateVisualContent += DrawWire;
+        // _wire.generateVisualContent += DrawWire;
         _wire.RegisterCallback<GeometryChangedEvent>(_ => _wire.MarkDirtyRepaint());
 
         LevelProgressManager.OnLevelProgressChanged += OnProgressChanged;
@@ -58,7 +59,7 @@ public class KeyChainView : BaseUIView, IDisposable
     public void Dispose()
     {
         LevelProgressManager.OnLevelProgressChanged -= OnProgressChanged;
-        _wire.generateVisualContent -= DrawWire;
+        // _wire.generateVisualContent -= DrawWire;
     }
 
     public override void Show()
@@ -89,32 +90,32 @@ public class KeyChainView : BaseUIView, IDisposable
         }
     }
 
-    void DrawWire(MeshGenerationContext mgc)
-    {
-        var r = _wire.contentRect;
-        if (r.width < 1f || r.height < 1f) return;
+    // void DrawWire(MeshGenerationContext mgc)
+    // {
+    //     var r = _wire.contentRect;
+    //     if (r.width < 1f || r.height < 1f) return;
 
-        var p = mgc.painter2D;
-        int n = WirePoints.Length;
+    //     var p = mgc.painter2D;
+    //     int n = WirePoints.Length;
 
-        Vector2 ToPx(Vector2 v) => new(v.x * r.width, v.y * r.height);
-        Vector2 Mid(Vector2 a, Vector2 b) => (a + b) * 0.5f;
+    //     Vector2 ToPx(Vector2 v) => new(v.x * r.width, v.y * r.height);
+    //     Vector2 Mid(Vector2 a, Vector2 b) => (a + b) * 0.5f;
 
-        p.lineWidth = 4f;
-        p.strokeColor = Color.black;
-        p.lineCap = LineCap.Round;
-        p.lineJoin = LineJoin.Round;
+    //     p.lineWidth = 4f;
+    //     p.strokeColor = Color.black;
+    //     p.lineCap = LineCap.Round;
+    //     p.lineJoin = LineJoin.Round;
 
-        // Smooth closed loop: quadratic curves through segment midpoints
-        p.BeginPath();
-        p.MoveTo(Mid(ToPx(WirePoints[n - 1]), ToPx(WirePoints[0])));
-        for (int i = 0; i < n; i++)
-        {
-            var ctrl = ToPx(WirePoints[i]);
-            var end = Mid(ctrl, ToPx(WirePoints[(i + 1) % n]));
-            p.QuadraticCurveTo(ctrl, end);
-        }
-        p.ClosePath();
-        p.Stroke();
-    }
+    //     // Smooth closed loop: quadratic curves through segment midpoints
+    //     p.BeginPath();
+    //     p.MoveTo(Mid(ToPx(WirePoints[n - 1]), ToPx(WirePoints[0])));
+    //     for (int i = 0; i < n; i++)
+    //     {
+    //         var ctrl = ToPx(WirePoints[i]);
+    //         var end = Mid(ctrl, ToPx(WirePoints[(i + 1) % n]));
+    //         p.QuadraticCurveTo(ctrl, end);
+    //     }
+    //     p.ClosePath();
+    //     p.Stroke();
+    // }
 }

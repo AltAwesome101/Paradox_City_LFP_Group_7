@@ -1,0 +1,68 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="project://database/Assets/UI%20Toolkit/USS/PauseMenu.uss"/>
+    <ui:Template name="PauseSettings" src="project://database/Assets/UI%20Toolkit/UXML/PauseSettings.uxml"/>
+
+    <ui:VisualElement name="pm-root" class="pm-root">
+
+        <!-- Left block -->
+        <ui:VisualElement name="pm-title-block" class="pm-title-block" picking-mode="Ignore">
+            <ui:Label name="pm-chip-label" text="APPLE FOREST  -  16TH CENTURY" class="pm-chip" picking-mode="Ignore"/>
+            <ui:Label text="PAUSED" class="pm-paused" picking-mode="Ignore"/>
+            <ui:Label name="pm-tagline-label" text="Take a breath. The apples will wait." class="pm-tagline" picking-mode="Ignore"/>
+            <ui:Label name="pm-time-caption" text="TIME IN LEVEL" class="pm-time-caption" picking-mode="Ignore"/>
+            <ui:Label name="pm-time-label" text="00:00" class="pm-time" picking-mode="Ignore"/>
+            <ui:VisualElement class="pm-tip-card" picking-mode="Ignore">
+                <ui:VisualElement class="pm-tip-accent" picking-mode="Ignore"/>
+                <ui:Label name="pm-tip-label" text="" enable-rich-text="true" class="pm-tip-label" picking-mode="Ignore"/>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Main panel -->
+        <ui:VisualElement name="pm-main-panel" class="pm-panel pm-main-panel">
+            <ui:Label text="PAUSE MENU" class="pm-panel-header" picking-mode="Ignore"/>
+            <ui:VisualElement class="pm-divider" picking-mode="Ignore"/>
+
+            <ui:Button name="resume-button" class="pm-btn">
+                <ui:Label text="RESUME" class="pm-btn__title" picking-mode="Ignore"/>
+                <ui:Label text="Back to the forest" class="pm-btn__sub" picking-mode="Ignore"/>
+            </ui:Button>
+            <ui:Button name="restart-button" class="pm-btn">
+                <ui:Label text="RESTART LEVEL" class="pm-btn__title" picking-mode="Ignore"/>
+                <ui:Label text="Start the level over" class="pm-btn__sub" picking-mode="Ignore"/>
+            </ui:Button>
+            <ui:Button name="settings-button" class="pm-btn">
+                <ui:Label text="SETTINGS" class="pm-btn__title" picking-mode="Ignore"/>
+                <ui:Label text="Audio and video" class="pm-btn__sub" picking-mode="Ignore"/>
+            </ui:Button>
+            <ui:Button name="future-button" class="pm-btn">
+                <ui:Label text="RETURN TO FUTURE" class="pm-btn__title" picking-mode="Ignore"/>
+                <ui:Label text="Leave the 16th century" class="pm-btn__sub" picking-mode="Ignore"/>
+            </ui:Button>
+            <ui:Button name="quit-button" class="pm-btn pm-btn--danger">
+                <ui:Label text="QUIT GAME" class="pm-btn__title" picking-mode="Ignore"/>
+                <ui:Label text="Exit to desktop" class="pm-btn__sub" picking-mode="Ignore"/>
+            </ui:Button>
+        </ui:VisualElement>
+
+        <!-- Settings (separate UXML) -->
+        <ui:Instance template="PauseSettings" name="pm-settings-instance" picking-mode="Ignore" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0;"/>
+
+        <!-- Confirm dialog -->
+        <ui:VisualElement name="pm-confirm" class="pm-confirm pm-hidden">
+            <ui:VisualElement class="pm-confirm-box">
+                <ui:Label name="pm-confirm-title" text="" class="pm-confirm-title" picking-mode="Ignore"/>
+                <ui:Label name="pm-confirm-msg" text="" class="pm-confirm-msg" picking-mode="Ignore"/>
+                <ui:VisualElement class="pm-confirm-buttons">
+                    <ui:Button name="confirm-yes" class="pm-btn pm-btn--center">
+                        <ui:Label name="confirm-yes-label" text="YES" class="pm-btn__title" picking-mode="Ignore"/>
+                    </ui:Button>
+                    <ui:Button name="confirm-no" class="pm-btn pm-btn--center">
+                        <ui:Label text="CANCEL" class="pm-btn__title" picking-mode="Ignore"/>
+                    </ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:Label name="pm-hint-label" text="" class="pm-hint" picking-mode="Ignore"/>
+    </ui:VisualElement>
+</ui:UXML>
