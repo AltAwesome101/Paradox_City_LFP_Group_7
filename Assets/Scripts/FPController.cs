@@ -48,6 +48,9 @@ public class FPController : MonoBehaviour
     private Beer carriedBeer;
     private CleanableGlass carriedGlass;
 
+    // Controls player input without disabling this component.
+    private bool inputEnabled = true;
+
     private void Awake()
     {
         controller = GetComponent<CharacterController>();
@@ -79,6 +82,24 @@ public class FPController : MonoBehaviour
             velocity.z = 0f;
 
             HideAllInteractionPrompts();
+
+            HandleGravity();
+            return;
+        }
+
+        // Cinematic mode: block player controls but
+        // keep gravity and grounding active.
+        if (!inputEnabled)
+        {
+            moveInput = Vector2.zero;
+            lookInput = Vector2.zero;
+
+            velocity.x = 0f;
+            velocity.z = 0f;
+
+            HideAllInteractionPrompts();
+
+            HandleGravity();
             return;
         }
 
@@ -94,9 +115,26 @@ public class FPController : MonoBehaviour
                preparationMinigame.IsMinigameRunning();
     }
 
+    // Call this to block or restore player controls.
+    public void SetInputEnabled(bool enabled)
+    {
+        inputEnabled = enabled;
+
+        moveInput = Vector2.zero;
+        lookInput = Vector2.zero;
+
+        velocity.x = 0f;
+        velocity.z = 0f;
+
+        if (!enabled)
+        {
+            HideAllInteractionPrompts();
+        }
+    }
+
     public void OnMove(InputAction.CallbackContext context)
     {
-        if (IsPreparationActive())
+        if (!inputEnabled || IsPreparationActive())
         {
             moveInput = Vector2.zero;
             return;
@@ -107,7 +145,7 @@ public class FPController : MonoBehaviour
 
     public void OnLook(InputAction.CallbackContext context)
     {
-        if (IsPreparationActive())
+        if (!inputEnabled || IsPreparationActive())
         {
             lookInput = Vector2.zero;
             return;
@@ -118,26 +156,25 @@ public class FPController : MonoBehaviour
 
     public void OnInteract(InputAction.CallbackContext context)
     {
-        if (IsPreparationActive() || !context.started)
+        if (!inputEnabled ||
+            IsPreparationActive() ||
+            !context.started)
         {
             return;
         }
 
-        // Serving beer takes priority while carrying beer.
         if (carriedBeer != null)
         {
             TryServeBeer();
             return;
         }
 
-        // Return a carried glass to the counter.
         if (carriedGlass != null)
         {
             TryReturnGlass();
             return;
         }
 
-        // Otherwise, try picking up a glass or beer.
         TryPickUpObject();
     }
 
@@ -256,8 +293,6 @@ public class FPController : MonoBehaviour
         Vector3 playerPosition = transform.position;
         Vector3 dropOffPosition = glassDropOffPoint.position;
 
-        // Ignore height differences between the player
-        // and the counter.
         playerPosition.y = 0f;
         dropOffPosition.y = 0f;
 
@@ -271,7 +306,6 @@ public class FPController : MonoBehaviour
     {
         HideAllInteractionPrompts();
 
-        // Carrying a glass: show the return prompt near the counter.
         if (carriedGlass != null)
         {
             if (IsNearGlassDropOff())
@@ -287,8 +321,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Carrying beer: show the hand-in prompt when
-        // looking at Gandhi after he has ordered.
         if (carriedBeer != null)
         {
             HistoricalFigure npc =
@@ -302,7 +334,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Show the glass pickup prompt for available glasses.
         CleanableGlass glass =
             hit.collider.GetComponentInParent<CleanableGlass>();
 
@@ -314,7 +345,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Beer pickup is available only after preparation.
         if (preparationMinigame == null ||
             !preparationMinigame.IsPreparationComplete())
         {
@@ -343,7 +373,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // Try picking up a glass first.
         CleanableGlass glass =
             hit.collider.GetComponentInParent<CleanableGlass>();
 
@@ -353,7 +382,6 @@ public class FPController : MonoBehaviour
             return;
         }
 
-        // If it is not a glass, try picking up beer.
         TryPickUpBeer(hit);
     }
 
@@ -523,13 +551,8 @@ public class FPController : MonoBehaviour
 
         Beer beerToServe = carriedBeer;
 
-        // IMPORTANT FIX:
-        // ServeBeer expects a Beer object, not a string.
-        // Gandhi can receive either beer without knowing
-        // whether it is correct or wrong.
         npc.ServeBeer(beerToServe);
 
-        // Remove the beer from the player's hand.
         beerToServe.gameObject.SetActive(false);
         carriedBeer = null;
 
@@ -539,10 +562,6 @@ public class FPController : MonoBehaviour
             "Served " + beerToServe.beerName + " to Gandhi."
         );
     }
-
-    // -------------------------------
-    // SHOW INTERACTION PROMPTS
-    // -------------------------------
 
     private void ShowGlassPickupPrompt()
     {
@@ -579,10 +598,6 @@ public class FPController : MonoBehaviour
             true
         );
     }
-
-    // -------------------------------
-    // HIDE INTERACTION PROMPTS
-    // -------------------------------
 
     private void HideAllInteractionPrompts()
     {
@@ -626,10 +641,6 @@ public class FPController : MonoBehaviour
             panel.SetActive(visible);
         }
     }
-
-    // -------------------------------
-    // PUBLIC STATUS METHODS
-    // -------------------------------
 
     public bool IsCarryingBeer()
     {

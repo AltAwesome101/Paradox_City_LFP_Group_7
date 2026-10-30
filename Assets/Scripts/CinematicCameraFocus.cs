@@ -35,6 +35,18 @@ public class CinematicCameraFocus : MonoBehaviour
     private bool transitioning;
     private bool followTargetDuringFocus;
 
+    // Player restoration information.
+    private Transform playerTransform;
+    private CharacterController playerCharacterController;
+
+    private Vector3 originalPlayerPosition;
+    private Quaternion originalPlayerRotation;
+
+    private bool originalControllerEnabled;
+
+    private Renderer[] playerRenderers;
+    private bool[] originalRendererStates;
+
     private void Awake()
     {
         if (playerCamera == null)
@@ -55,6 +67,24 @@ public class CinematicCameraFocus : MonoBehaviour
         if (playerController == null)
             playerController = GetComponentInParent<FPController>();
 
+        if (playerController != null)
+        {
+            playerTransform = playerController.transform;
+
+            playerCharacterController =
+                playerTransform.GetComponent<CharacterController>();
+
+            playerRenderers =
+                playerTransform.GetComponentsInChildren<Renderer>(true);
+
+            originalRendererStates = new bool[playerRenderers.Length];
+
+            for (int i = 0; i < playerRenderers.Length; i++)
+            {
+                originalRendererStates[i] = playerRenderers[i].enabled;
+            }
+        }
+
         originalParent = transform.parent;
         originalLocalPosition = transform.localPosition;
         originalLocalRotation = transform.localRotation;
@@ -65,7 +95,6 @@ public class CinematicCameraFocus : MonoBehaviour
         if (!focusingOnNPC || targetNPC == null)
             return;
 
-        // Keep updating the camera pose while Gandhi moves.
         if (followTargetDuringFocus)
             CalculateCinematicPose();
 
@@ -130,6 +159,77 @@ public class CinematicCameraFocus : MonoBehaviour
         }
     }
 
+    // Save the player's position and hide the player.
+    private void HidePlayer()
+    {
+        if (playerTransform == null)
+            return;
+
+        originalPlayerPosition = playerTransform.position;
+        originalPlayerRotation = playerTransform.rotation;
+
+        if (playerCharacterController != null)
+        {
+            originalControllerEnabled =
+                playerCharacterController.enabled;
+
+            playerCharacterController.enabled = false;
+        }
+
+        if (playerController != null)
+        {
+            playerController.SetInputEnabled(false);
+        }
+
+        for (int i = 0; i < playerRenderers.Length; i++)
+        {
+            if (playerRenderers[i] != null)
+            {
+                playerRenderers[i].enabled = false;
+            }
+        }
+
+        Debug.Log("[CinematicCameraFocus] Player hidden.");
+    }
+
+    // Restore the player exactly where they were.
+    private void RestorePlayer()
+    {
+        if (playerTransform == null)
+            return;
+
+        // Restore the original world position and rotation.
+        playerTransform.SetPositionAndRotation(
+            originalPlayerPosition,
+            originalPlayerRotation
+        );
+
+        // Restore the player's visual components.
+        for (int i = 0; i < playerRenderers.Length; i++)
+        {
+            if (playerRenderers[i] != null)
+            {
+                playerRenderers[i].enabled =
+                    originalRendererStates[i];
+            }
+        }
+
+        // Re-enable the CharacterController only if it
+        // was enabled before the cinematic.
+        if (playerCharacterController != null)
+        {
+            playerCharacterController.enabled =
+                originalControllerEnabled;
+        }
+
+        if (playerController != null)
+        {
+            playerController.SetInputEnabled(true);
+        }
+
+        Debug.Log("[CinematicCameraFocus] Player restored.");
+    }
+
     // CINEMATIC 1: Gandhi enters and walks to his seat.
     public void FocusOnEntrance(Transform npc)
     {
@@ -156,30 +256,19 @@ public class CinematicCameraFocus : MonoBehaviour
         if (npc == null)
             return;
 
-        // Do not overwrite the original player camera pose
-        // if a cinematic is already running.
         if (!focusingOnNPC)
         {
             originalParent = transform.parent;
             originalLocalPosition = transform.localPosition;
             originalLocalRotation = transform.localRotation;
+
+            HidePlayer();
         }
 
         targetNPC = npc;
         followTargetDuringFocus = followMovingTarget;
 
         CalculateCinematicPose();
-
-        if (playerController != null)
-        {
-            playerController.enabled = false;
-        }
-        else
-        {
-            Debug.LogWarning(
-                "[CinematicCameraFocus] No FPController assigned."
-            );
-        }
 
         transform.SetParent(null, true);
 
@@ -202,15 +291,16 @@ public class CinematicCameraFocus : MonoBehaviour
         followTargetDuringFocus = false;
         targetNPC = null;
 
+        // Restore the player's original position first.
+        RestorePlayer();
+
+        // Return the camera to its original parent.
         if (originalParent != null)
         {
             transform.SetParent(originalParent, false);
             transform.localPosition = originalLocalPosition;
             transform.localRotation = originalLocalRotation;
         }
-
-        if (playerController != null)
-            playerController.enabled = true;
 
         Debug.Log(
             "[CinematicCameraFocus] Camera returned to player."
@@ -224,7 +314,9 @@ public class CinematicCameraFocus : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (playerController != null)
-            playerController.enabled = true;
+        if (focusingOnNPC)
+        {
+            RestorePlayer();
+        }
     }
 }
