@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 254cfc900b43df84dbef2933790fcc36
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 292246
+  packageName: 10 Drink Glasses Pack - 3D Low Poly Models Set
+  packageVersion: 1.0
+  assetPath: Assets/EtherealGrace/DrinkGlassesPack/ScriptFixMaterials/AutoSwitchMaterialShader.cs
+  uploadId: 982958
