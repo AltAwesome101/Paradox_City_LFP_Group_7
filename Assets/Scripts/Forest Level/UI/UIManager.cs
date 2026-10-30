@@ -26,6 +26,7 @@ public class UIManager : Singleton<UIManager>,
     [Header("Pause Menu info")]   // moved over from the old TutorialController
     [SerializeField] SceneReference currentScene;
     [SerializeField] SceneReference futureScene;
+    [SerializeField] PauseMenuInfo pauseInfo = new(); 
 
     [Header("Apple Indicator")]
     [SerializeField] AppleIndicatorSettings indicatorSettings;
@@ -85,13 +86,14 @@ public class UIManager : Singleton<UIManager>,
         MiniMap?.Dispose();
         KeyChain?.Dispose();
         GamePause.Release(PauseMenu);
+        PauseMenu?.Dispose();
     }
 
     void DeclareUIViewsAndLayout()
     {
         var root = document.rootVisualElement;
         Collection = new AppleCollectionView(root.Q<VisualElement>("appleCollection-container"));
-        PauseMenu  = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"), currentScene, futureScene);
+        PauseMenu = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"),currentScene, futureScene, pauseInfo,root.Q<Label>("fps-label")); 
         Tutorial   = new TutorialView(root.Q<VisualElement>("TutorialPanel-container"));
         WakeMeter  = new WakeMeterUIView(root.Q<VisualElement>("wake-container"), maxLimit: 0);
         WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-container"), warningData);
@@ -110,10 +112,14 @@ public class UIManager : Singleton<UIManager>,
     }
 
     void OnEscape() => TogglePause();
-
+    void Update() => PauseMenu?.Tick(Time.unscaledDeltaTime);
     public void TogglePause()
     {
-        if (_overlays.Contains(PauseMenu)) RemoveOverlay(PauseMenu);
+        if (_overlays.Contains(PauseMenu))
+        {
+            if (PauseMenu.HandleBack()) return;
+            RemoveOverlay(PauseMenu);
+        }
         else AddOverlay(PauseMenu);
     }
 

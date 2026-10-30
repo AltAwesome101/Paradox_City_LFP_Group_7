@@ -11,6 +11,7 @@
     </ui:VisualElement>
     <ui:VisualElement name="applenotifier-element-archor" style="flex-grow: 0; flex-shrink: 0; width: 1699px; height: 451px; position: absolute; top: 468px; left: 129px;">
         <ui:Instance template="arrow-image" name="arrow-image" style="display: none;"/>
+        <ui:Template name="PauseMenu" src="project://database/Assets/UI%20Toolkit/UXML/PauseMenu.uxml"/>
     </ui:VisualElement>
     <ui:VisualElement name="approachingApple-counter-container" style="flex-grow: 0; flex-shrink: 0; height: auto; width: auto; flex-direction: row-reverse; background-color: rgba(0, 0, 0, 0); position: absolute; top: 56px; left: 1454px; background-image: none; flex-wrap: nowrap; display: none;">
         <ui:VisualElement name="approachingApple-Label-container" style="flex-grow: 0; flex-direction: row; background-color: rgba(22, 19, 19, 0.98); flex-shrink: 0; align-items: auto; align-self: center; margin-top: -21px; margin-right: -21px; margin-bottom: -21px; margin-left: -21px; padding-top: 2px; padding-right: 8px; padding-bottom: 2px; padding-left: 40px;">
@@ -33,13 +34,6 @@
             <ui:Image name="appleCollection-icon" source="project://database/Assets/SVG%20Icons/apple-svgrepo-com.svg?fileID=7388822144124034973&amp;guid=9d5454ca2d47ea641980373f1b90e592&amp;type=3#apple-svgrepo-com" style="flex-grow: 1;"/>
         </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="pauseMenu-container" style="flex-grow: 0; color: rgb(18, 17, 17); flex-shrink: 0; position: absolute; height: 788px; width: 1314px; top: 158px; left: 272px; background-color: rgb(0, 0, 0); display: flex; opacity: 1;">
-        <ui:Label text="Pause Menu" name="pauseMenu-title" style="color: rgb(245, 245, 245); -unity-text-align: upper-center; font-size: 50px;"/>
-        <ui:Label text="Apple Forest - 16th century" name="pauseMenu-Level-title" style="color: rgb(245, 245, 245); -unity-text-align: upper-center; font-size: 35px; top: 47px;"/>
-        <ui:Button text="Resume" name="resume-button" style="width: 338px; height: 64px; top: 258px; position: absolute; left: 477px; -unity-font-style: bold; font-size: 25px;"/>
-        <ui:Button text="Restart Level" name="restart-button" style="width: 338px; height: 64px; top: 392px; position: absolute; left: 476px; -unity-font-style: bold; font-size: 25px;"/>
-        <ui:Button text="Return To Future" name="future-button" style="width: 338px; height: 64px; top: 545px; position: absolute; left: 480px; -unity-font-style: bold; font-size: 25px;"/>
-    </ui:VisualElement>
     <ui:VisualElement name="interactPrompt-container" style="flex-grow: 0; position: absolute; height: 64px; width: 568px; top: 500px; left: 745px; background-color: rgba(0, 0, 0, 0); display: flex; color: rgb(27, 27, 27);">
         <ui:Label text="Label" name="interactPrompt-label" style="font-size: 33px; -unity-font-style: bold; color: rgb(253, 253, 253); bottom: 0; right: -18px; -unity-text-align: upper-center;"/>
     </ui:VisualElement>
@@ -59,4 +53,6 @@
         <ui:VisualElement name="keychain-circle-1" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
         <ui:VisualElement name="keychain-circle-2" picking-mode="Ignore" class="keychain-circle keychain-circle--unplayed"/>
     </ui:VisualElement>
+    <ui:Instance template="PauseMenu" name="pauseMenu-container" style="position: absolute; left: 0; top: 0; right: 0; bottom: 0;"/>
+<ui:Label name="fps-label" text="FPS" picking-mode="Ignore" style="position: absolute; top: 8px; right: 12px; font-size: 20px; color: rgb(255, 255, 255); display: none;"/>
 </ui:UXML>
