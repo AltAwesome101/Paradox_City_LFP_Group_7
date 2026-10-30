@@ -135,6 +135,12 @@ public class HubPrefabSwitcher : MonoBehaviour
     [Tooltip("Degrees per second that uncollected parts spin.")]
     [SerializeField] private float partSpinSpeed = 60f;
 
+    [Header("DeLorean mission - collecting while driving")]
+    [Tooltip("The drivable car. If empty it is found automatically (on the DeLorean object, or anywhere in the scene).")]
+    [SerializeField] private CarController car;
+    [Tooltip("While driving, a part is collected when the CAR gets this close. Bigger than 'Pickup Radius' because the car is bigger than the player.")]
+    [SerializeField] private float carPickupRadius = 6f;
+
     [Header("DeLorean mission - sky beams (created in code)")]
     [SerializeField] private Color partBeamColor = new Color(0.2f, 0.9f, 1f, 1f);
     [SerializeField] private Color deloreanBeamColor = new Color(1f, 0.6f, 0.1f, 1f);
@@ -235,7 +241,9 @@ public class HubPrefabSwitcher : MonoBehaviour
     private string _lastMissionString;
     private float _nextPlayerSearch;
 
-    
+    private float _nextCarSearch;
+
+
     private bool _lastSimHitler, _lastSimApple, _lastSimBeer;
 
     private Vector3 VolumeCentre => volumeCenter != null ? volumeCenter.position : transform.position;
@@ -492,7 +500,6 @@ public class HubPrefabSwitcher : MonoBehaviour
 
     private void UpdateMission()
     {
-        
         if (_phase == MissionPhase.Complete && _justRepaired && Time.time >= _hideRepairedAt)
         {
             _justRepaired = false;
@@ -503,7 +510,8 @@ public class HubPrefabSwitcher : MonoBehaviour
 
         AnimateMissionVisuals();
 
-        if (!TryGetPlayer(out Transform pl)) return;
+        // The car collects while it is being driven; otherwise the player on foot does
+        if (!TryGetCollector(out Vector3 collectorPos, out float collectRadius)) return;
 
         if (_phase == MissionPhase.FindParts)
         {
@@ -511,29 +519,65 @@ public class HubPrefabSwitcher : MonoBehaviour
             {
                 if (partObjects[i] == null || s_collectedParts.Contains(i)) continue;
 
-                if (Within(pl.position, partObjects[i].transform.position, pickupRadius))
+                if (Within(collectorPos, partObjects[i].transform.position, collectRadius))
                 {
-                    CollectPart(i, pl.position);
-                    break; 
+                    CollectPart(i, collectorPos);
+                    break;
                 }
             }
         }
-        else 
+        else
         {
             if (delorean == null) return;
 
-            bool inRange = Within(pl.position, delorean.position, installRadius);
+            bool inRange = Within(collectorPos, delorean.position, installRadius);
 
             if (requireKeyToInstall)
             {
                 SetMissionText(inRange ? string.Format(installPrompt, installKey) : returnMission);
-                if (inRange && Input.GetKeyDown(installKey)) InstallParts(pl.position);
+                if (inRange && Input.GetKeyDown(installKey)) InstallParts(collectorPos);
             }
             else if (inRange)
             {
-                InstallParts(pl.position);
+                InstallParts(collectorPos);
             }
         }
+    }
+
+    private bool TryGetCollector(out Vector3 pos, out float radius)
+    {
+        CarController c = GetCar();
+
+        if (c != null && c.isBeingDriven)
+        {
+            pos = c.transform.position;
+            radius = carPickupRadius;
+            return true;
+        }
+
+        if (TryGetPlayer(out Transform pl))
+        {
+            pos = pl.position;
+            radius = pickupRadius;
+            return true;
+        }
+
+        pos = Vector3.zero;
+        radius = pickupRadius;
+        return false;
+    }
+
+    private CarController GetCar()
+    {
+        if (car == null && Time.unscaledTime >= _nextCarSearch)
+        {
+            _nextCarSearch = Time.unscaledTime + 1f;
+
+            if (delorean != null) car = delorean.GetComponentInParent<CarController>();
+            if (car == null) car = FindFirstObjectByType<CarController>();
+        }
+
+        return car;
     }
 
     private void CollectPart(int index, Vector3 playerPos)

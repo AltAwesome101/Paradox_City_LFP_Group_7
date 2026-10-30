@@ -326,9 +326,20 @@ public class CarController : MonoBehaviour
     public bool IsGrounded => grounded;
     public bool IsFlying => isFlying;
 
-    /// <summary>True once the DeLorean mission is complete (or the debug override is on).</summary>
+    
     public bool FlightUnlocked => debugUnlockFlight || HubPrefabSwitcher.DeloreanRepaired;
+    
+    public bool IsLanding => isLanding;
+    public bool IsFlipping => isFlipping;
+    public float CurrentSpeed => currentSpeed;
+    public float SteerInput => currentSteerInput;
+    public bool ThrottleHeld => throttleInput;
+    public bool BrakeHeld => brakeInput;
+    public float FlightVerticalVelocity => flightVerticalVelocity;
 
+    
+    public float ReverseChargeProgress =>
+        reverseHoldTimeForFlip > 0.01f ? Mathf.Clamp01(reverseHoldTimer / reverseHoldTimeForFlip) : 0f;
 
     // =========================================================
     // PRIVATE
