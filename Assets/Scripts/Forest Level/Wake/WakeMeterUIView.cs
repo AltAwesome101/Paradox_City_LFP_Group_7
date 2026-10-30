@@ -6,7 +6,8 @@ using BetterEventBus;
 public class WakeMeterUIView : BaseUIView
 {
     public event Action OnMeterFull;
-    ProgressBar progress;
+    readonly ProgressBar progress;
+    readonly Image icon;
     float lerpSpeed;
 
     float targetValue;
@@ -15,6 +16,7 @@ public class WakeMeterUIView : BaseUIView
     public WakeMeterUIView(VisualElement container, int maxLimit, float lerpSpeed = 8f): base(container)
     {
         progress = container.Q<ProgressBar>("wake-progressbar");
+        icon = container.Q<Image>("wake-icon");
         progress.lowValue = 0f;
         progress.value = 0f;
     }
@@ -24,10 +26,6 @@ public class WakeMeterUIView : BaseUIView
         progress.highValue = maxLimit;
         this.lerpSpeed = lerpSpeed;
     }
-
-    public override void Show() => progress.style.display = DisplayStyle.Flex;
-    public override void Hide() => progress.style.display = DisplayStyle.None;
-
 
     public void Disturb(float disturbAmount)
     {

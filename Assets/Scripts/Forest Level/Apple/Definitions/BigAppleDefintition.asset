@@ -19,6 +19,5 @@ MonoBehaviour:
   AppleColor: {r: 0.93962264, g: 0.06205042, b: 0.06205042, a: 0}
   CaughtEffects:
   - {fileID: 11400000, guid: 68c1c4dd54e6f0b4891972705d2e2c15, type: 2}
-  - {fileID: 11400000, guid: 68c1c4dd54e6f0b4891972705d2e2c15, type: 2}
   MissedEffects:
   - {fileID: 11400000, guid: e9256e7c0c8e4bc4d8229423fabf8458, type: 2}

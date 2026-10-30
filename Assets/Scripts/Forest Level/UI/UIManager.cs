@@ -77,8 +77,8 @@ public class UIManager : Singleton<UIManager>,
     {
         GameEventBus.Unregister<TutorialStartedEvent>(this);
         GameEventBus.Unregister<TutorialClosedEvent>(this);
-        GameEventBus.Unregister<InteractPromptEvent>(this);          // these three say Register
-        GameEventBus.Unregister<DeploySessionStartedEvent>(this);    // in your pasted version
+        GameEventBus.Unregister<InteractPromptEvent>(this); 
+        GameEventBus.Unregister<DeploySessionStartedEvent>(this);    
         GameEventBus.Unregister<DeploySessionEndedEvent>(this);
 
         input.Escape -= OnEscape;
@@ -93,7 +93,7 @@ public class UIManager : Singleton<UIManager>,
         Collection = new AppleCollectionView(root.Q<VisualElement>("appleCollection-container"));
         PauseMenu  = new PauseMenuView(root.Q<VisualElement>("pauseMenu-container"), currentScene, futureScene);
         Tutorial   = new TutorialView(root.Q<VisualElement>("TutorialPanel-container"));
-        WakeMeter  = new WakeMeterUIView(root, maxLimit: 0); // TODO real values
+        WakeMeter  = new WakeMeterUIView(root.Q<VisualElement>("wake-container"), maxLimit: 0);
         WarningCounter = new AppleWarningCounterView(root.Q<VisualElement>("approachingApple-counter-container"), warningData);
         InteractPrompt = new InteractPromptView(root.Q<VisualElement>("interactPrompt-container"));
         Indicator = new AppleIndicatorView(root.Q<VisualElement>("applenotifier-element-archor"), indicatorSettings, cam, player);
