@@ -43,6 +43,7 @@ public class MeetingTimer : MonoBehaviour
         timerRunning = false;
         meetingMissed = false;
         wrongBeerRoute = false;
+
         UpdateTimerUI();
     }
 
@@ -63,19 +64,21 @@ public class MeetingTimer : MonoBehaviour
             meetingMissed = true;
             timerRunning = false;
 
-            Debug.Log("[MeetingTimer] The meeting deadline has expired.");
+            Debug.Log(
+                "[MeetingTimer] The meeting deadline has expired."
+            );
         }
 
         UpdateTimerUI();
     }
 
-    // Kept for compatibility with scripts that call StartMeetingTimer().
+    // Compatible with scripts calling StartMeetingTimer().
     public void StartMeetingTimer()
     {
         StartMeetingTimer(false);
     }
 
-    // HistoricalFigure calls this overload to choose the correct speed.
+    // Selects the correct countdown speed based on the beer served.
     public void StartMeetingTimer(bool wrongBeer)
     {
         remainingTime = Mathf.Max(0f, meetingTime);
@@ -113,6 +116,7 @@ public class MeetingTimer : MonoBehaviour
         timerRunning = false;
         meetingMissed = false;
         wrongBeerRoute = false;
+
         UpdateTimerUI();
     }
 
@@ -125,7 +129,14 @@ public class MeetingTimer : MonoBehaviour
         int minutes = totalSeconds / 60;
         int seconds = totalSeconds % 60;
 
-        timerText.text = minutes.ToString("00") + ":" +
-                         seconds.ToString("00");
+        timerText.text =
+            "Meeting in: " +
+            minutes.ToString("00") + ":" +
+            seconds.ToString("00");
+
+        if (meetingMissed)
+        {
+            timerText.text = "MEETING MISSED";
+        }
     }
 }
