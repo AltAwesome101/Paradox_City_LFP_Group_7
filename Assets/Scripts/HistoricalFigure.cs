@@ -11,7 +11,7 @@ public class HistoricalFigure : MonoBehaviour
     [Header("Delayed Tavern Entrance")]
     public Transform entranceTarget;
     public Transform sittingPoint;
-    public float entranceDelay = 30f;
+    public float entranceDelay = 5f;
     public float entranceSpeed = 2f;
     public float entranceTurnSpeed = 180f;
     public float sittingArrivalDistance = 0.2f;
@@ -163,7 +163,26 @@ public class HistoricalFigure : MonoBehaviour
 
     private IEnumerator EnterTavernSequence()
     {
-        // Wait before Gandhi appears at the entrance.
+        // FIRST: Wait until all three glasses have been cleaned
+        // and returned to their correct places.
+        Debug.Log(
+            "[HistoricalFigure] Waiting for the player to return all " +
+            "three glasses before Gandhi can enter."
+        );
+
+        while (GlassCleaningProgress.Instance == null ||
+               !GlassCleaningProgress.Instance.AllGlassesReturned)
+        {
+            yield return null;
+        }
+
+        Debug.Log(
+            "[HistoricalFigure] All three glasses have been returned. " +
+            "Gandhi's entrance delay can now begin."
+        );
+
+        // SECOND: Start the entrance delay only after all glasses
+        // have been returned.
         if (entranceDelay > 0f)
         {
             yield return new WaitForSeconds(entranceDelay);
