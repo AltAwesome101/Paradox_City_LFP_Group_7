@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 // Copyright(c) 2025 Ethereal Grace (EG). All rights reserved.
 
 /*
@@ -177,4 +178,4 @@ namespace EtherealGrace.MaterialTools
         }
     }
 }
-
+#endif
