@@ -306,7 +306,8 @@ public class BiboGuide : MonoBehaviour
             float distNow = player != null ? Vector3.Distance(player.position, transform.position) : -1f;
             Debug.Log(
                 $"[BiboGuide][E PRESSED] inDialogue={inDialogue} playerFound={(player != null)} " +
-                $"distance={distNow:F2} interactRange={interactRange} inRange={PlayerInRange()}");
+                $"distance={distNow:F2} interactRange={interactRange} inRange={PlayerInRange()} " +
+                $"playerDriving={CarController.PlayerIsDriving}");
         }
 
         // =========================================================
@@ -353,7 +354,8 @@ public class BiboGuide : MonoBehaviour
                     float dist = Vector3.Distance(player.position, transform.position);
                     Debug.Log(
                         $"[BiboGuide][STATUS] state={_state} distance={dist:F2} / interactRange={interactRange} " +
-                        $"-> inRange={playerNearby} nextCheckIn={Mathf.Max(0f, _currentInterval - _checkInTimer):F0}s");
+                        $"-> inRange={playerNearby} driving={CarController.PlayerIsDriving} " +
+                        $"nextCheckIn={Mathf.Max(0f, _currentInterval - _checkInTimer):F0}s");
                 }
             }
         }
@@ -361,6 +363,8 @@ public class BiboGuide : MonoBehaviour
         // =========================================================
         // START INTERACTION
         // =========================================================
+        // playerNearby is always false while the player is in the car (see PlayerInRange),
+        // so E can never start a conversation from inside the car.
         if (playerNearby && Input.GetKeyDown(KeyCode.E))
         {
             if (debugLogging) Debug.Log("[BiboGuide] Conditions met - calling StartDialogue().");
@@ -429,6 +433,10 @@ public class BiboGuide : MonoBehaviour
     private bool PlayerInRange()
     {
         if (!PlayerReady()) return false;
+
+        // Simple block: no BIBO interaction while the player is driving the car.
+        if (CarController.PlayerIsDriving) return false;
+
         return Vector3.Distance(player.position, transform.position) <= interactRange;
     }
 
@@ -602,7 +610,7 @@ public class BiboGuide : MonoBehaviour
         _state = State.CheckInApproach;
         _checkInElapsed = 0f;
 
-        
+        // Approach from whichever side BIBO is already on
         Vector3 away = _logicalPos - player.position;
         away.y = 0f;
         _checkInDir = away.sqrMagnitude > 0.01f ? away.normalized : player.forward;
@@ -623,7 +631,7 @@ public class BiboGuide : MonoBehaviour
         Vector3 point = GetCheckInPoint();
         FlyTowards(point, flySpeed * checkInSpeedMultiplier);
 
-        
+        // Start turning to face the player as BIBO gets close
         _facePlayer = Vector3.Distance(_logicalPos, point) < checkInDistance * 2f;
 
         if (Vector3.Distance(_logicalPos, point) <= 1.5f)
@@ -644,7 +652,7 @@ public class BiboGuide : MonoBehaviour
             return;
         }
 
-        
+        // Follow the player so BIBO stays next to them while talking
         FlyTowards(GetCheckInPoint(), flySpeed * checkInSpeedMultiplier);
         _facePlayer = true;
     }
@@ -653,7 +661,7 @@ public class BiboGuide : MonoBehaviour
     {
         _state = State.Roaming;
         _facePlayer = false;
-        _checkInTimer = _currentInterval * 0.5f; 
+        _checkInTimer = _currentInterval * 0.5f; // try again sooner
     }
 
     private void BeginQuip()
@@ -698,7 +706,7 @@ public class BiboGuide : MonoBehaviour
             _quipRoutine = null;
         }
 
-        
+        // Don't hide the box if a real conversation is using it
         GameObject panel = QuipPanel;
         if (panel != null && !inDialogue) panel.SetActive(false);
 
@@ -724,7 +732,7 @@ public class BiboGuide : MonoBehaviour
 
         if (pool.Count == 0) return null;
 
-       
+        // Avoid repeating the same line twice in a row
         string pick = pool[Random.Range(0, pool.Count)];
         for (int tries = 0; tries < 10 && pool.Count > 1 && pick == _lastQuip; tries++)
             pick = pool[Random.Range(0, pool.Count)];
@@ -741,11 +749,19 @@ public class BiboGuide : MonoBehaviour
     {
         if (interactPromptUI == null) return;
 
+        // While driving: keep the prompt hidden and leave the show counters alone,
+        // so getting out of the car doesn't burn one of the limited prompt showings.
+        if (CarController.PlayerIsDriving)
+        {
+            if (interactPromptUI.activeSelf) interactPromptUI.SetActive(false);
+            return;
+        }
+
         if (playerNearby)
         {
             _outOfRangeTime = 0f;
 
-            
+            // Count a new showing only once per approach
             if (!_approachCounted)
             {
                 _approachCounted = true;
@@ -768,7 +784,7 @@ public class BiboGuide : MonoBehaviour
     // DIALOGUE
     // =============================================================
 
-    
+    // Builds the list of lines that apply to the player's current progress
     private void BuildActiveDialogue()
     {
         _activeLines.Clear();
@@ -811,23 +827,23 @@ public class BiboGuide : MonoBehaviour
 
     private void StartDialogue()
     {
-        
+        // Cancel any random check-in line that is mid-sentence
         EndQuip();
 
         inDialogue = true;
         currentLineIndex = -1;
 
-        
+        // Pick the lines that match the player's progress
         BuildActiveDialogue();
 
-        
+        // Freeze the player
         SetPlayerControl(false);
 
-        
+        // Hide the exclamation mark and the prompt
         if (indicator != null) indicator.SetVisible(false);
         if (interactPromptUI != null) interactPromptUI.SetActive(false);
 
-        
+        // Show the dialogue box
         if (dialogueBox != null) dialogueBox.SetActive(true);
         SetSpeaker(npcName);
 
@@ -848,7 +864,7 @@ public class BiboGuide : MonoBehaviour
 
         if (isTyping)
         {
-            
+            // Skip the typing effect and show the whole line
             if (typingCoroutine != null) StopCoroutine(typingCoroutine);
 
             SetDialogue(_activeLines[currentLineIndex].text);
@@ -857,7 +873,7 @@ public class BiboGuide : MonoBehaviour
         }
         else
         {
-            
+            // Go to the next line
             AdvanceDialogue();
         }
     }
@@ -866,7 +882,7 @@ public class BiboGuide : MonoBehaviour
     {
         currentLineIndex++;
 
-        
+        // Out of lines - finish the conversation
         if (currentLineIndex >= _activeLines.Count)
         {
             EndDialogue();
@@ -878,10 +894,10 @@ public class BiboGuide : MonoBehaviour
         if (debugLogging)
             Debug.Log($"[BiboGuide] Showing line {currentLineIndex + 1}/{_activeLines.Count}");
 
-        
+        // Camera for this line
         SwitchCamera(line.cameraIndexForThisLine);
 
-        
+        // Type the line out
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
 
         typingCoroutine = StartCoroutine(TypeLine(line.text));
@@ -906,21 +922,21 @@ public class BiboGuide : MonoBehaviour
     {
         inDialogue = false;
 
-        
+        // Hide the dialogue box
         if (dialogueBox != null) dialogueBox.SetActive(false);
 
-        
+        // Back to the normal player camera
         SwitchCamera(normalCameraIndex);
 
-        
+        // Give control back to the player
         SetPlayerControl(true);
 
-        
+        // BIBO goes back to roaming
         _facePlayer = false;
         _state = State.Roaming;
         ResetCheckInTimer();
 
-        
+        // Show the exclamation mark again
         if (indicator != null) indicator.SetVisible(true);
 
         if (debugLogging) Debug.Log("[BiboGuide] Dialogue ended - BIBO resumed flying.");
@@ -951,7 +967,7 @@ public class BiboGuide : MonoBehaviour
         }
         else
         {
-            SetDialogue(value); 
+            SetDialogue(value); // reuse the normal dialogue box text
         }
     }
 
@@ -970,7 +986,7 @@ public class BiboGuide : MonoBehaviour
         }
     }
 
-    
+    // If no dialogue text was assigned, try to find one inside the dialogue box
     private void AutoFindDialogueText()
     {
         if (dialogueText != null || dialogueTextTMP != null || dialogueBox == null) return;
@@ -1001,7 +1017,7 @@ public class BiboGuide : MonoBehaviour
 
     private bool _warnedNoController;
 
-    
+    // Finds a controller on the player if none was assigned
     private void EnsurePlayerControllers()
     {
         if (thirdPersonController != null || playerScript != null) return;
@@ -1011,7 +1027,7 @@ public class BiboGuide : MonoBehaviour
             var tpc = player.GetComponentInChildren<ThirdPersonController>(true);
             var ps = player.GetComponentInChildren<PlayerScript>(true);
 
-            
+            // Prefer whichever one is currently enabled
             if (tpc != null && tpc.enabled) thirdPersonController = tpc;
             else if (ps != null && ps.enabled) playerScript = ps;
             else if (tpc != null) thirdPersonController = tpc;
@@ -1100,7 +1116,7 @@ public class BiboGuide : MonoBehaviour
         };
     }
 
-    
+    // Short aliases so the default dialogue below stays readable
     private const LineRequirement Any = LineRequirement.Any;
     private const LineRequirement Done = LineRequirement.MustBeDone;
     private const LineRequirement NotDone = LineRequirement.MustNotBeDone;

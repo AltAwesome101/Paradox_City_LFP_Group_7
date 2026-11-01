@@ -47,11 +47,19 @@ public class HubPrefabSwitcher : MonoBehaviour
     [SerializeField] private List<GameObject> objectsToRemove = new List<GameObject>();
     [SerializeField] private RemoveMode removeMode = RemoveMode.Deactivate;
 
-    
-    
+    [Header("Apple Forest consequence - objects to remove")]
+    [SerializeField] private List<GameObject> appleObjectsToRemove = new List<GameObject>();
+    [SerializeField] private RemoveMode appleRemoveMode = RemoveMode.Deactivate;
+
+    [Header("Wrong Beer consequence - objects to remove")]
+    [SerializeField] private List<GameObject> beerObjectsToRemove = new List<GameObject>();
+    [SerializeField] private RemoveMode beerRemoveMode = RemoveMode.Deactivate;
+
+
+
     // APPLE FOREST
 
-    
+
     [Header("Apple Forest consequence - objects that float")]
     [Tooltip("Scene objects (drag from the Hierarchy). Gravity is switched off for any Rigidbody.")]
     [SerializeField] private List<GameObject> objectsToFloat = new List<GameObject>();
@@ -173,10 +181,29 @@ public class HubPrefabSwitcher : MonoBehaviour
     [Tooltip("Fires once when the parts are installed. Hook up the flight system here.")]
     [SerializeField] private UnityEvent onDeloreanRepaired;
 
-    [Header("Wrong Beer consequence - advert quads (all generated in code)")]
-    [SerializeField] private WrongBeerAdBoards wrongBeerAds = new WrongBeerAdBoards();
+   
+    public enum PosterChoice { Auto, Poster1, Poster2, Poster3 }
+
+    [System.Serializable]
+    public class ManualPoster
+    {
+        [Tooltip("A quad from the Hierarchy. It keeps its own position, rotation and scale.")]
+        public Renderer quad;
+        [Tooltip("Which poster it shows. Auto = cycles through the three.")]
+        public PosterChoice poster = PosterChoice.Auto;
+    }
+
+    [Header("Wrong Beer consequence - propaganda posters")]
+    [Tooltip("Tick to let the script find walls and place posters by itself (small ones low down, large ones high up on tall buildings).")]
+    [SerializeField] private bool autoPlacePosters = true;
+    [Tooltip("Optional: quads you place by hand. They get the same posters and the same before/after swap.")]
+    [SerializeField] private List<ManualPoster> manualPosters = new List<ManualPoster>();
+
+    private readonly AutoBeerAdSystem wrongBeerAds = new AutoBeerAdSystem();
     private bool _beerApplied;
 
+    private PartMinimapMarkers _minimapMarkers;
+    private PartProximityBeeper _beeper;
 
     private class FloatItem
     {
@@ -202,6 +229,9 @@ public class HubPrefabSwitcher : MonoBehaviour
     }
 
     private readonly Dictionary<GameObject, bool> _hitlerOriginalActive = new Dictionary<GameObject, bool>();
+    private readonly Dictionary<GameObject, bool> _appleOriginalActive = new Dictionary<GameObject, bool>();
+    private readonly Dictionary<GameObject, bool> _beerOriginalActive = new Dictionary<GameObject, bool>();
+    private bool _beerObjectsApplied;
     private readonly List<FloatItem> _floatItems = new List<FloatItem>();
     private readonly RaycastHit[] _hitBuffer = new RaycastHit[16];
     private Transform _viewer;
@@ -251,12 +281,20 @@ public class HubPrefabSwitcher : MonoBehaviour
     private void Start()
     {
         CacheHitlerObjects();
+        CacheRemovable(appleObjectsToRemove, _appleOriginalActive);
+        CacheRemovable(beerObjectsToRemove, _beerOriginalActive);
         CacheFloatItems();
         CacheTimeMachines();
         BuildMissionBeams();
 
+        _minimapMarkers = new PartMinimapMarkers(partObjects, partBeamColor);
+        _beeper = new PartProximityBeeper();
+        wrongBeerAds.AutoPlace = autoPlacePosters;
+        foreach (var mp in manualPosters)
+            if (mp != null && mp.quad != null)
+                wrongBeerAds.AddManualPoster(mp.quad, (int)mp.poster - 1);
         _beerApplied = WorldStateManager.Instance.IsLevelCompleted(LevelId.WrongBeer);
-        wrongBeerAds.Initialise(_beerApplied);
+        wrongBeerAds.Initialise(this, _beerApplied, VolumeCentre, volumeSize, BuildAdIgnoreList());
         SyncWithWorldState();
         RefreshMission();
     }
@@ -267,6 +305,8 @@ public class HubPrefabSwitcher : MonoBehaviour
             if (b != null && b.go != null) Destroy(b.go);
         if (_deloreanBeam != null && _deloreanBeam.go != null) Destroy(_deloreanBeam.go);
         if (_builtMaterial != null) Destroy(_builtMaterial);
+        _minimapMarkers?.Dispose();
+        _beeper?.Dispose();
         wrongBeerAds.Dispose();
     }
 
@@ -278,6 +318,8 @@ public class HubPrefabSwitcher : MonoBehaviour
         if (_appleApplied) UpdateFloating();
         UpdateTimeMachines();
         UpdateMission();
+        UpdatePartAids();
+        wrongBeerAds.Tick();
     }
 
     private void OnDrawGizmosSelected()
@@ -290,7 +332,43 @@ public class HubPrefabSwitcher : MonoBehaviour
         Gizmos.DrawWireCube(centre, volumeSize);
     }
 
-  
+    private void UpdatePartAids()
+    {
+        bool finding = _phase == MissionPhase.FindParts;
+        _minimapMarkers?.Tick(finding);
+
+        if (_beeper == null) return;
+        float nearest = float.PositiveInfinity;
+
+        if (finding && TryGetCollector(out Vector3 pos, out _))
+        {
+            for (int i = 0; i < partObjects.Count; i++)
+            {
+                if (partObjects[i] == null || s_collectedParts.Contains(i) || !partObjects[i].activeInHierarchy) continue;
+                float d = Vector3.Distance(pos, partObjects[i].transform.position);
+                if (d < nearest) nearest = d;
+            }
+        }
+        _beeper.Tick(nearest);
+    }
+
+    private List<Transform> BuildAdIgnoreList()
+    {
+        var list = new List<Transform>();
+        foreach (var o in objectsToFloat) if (o != null) list.Add(o.transform);
+        foreach (var o in objectsToRemove) if (o != null) list.Add(o.transform);
+        foreach (var o in partObjects) if (o != null) list.Add(o.transform);
+        foreach (var tm in timeMachines) if (tm != null && tm.timeMachine != null) list.Add(tm.timeMachine);
+        if (delorean != null) list.Add(delorean);
+        var c = GetCar();
+        if (c != null) list.Add(c.transform);
+        foreach (var mp in manualPosters) if (mp != null && mp.quad != null) list.Add(mp.quad.transform);
+        foreach (var o in appleObjectsToRemove) if (o != null) list.Add(o.transform);
+        foreach (var o in beerObjectsToRemove) if (o != null) list.Add(o.transform);
+        return list;
+    }
+
+
     private void HandleDebugToggles()
     {
         SyncToggle(LevelId.ArtistHitler, ref simulateArtistHitlerComplete, ref _lastSimHitler);
@@ -403,8 +481,18 @@ public class HubPrefabSwitcher : MonoBehaviour
         if (apple != _appleApplied)
         {
             _appleApplied = apple;
-            if (apple) { StartFloating(); RaiseTimeMachines(); }
-            else { StopFloating(); LowerTimeMachines(); }
+            if (apple)
+            {
+                StartFloating();
+                RaiseTimeMachines();
+                RemoveObjects(appleObjectsToRemove, appleRemoveMode);
+            }
+            else
+            {
+                StopFloating();
+                LowerTimeMachines();
+                RestoreObjects(_appleOriginalActive, appleRemoveMode);
+            }
             RefreshMission();
         }
 
@@ -414,9 +502,15 @@ public class HubPrefabSwitcher : MonoBehaviour
             _beerApplied = beer;
             wrongBeerAds.SetCompleted(beer);
         }
+        if (beer != _beerObjectsApplied)
+        {
+            _beerObjectsApplied = beer;
+            if (beer) RemoveObjects(beerObjectsToRemove, beerRemoveMode);
+            else RestoreObjects(_beerOriginalActive, beerRemoveMode);
+        }
     }
 
-   
+
     private void CacheHitlerObjects()
     {
         _hitlerOriginalActive.Clear();
@@ -424,6 +518,30 @@ public class HubPrefabSwitcher : MonoBehaviour
         {
             if (obj != null) _hitlerOriginalActive[obj] = obj.activeSelf;
         }
+    }
+
+    private static void CacheRemovable(List<GameObject> list, Dictionary<GameObject, bool> store)
+    {
+        store.Clear();
+        foreach (var obj in list)
+            if (obj != null) store[obj] = obj.activeSelf;
+    }
+
+    private static void RemoveObjects(List<GameObject> list, RemoveMode mode)
+    {
+        foreach (var obj in list)
+        {
+            if (obj == null) continue;
+            if (mode == RemoveMode.Destroy) Destroy(obj);
+            else obj.SetActive(false);
+        }
+    }
+
+    private static void RestoreObjects(Dictionary<GameObject, bool> store, RemoveMode mode)
+    {
+        if (mode == RemoveMode.Destroy) return; // destroyed objects can't come back
+        foreach (var kv in store)
+            if (kv.Key != null) kv.Key.SetActive(kv.Value);
     }
 
     private void RemoveHitlerObjects()

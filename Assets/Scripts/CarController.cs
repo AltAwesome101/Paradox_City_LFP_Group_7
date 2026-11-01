@@ -77,6 +77,19 @@ public class CarController : MonoBehaviour
     [Tooltip("Shows a built-in text hint while flying. Ignored if 'Flight Controls Hint UI' is assigned.")]
     public bool showBuiltInFlightHint = true;
 
+    [Header("Flight - 'how to start' hint")]
+    [Tooltip("Optional. A UI object that says 'Press E to Switch to Flight Mode'. Shown when the player gets in a flight-capable car. Leave empty to use the built-in text.")]
+    public GameObject flightAvailableHintUI;
+
+    [Tooltip("Shows a built-in text hint when the player gets in a flight-capable car. Ignored if 'Flight Available Hint UI' is assigned.")]
+    public bool showBuiltInFlightAvailableHint = true;
+
+    [Tooltip("How many seconds the hint stays up after getting in the car.")]
+    public float flightAvailableHintDuration = 5f;
+
+    [Tooltip("If ON, the hint only appears the first time per playthrough. If OFF, it appears every time the player gets in the car while flight is unlocked.")]
+    public bool flightAvailableHintFirstTimeOnly = false;
+
 
     // =========================================================
     // PAVEMENT / STEP CLIMBING
@@ -326,9 +339,11 @@ public class CarController : MonoBehaviour
     public bool IsGrounded => grounded;
     public bool IsFlying => isFlying;
 
-    
+    // True while the player is driving ANY car. BIBO reads this to block his E interaction.
+    public static bool PlayerIsDriving => s_drivenCarCount > 0;
+
     public bool FlightUnlocked => debugUnlockFlight || HubPrefabSwitcher.DeloreanRepaired;
-    
+
     public bool IsLanding => isLanding;
     public bool IsFlipping => isFlipping;
     public float CurrentSpeed => currentSpeed;
@@ -337,7 +352,7 @@ public class CarController : MonoBehaviour
     public bool BrakeHeld => brakeInput;
     public float FlightVerticalVelocity => flightVerticalVelocity;
 
-    
+
     public float ReverseChargeProgress =>
         reverseHoldTimeForFlip > 0.01f ? Mathf.Clamp01(reverseHoldTimer / reverseHoldTimeForFlip) : 0f;
 
@@ -402,6 +417,24 @@ public class CarController : MonoBehaviour
     private float flightVerticalVelocity;
     private readonly RaycastHit[] flightHitBuffer = new RaycastHit[8];
 
+    // "Player is driving" tracking (static so BIBO can read it without a reference)
+    private static int s_drivenCarCount;
+    private bool _reportedDriving;
+
+    // "Press E to Switch to Flight Mode" hint state
+    private static bool s_flightAvailableHintShown;
+    private float flightAvailableHintTimer;
+
+    private bool ShouldShowFlightAvailableHint =>
+        isBeingDriven && !isFlying && flightAvailableHintTimer > 0f;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        s_drivenCarCount = 0;
+        s_flightAvailableHintShown = false;
+    }
+
 
     // =========================================================
     // AWAKE
@@ -461,6 +494,19 @@ public class CarController : MonoBehaviour
 
         if (flightControlsHintUI != null)
             flightControlsHintUI.SetActive(false);
+
+        if (flightAvailableHintUI != null)
+            flightAvailableHintUI.SetActive(false);
+    }
+
+    private void OnDisable()
+    {
+        // Make sure a disabled/destroyed car never leaves the "driving" flag stuck on
+        if (_reportedDriving)
+        {
+            _reportedDriving = false;
+            s_drivenCarCount = Mathf.Max(0, s_drivenCarCount - 1);
+        }
     }
 
 
@@ -499,7 +545,7 @@ public class CarController : MonoBehaviour
         HandleSteering();
         MoveCar();
         MoveCarHeight();
-       
+
         OrientCarBody();
         PreventPhysicsRotation();
         HandleTireSmoke();
@@ -1283,8 +1329,6 @@ public class CarController : MonoBehaviour
         groundY = 0f;
         bool found = false;
 
-
-
         for (int i = 0; i < count; i++)
         {
             RaycastHit h = flightHitBuffer[i];
@@ -1302,25 +1346,88 @@ public class CarController : MonoBehaviour
         return found;
     }
 
+
+    // =========================================================
+    // DRIVING STATE + FLIGHT HINTS
+    // =========================================================
+
+    // Keeps the static "player is driving" flag in step with isBeingDriven
+    // (even if another script sets isBeingDriven directly), and starts the
+    // "Press E to Switch to Flight Mode" hint when the player gets in.
+    private void SyncDrivingState()
+    {
+        if (isBeingDriven == _reportedDriving)
+            return;
+
+        _reportedDriving = isBeingDriven;
+        s_drivenCarCount = Mathf.Max(0, s_drivenCarCount + (isBeingDriven ? 1 : -1));
+
+        if (isBeingDriven)
+            OnDriverEntered();
+        else
+            flightAvailableHintTimer = 0f;
+    }
+
+    private void OnDriverEntered()
+    {
+        // Only tell the player about flight if they can actually use it
+        if (!FlightUnlocked || isFlying)
+            return;
+
+        if (flightAvailableHintFirstTimeOnly && s_flightAvailableHintShown)
+            return;
+
+        s_flightAvailableHintShown = true;
+        flightAvailableHintTimer = flightAvailableHintDuration;
+    }
+
     private bool ShouldShowFlightHint => isBeingDriven && isFlying && !isLanding;
 
     private void UpdateFlightHint()
     {
-        if (flightControlsHintUI == null)
-            return;
+        // "Climb / descend / land" hint (while flying)
+        if (flightControlsHintUI != null)
+        {
+            bool show = ShouldShowFlightHint;
 
-        bool show = ShouldShowFlightHint;
+            if (flightControlsHintUI.activeSelf != show)
+                flightControlsHintUI.SetActive(show);
+        }
 
-        if (flightControlsHintUI.activeSelf != show)
-            flightControlsHintUI.SetActive(show);
+        // "Press E to Switch to Flight Mode" hint (after getting in the car)
+        if (flightAvailableHintTimer > 0f)
+        {
+            if (!isBeingDriven || isFlying)
+                flightAvailableHintTimer = 0f;   // got out, or already took off
+            else
+                flightAvailableHintTimer -= Time.deltaTime;
+        }
+
+        if (flightAvailableHintUI != null)
+        {
+            bool show = ShouldShowFlightAvailableHint;
+
+            if (flightAvailableHintUI.activeSelf != show)
+                flightAvailableHintUI.SetActive(show);
+        }
     }
 
     private void DrawFlightHint()
     {
-        // Skip if a custom UI object is handling it, or the hint is disabled
-        if (!showBuiltInFlightHint || flightControlsHintUI != null || !ShouldShowFlightHint)
-            return;
+        if (ShouldShowFlightHint && showBuiltInFlightHint && flightControlsHintUI == null)
+        {
+            DrawHintLabel(
+                "Hold " + ascendKey + " to ASCEND   |   Hold " + descendKey + " to DESCEND   |   " +
+                flightToggleKey + " to land");
+        }
+        else if (ShouldShowFlightAvailableHint && showBuiltInFlightAvailableHint && flightAvailableHintUI == null)
+        {
+            DrawHintLabel("Press " + flightToggleKey + " to Switch to Flight Mode");
+        }
+    }
 
+    private void DrawHintLabel(string text)
+    {
         if (flightHintStyle == null)
         {
             flightHintStyle = new GUIStyle(GUI.skin.label)
@@ -1330,10 +1437,6 @@ public class CarController : MonoBehaviour
                 fontStyle = FontStyle.Bold
             };
         }
-
-        string text =
-            "Hold " + ascendKey + " to ASCEND   |   Hold " + descendKey + " to DESCEND   |   " +
-            flightToggleKey + " to land";
 
         Rect rect = new Rect(0f, Screen.height - 80f, Screen.width, 40f);
 
@@ -1652,6 +1755,7 @@ public class CarController : MonoBehaviour
 
     private void Update()
     {
+        SyncDrivingState();
         UpdateInteractPrompt();
         HandleEnterExitInput();
         HandleFlightToggleInput();
@@ -1695,6 +1799,7 @@ public class CarController : MonoBehaviour
     private void EnterCar()
     {
         isBeingDriven = true;
+        SyncDrivingState();   // flips the static driving flag immediately and starts the flight hint
 
         if (interactPromptUI != null)
             interactPromptUI.SetActive(false);
@@ -1709,6 +1814,7 @@ public class CarController : MonoBehaviour
     private void ExitCar()
     {
         isBeingDriven = false;
+        SyncDrivingState();   // clears the static driving flag immediately
 
         if (thirdPersonController != null)
             thirdPersonController.enabled = true;
@@ -1771,8 +1877,6 @@ public class CarController : MonoBehaviour
     {
         DrawFlightHint();
 
-        if (!enableDebugGUI || rb == null)
-            return;
         if (!enableDebugGUI || rb == null)
             return;
 
